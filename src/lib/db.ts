@@ -146,9 +146,16 @@ export async function initDb() {
 
   await db.executeMultiple(`
     CREATE INDEX IF NOT EXISTS idx_leads_email ON leads(email COLLATE NOCASE);
+    CREATE INDEX IF NOT EXISTS idx_leads_status ON leads(status);
+    CREATE INDEX IF NOT EXISTS idx_leads_follow_up ON leads(follow_up_date);
     CREATE INDEX IF NOT EXISTS idx_email_logs_lead ON email_logs(lead_id);
     CREATE INDEX IF NOT EXISTS idx_activities_lead ON activities(lead_id);
     CREATE INDEX IF NOT EXISTS idx_lead_notes_lead ON lead_notes(lead_id);
+    CREATE INDEX IF NOT EXISTS idx_projects_lead ON projects(lead_id);
+    CREATE INDEX IF NOT EXISTS idx_projects_completed ON projects(completed_at);
+    CREATE INDEX IF NOT EXISTS idx_projects_status ON projects(client_status);
+    CREATE INDEX IF NOT EXISTS idx_project_files_project ON project_files(project_id);
+    CREATE INDEX IF NOT EXISTS idx_project_tasks_project ON project_tasks(project_id);
   `);
 }
 

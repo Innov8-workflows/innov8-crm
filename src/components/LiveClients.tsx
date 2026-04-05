@@ -43,7 +43,7 @@ export default function LiveClients() {
     setStats(await res.json());
   }, []);
 
-  useEffect(() => { fetchClients(); fetchStats(); }, [fetchClients, fetchStats]);
+  useEffect(() => { fetchClients(); fetchStats(); }, [clientFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const updateClient = useCallback(async (id: number, field: string, value: string | number) => {
     setClients((prev) => prev.map((c) => (c.id === id ? { ...c, [field]: value } : c)));

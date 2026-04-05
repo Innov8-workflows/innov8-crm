@@ -6,13 +6,19 @@ export async function POST(request: NextRequest) {
   const db = getClient();
   const { orderedIds } = await request.json();
 
-  if (!Array.isArray(orderedIds)) {
+  if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
     return NextResponse.json({ error: "orderedIds array required" }, { status: 400 });
   }
 
-  for (let i = 0; i < orderedIds.length; i++) {
-    await db.execute({ sql: "UPDATE leads SET sort_order = ? WHERE id = ?", args: [i, orderedIds[i]] });
-  }
+  // Batch update using CASE/WHEN — single query instead of N queries
+  const cases = orderedIds.map((_: number, i: number) => `WHEN ? THEN ?`).join(" ");
+  const args = orderedIds.flatMap((id: number, i: number) => [id, i]);
+  const placeholders = orderedIds.map(() => "?").join(",");
+
+  await db.execute({
+    sql: `UPDATE leads SET sort_order = CASE id ${cases} END WHERE id IN (${placeholders})`,
+    args: [...args, ...orderedIds],
+  });
 
   return NextResponse.json({ ok: true });
 }
