@@ -33,20 +33,35 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="w-full max-w-sm">
-        <div className="bg-white rounded-xl shadow-lg p-8">
-          <div className="text-center mb-6">
-            <h1 className="text-2xl font-bold text-gray-900">innov8 CRM</h1>
-            <p className="text-sm text-gray-500 mt-1">Sign in to continue</p>
+    <div className="min-h-screen flex items-center justify-center" style={{ background: "#0f0f0f" }}>
+      {/* Subtle radial glow */}
+      <div className="absolute inset-0 pointer-events-none" style={{
+        background: "radial-gradient(circle at 50% 40%, rgba(234,88,12,0.08) 0%, transparent 60%)"
+      }} />
+
+      <div className="w-full max-w-sm relative z-10">
+        <div className="rounded-xl p-8" style={{ background: "#161616", border: "1px solid #2a2a2a" }}>
+          {/* Logo */}
+          <div className="flex justify-center mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center font-mono text-sm font-medium text-white"
+                style={{ background: "#ea580c" }}>
+                i8
+              </div>
+              <div>
+                <h1 className="text-xl font-bold" style={{ color: "#f0f0f0" }}>innov8 CRM</h1>
+                <p className="text-xs" style={{ color: "#666" }}>Smarter Workflows. Built for Growth.</p>
+              </div>
+            </div>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+              <label className="block text-sm font-medium mb-1.5" style={{ color: "#888" }}>Username</label>
               <input
                 type="text"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                className="w-full px-3 py-2.5 rounded-lg text-sm"
+                style={{ background: "#1e1e1e", border: "1px solid #2a2a2a", color: "#f0f0f0" }}
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 autoFocus
@@ -55,10 +70,11 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+              <label className="block text-sm font-medium mb-1.5" style={{ color: "#888" }}>Password</label>
               <input
                 type="password"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                className="w-full px-3 py-2.5 rounded-lg text-sm"
+                style={{ background: "#1e1e1e", border: "1px solid #2a2a2a", color: "#f0f0f0" }}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -66,7 +82,7 @@ export default function LoginPage() {
             </div>
 
             {error && (
-              <div className="px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+              <div className="px-3 py-2 rounded-lg text-sm" style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#ef4444" }}>
                 {error}
               </div>
             )}
@@ -74,12 +90,23 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+              className="w-full py-2.5 text-sm font-semibold rounded-lg transition-all"
+              style={{
+                background: loading ? "#333" : "#ea580c",
+                color: "#fff",
+                opacity: loading ? 0.6 : 1,
+              }}
+              onMouseEnter={(e) => { if (!loading) e.currentTarget.style.background = "#f97316"; }}
+              onMouseLeave={(e) => { if (!loading) e.currentTarget.style.background = "#ea580c"; }}
             >
               {loading ? "Signing in..." : "Sign in"}
             </button>
           </form>
         </div>
+
+        <p className="text-center mt-4 text-xs" style={{ color: "#444" }}>
+          innov8workflows.co.uk
+        </p>
       </div>
     </div>
   );

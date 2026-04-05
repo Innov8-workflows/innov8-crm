@@ -26,30 +26,24 @@ export default function PipelineBadge({ value, onChange }: PipelineBadgeProps) {
   return (
     <div className="relative" ref={ref}>
       <button
-        className="px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap"
-        style={{ backgroundColor: stage.color + "20", color: stage.color }}
+        className="px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap transition-opacity hover:opacity-80"
+        style={{ backgroundColor: stage.color + "25", color: stage.color, border: `1px solid ${stage.color}30` }}
         onClick={() => setOpen(!open)}
       >
         {stage.label}
       </button>
       {open && (
-        <div className="absolute top-full left-0 mt-1 w-40 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
+        <div className="absolute top-full left-0 mt-1 w-40 rounded-lg shadow-xl z-50 py-1"
+          style={{ background: "#1e1e1e", border: "1px solid #333" }}>
           {PIPELINE_STAGES.map((s) => (
-            <button
-              key={s.value}
-              className="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50 flex items-center gap-2"
-              onClick={() => { onChange(s.value); setOpen(false); }}
-            >
-              <span
-                className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                style={{ backgroundColor: s.color }}
-              />
+            <button key={s.value}
+              className="w-full text-left px-3 py-1.5 text-sm flex items-center gap-2 transition-colors"
+              style={{ color: s.value === value ? s.color : "#ccc" }}
+              onMouseEnter={(e) => e.currentTarget.style.background = "#252525"}
+              onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+              onClick={() => { onChange(s.value); setOpen(false); }}>
+              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
               {s.label}
-              {s.value === value && (
-                <svg className="w-4 h-4 ml-auto text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                </svg>
-              )}
             </button>
           ))}
         </div>

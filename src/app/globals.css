@@ -1,18 +1,55 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap');
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #0f0f0f;
+  --surface: #161616;
+  --surface2: #1e1e1e;
+  --surface3: #252525;
+  --border: #2a2a2a;
+  --border-light: #333;
+  --text: #f0f0f0;
+  --text-muted: #888;
+  --text-dim: #666;
+  --accent: #ea580c;
+  --accent-hover: #f97316;
+  --accent-subtle: rgba(234, 88, 12, 0.15);
+  --green: #22c55e;
+  --blue: #3b82f6;
+  --purple: #a855f7;
+  --yellow: #eab308;
+  --red: #ef4444;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-background: var(--bg);
+  --color-foreground: var(--text);
+  --font-sans: 'Bricolage Grotesque', sans-serif;
+  --font-mono: 'DM Mono', monospace;
 }
 
+* { scrollbar-width: thin; scrollbar-color: #333 transparent; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #555; }
+
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Bricolage Grotesque', sans-serif;
+}
+
+input, select, textarea {
+  font-family: 'Bricolage Grotesque', sans-serif;
+}
+
+/* Selection */
+::selection { background: rgba(234, 88, 12, 0.3); color: #fff; }
+
+/* Focus ring */
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 1px var(--accent);
 }

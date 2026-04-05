@@ -4,21 +4,23 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { flexRender, type Row } from "@tanstack/react-table";
 import type { Lead } from "@/types";
-import { ROW_COLORS } from "@/types";
+
+const ROW_COLORS: Record<string, string> = {
+  new: "",
+  contacted: "rgba(59,130,246,0.04)",
+  demo_sent: "rgba(168,85,247,0.04)",
+  interested: "rgba(234,179,8,0.04)",
+  meeting_booked: "rgba(34,197,94,0.06)",
+  won: "rgba(5,150,105,0.08)",
+  lost: "rgba(239,68,68,0.04)",
+};
 
 interface DraggableRowProps {
   row: Row<Lead>;
 }
 
 export default function DraggableRow({ row }: DraggableRowProps) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: row.original.id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: row.original.id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -26,29 +28,22 @@ export default function DraggableRow({ row }: DraggableRowProps) {
     opacity: isDragging ? 0.5 : 1,
   };
 
-  // Row colour based on pipeline status + overdue follow-up highlight
   const status = row.original.status || "new";
   const followUpDate = row.original.follow_up_date;
   const today = new Date().toISOString().split("T")[0];
   const isOverdue = followUpDate && followUpDate < today && status !== "won" && status !== "lost";
 
-  const rowColor = isOverdue
-    ? "bg-red-50/60 border-l-2 border-l-red-400"
-    : ROW_COLORS[status] || "";
+  const bgColor = isOverdue ? "rgba(239,68,68,0.06)" : ROW_COLORS[status] || "";
 
   return (
-    <tr
-      ref={setNodeRef}
-      style={style}
-      className={`border-b border-gray-100 hover:bg-blue-50/50 transition-colors ${rowColor}`}
-    >
+    <tr ref={setNodeRef} style={{ ...style, background: bgColor }}
+      className="transition-colors"
+      onMouseEnter={(e) => { if (!bgColor) e.currentTarget.style.background = "rgba(255,255,255,0.02)"; }}
+      onMouseLeave={(e) => { if (!bgColor) e.currentTarget.style.background = ""; else e.currentTarget.style.background = bgColor; }}>
       {row.getVisibleCells().map((cell) => (
-        <td
-          key={cell.id}
-          className="px-1 py-0.5"
-          style={{ width: cell.column.getSize() }}
-          {...(cell.column.id === "drag_handle" ? { ...attributes, ...listeners } : {})}
-        >
+        <td key={cell.id} className="px-1 py-0.5"
+          style={{ width: cell.column.getSize(), borderBottom: "1px solid #1e1e1e" }}
+          {...(cell.column.id === "drag_handle" ? { ...attributes, ...listeners } : {})}>
           {flexRender(cell.column.columnDef.cell, cell.getContext())}
         </td>
       ))}

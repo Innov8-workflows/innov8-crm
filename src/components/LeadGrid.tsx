@@ -290,7 +290,7 @@ export default function LeadGrid() {
       if (field === "demo_site_url") {
         const url = value as string;
         return url
-          ? <a href={url} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline text-xs truncate block px-2 py-1" title={url}>View site</a>
+          ? <a href={url} target="_blank" rel="noreferrer" className="hover:underline text-xs truncate block px-2 py-1" style={{ color: "#ea580c" }} title={url}>View site</a>
           : <EditableCell value="" onSave={(v) => updateLead(id, field, v)} />;
       }
       if (colType === "checkbox") {
@@ -311,14 +311,15 @@ export default function LeadGrid() {
         <input type="checkbox" className="rounded" checked={row.getIsSelected()} onChange={row.getToggleSelectedHandler()} />
       )}),
       columnHelper.display({ id: "drag_handle", header: "", size: 24, enableResizing: false, cell: () => (
-        <div className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 flex justify-center">
+        <div className="cursor-grab active:cursor-grabbing flex justify-center" style={{ color: "#333" }}
+          onMouseEnter={(e) => e.currentTarget.style.color = "#666"} onMouseLeave={(e) => e.currentTarget.style.color = "#333"}>
           <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
             <path d="M7 2a2 2 0 10.001 4.001A2 2 0 007 2zm0 6a2 2 0 10.001 4.001A2 2 0 007 8zm0 6a2 2 0 10.001 4.001A2 2 0 007 14zm6-8a2 2 0 10-.001-4.001A2 2 0 0013 6zm0 2a2 2 0 10.001 4.001A2 2 0 0013 8zm0 6a2 2 0 10.001 4.001A2 2 0 0013 14z" />
           </svg>
         </div>
       )}),
       columnHelper.display({ id: "row_num", header: "#", size: 35, enableResizing: false,
-        cell: (info) => <span className="text-gray-400 text-xs">{info.row.index + 1}</span> }),
+        cell: (info) => <span className="text-xs" style={{ color: "#444" }}>{info.row.index + 1}</span> }),
       // Built-in editable columns
       ...(editableFields.map((field) =>
         columnHelper.accessor(field as keyof Lead, {
@@ -364,7 +365,9 @@ export default function LeadGrid() {
         id: "add_column",
         header: () => (
           <button onClick={() => setShowAddColumnModal(true)}
-            className="w-full flex justify-center text-gray-400 hover:text-blue-500" title="Add column">
+            className="w-full flex justify-center transition-colors" style={{ color: "#444" }}
+            onMouseEnter={(e) => e.currentTarget.style.color = "#ea580c"} onMouseLeave={(e) => e.currentTarget.style.color = "#444"}
+            title="Add column">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
             </svg>
@@ -378,13 +381,15 @@ export default function LeadGrid() {
         id: "actions", header: "", size: 50, enableResizing: false,
         cell: (info) => (
           <div className="flex gap-0.5 justify-center">
-            <button className="p-1 text-gray-400 hover:text-blue-500" title="View details"
+            <button className="p-1" style={{ color: "#444" }} title="View details"
+              onMouseEnter={(e) => e.currentTarget.style.color = "#ea580c"} onMouseLeave={(e) => e.currentTarget.style.color = "#444"}
               onClick={(e) => { e.stopPropagation(); setSelectedLead(info.row.original); }}>
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
             </button>
-            <button className="p-1 text-gray-400 hover:text-red-500" title="Delete"
+            <button className="p-1" style={{ color: "#444" }} title="Delete"
+              onMouseEnter={(e) => e.currentTarget.style.color = "#ef4444"} onMouseLeave={(e) => e.currentTarget.style.color = "#444"}
               onClick={(e) => { e.stopPropagation(); deleteLead(info.row.original.id); }}>
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -416,35 +421,47 @@ export default function LeadGrid() {
 
   const leadIds = useMemo(() => leads.map((l) => l.id), [leads]);
 
+  const btnStyle = { background: "transparent", border: "1px solid #333", color: "#ccc", borderRadius: "6px" };
+  const btnHover = (e: React.MouseEvent) => { (e.target as HTMLElement).style.background = "#252525"; };
+  const btnLeave = (e: React.MouseEvent) => { (e.target as HTMLElement).style.background = "transparent"; };
+  const modalBg = { background: "#161616", border: "1px solid #2a2a2a" };
+  const inputStyle = { background: "#1e1e1e", border: "1px solid #2a2a2a", color: "#f0f0f0", outline: "none" };
+  const dropdownStyle = { background: "#1e1e1e", border: "1px solid #333" };
+
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full" style={{ background: "#0f0f0f" }}>
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2 bg-white border-b border-gray-200">
-        <h1 className="text-xl font-bold text-gray-900">innov8 CRM</h1>
+      <div className="flex items-center justify-between px-4 py-2" style={{ background: "#131313", borderBottom: "1px solid #2a2a2a" }}>
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center font-mono text-xs font-medium text-white" style={{ background: "#ea580c" }}>i8</div>
+          <h1 className="text-lg font-bold" style={{ color: "#f0f0f0" }}>innov8 CRM</h1>
+        </div>
         <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-500">{leads.length} leads</span>
-          <button onClick={() => setShowImportModal(true)}
-            className="px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 flex items-center gap-1.5">
+          <span className="text-sm" style={{ color: "#666" }}>{leads.length} leads</span>
+          <button onClick={() => setShowImportModal(true)} style={btnStyle} onMouseEnter={btnHover} onMouseLeave={btnLeave}
+            className="px-3 py-1.5 text-sm flex items-center gap-1.5">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-            </svg>Import
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>Import
           </button>
           <div className="relative">
-            <button onClick={() => setShowExportMenu(!showExportMenu)}
-              className="px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 flex items-center gap-1.5">
+            <button onClick={() => setShowExportMenu(!showExportMenu)} style={btnStyle} onMouseEnter={btnHover} onMouseLeave={btnLeave}
+              className="px-3 py-1.5 text-sm flex items-center gap-1.5">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>Export
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>Export
             </button>
             {showExportMenu && (
-              <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-40 py-1">
-                <button className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50" onClick={() => handleExport("xlsx")}>Export as Excel (.xlsx)</button>
-                <button className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50" onClick={() => handleExport("csv")}>Export as CSV</button>
+              <div className="absolute right-0 top-full mt-1 w-48 rounded-lg shadow-xl z-40 py-1" style={dropdownStyle}>
+                <button className="w-full text-left px-3 py-2 text-sm" style={{ color: "#ccc" }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = "#252525"} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                  onClick={() => handleExport("xlsx")}>Export as Excel (.xlsx)</button>
+                <button className="w-full text-left px-3 py-2 text-sm" style={{ color: "#ccc" }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = "#252525"} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                  onClick={() => handleExport("csv")}>Export as CSV</button>
               </div>
             )}
           </div>
           <button onClick={() => setShowAddModal(true)}
-            className="px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">+ New Lead</button>
+            className="px-3 py-1.5 text-sm font-semibold rounded-md" style={{ background: "#ea580c", color: "#fff" }}>+ New Lead</button>
         </div>
       </div>
 
@@ -452,78 +469,92 @@ export default function LeadGrid() {
       <TabBar tabs={TABS} active={activeTab} onChange={setActiveTab} />
 
       {/* Toolbar */}
-      <div className="flex items-center gap-3 px-4 py-2 bg-gray-50 border-b border-gray-200">
+      <div className="flex items-center gap-3 px-4 py-2" style={{ background: "#131313", borderBottom: "1px solid #2a2a2a" }}>
         <div className="relative flex-1 max-w-xs">
-          <svg className="absolute left-2.5 top-2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
+          <svg className="absolute left-2.5 top-2 w-4 h-4" style={{ color: "#555" }} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
           <input type="text" placeholder="Search leads..."
-            className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-400"
+            className="w-full pl-8 pr-3 py-1.5 text-sm rounded-md" style={inputStyle}
             value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         {selectedIds.length > 0 && (
           <div className="relative">
-            <button className="px-3 py-1.5 text-sm text-white bg-indigo-600 rounded-md hover:bg-indigo-700"
+            <button className="px-3 py-1.5 text-sm font-medium rounded-md" style={{ background: "#ea580c", color: "#fff" }}
               onClick={() => setShowBulkMenu(!showBulkMenu)}>
               {selectedIds.length} selected — Bulk actions
             </button>
             {showBulkMenu && (
-              <div className="absolute top-full mt-1 left-0 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-40 py-1">
-                <div className="px-3 py-1 text-xs text-gray-400 uppercase">Set stage</div>
+              <div className="absolute top-full mt-1 left-0 w-56 rounded-lg shadow-xl z-40 py-1" style={dropdownStyle}>
+                <div className="px-3 py-1 text-xs uppercase" style={{ color: "#555" }}>Set stage</div>
                 {PIPELINE_STAGES.map((s) => (
-                  <button key={s.value} className="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50 flex items-center gap-2"
+                  <button key={s.value} className="w-full text-left px-3 py-1.5 text-sm flex items-center gap-2"
+                    style={{ color: "#ccc" }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = "#252525"}
+                    onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
                     onClick={() => bulkAction("update", "status", s.value)}>
                     <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: s.color }} /> {s.label}
                   </button>
                 ))}
-                <div className="border-t border-gray-100 my-1" />
-                <button className="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50" onClick={() => bulkAction("update", "emailed", 1)}>Mark as Emailed</button>
-                <button className="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50" onClick={() => bulkAction("update", "messaged", 1)}>Mark as Messaged</button>
-                <button className="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50" onClick={() => bulkAction("update", "responded", 1)}>Mark as Responded</button>
-                <div className="border-t border-gray-100 my-1" />
-                <button className="w-full text-left px-3 py-1.5 text-sm text-red-600 hover:bg-red-50"
+                <div style={{ borderTop: "1px solid #2a2a2a", margin: "4px 0" }} />
+                <button className="w-full text-left px-3 py-1.5 text-sm" style={{ color: "#ccc" }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = "#252525"} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                  onClick={() => bulkAction("update", "emailed", 1)}>Mark as Emailed</button>
+                <button className="w-full text-left px-3 py-1.5 text-sm" style={{ color: "#ccc" }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = "#252525"} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                  onClick={() => bulkAction("update", "messaged", 1)}>Mark as Messaged</button>
+                <button className="w-full text-left px-3 py-1.5 text-sm" style={{ color: "#ccc" }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = "#252525"} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                  onClick={() => bulkAction("update", "responded", 1)}>Mark as Responded</button>
+                <div style={{ borderTop: "1px solid #2a2a2a", margin: "4px 0" }} />
+                <button className="w-full text-left px-3 py-1.5 text-sm" style={{ color: "#ef4444" }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = "rgba(239,68,68,0.1)"} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
                   onClick={() => { if (confirm(`Delete ${selectedIds.length} leads?`)) bulkAction("delete"); }}>Delete selected</button>
               </div>
             )}
           </div>
         )}
         <div className="relative">
-          <button className="px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-100"
-            onClick={() => setShowColumnMenu(!showColumnMenu)}>Columns</button>
+          <button style={btnStyle} onMouseEnter={btnHover} onMouseLeave={btnLeave}
+            className="px-3 py-1.5 text-sm rounded-md" onClick={() => setShowColumnMenu(!showColumnMenu)}>Columns</button>
           {showColumnMenu && (
-            <div className="absolute top-full mt-1 right-0 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-40 py-1 max-h-80 overflow-auto">
+            <div className="absolute top-full mt-1 right-0 w-48 rounded-lg shadow-xl z-40 py-1 max-h-80 overflow-auto" style={dropdownStyle}>
               {table.getAllLeafColumns()
                 .filter((c) => !["row_num", "actions", "drag_handle", "select", "add_column"].includes(c.id))
                 .map((column) => (
-                  <label key={column.id} className="flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-gray-50 cursor-pointer">
-                    <input type="checkbox" checked={column.getIsVisible()} onChange={column.getToggleVisibilityHandler()} />
+                  <label key={column.id} className="flex items-center gap-2 px-3 py-1.5 text-sm cursor-pointer" style={{ color: "#ccc" }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = "#252525"}
+                    onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
+                    <input type="checkbox" checked={column.getIsVisible()} onChange={column.getToggleVisibilityHandler()}
+                      style={{ accentColor: "#ea580c" }} />
                     {getLabel(column.id)}
                   </label>
                 ))}
             </div>
           )}
         </div>
-        <span className="text-xs text-gray-400 hidden lg:inline">Drag column edges to resize</span>
+        <span className="text-xs hidden lg:inline" style={{ color: "#444" }}>Drag column edges to resize</span>
       </div>
 
       {/* Table */}
       <div className="flex-1 overflow-auto">
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} modifiers={[restrictToVerticalAxis]}>
           <table className="text-sm border-collapse" style={{ width: table.getTotalSize() }}>
-            <thead className="bg-gray-50 sticky top-0 z-10">
+            <thead className="sticky top-0 z-10" style={{ background: "#161616" }}>
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr key={headerGroup.id}>
                   {headerGroup.headers.map((header) => (
-                    <th key={header.id} className="px-1 py-2 text-left border-b border-gray-200 select-none relative group"
-                      style={{ width: header.getSize() }}>
+                    <th key={header.id} className="px-1 py-2 text-left select-none relative group"
+                      style={{ width: header.getSize(), borderBottom: "1px solid #2a2a2a" }}>
                       {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                      {/* Resize handle */}
                       {header.column.getCanResize() && (
-                        <div
-                          onMouseDown={header.getResizeHandler()}
-                          onTouchStart={header.getResizeHandler()}
-                          className={`absolute right-0 top-0 h-full w-1 cursor-col-resize select-none touch-none
-                            ${header.column.getIsResizing() ? "bg-blue-500 opacity-100" : "bg-gray-300 opacity-0 group-hover:opacity-100"}`}
+                        <div onMouseDown={header.getResizeHandler()} onTouchStart={header.getResizeHandler()}
+                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize select-none touch-none transition-opacity"
+                          style={{
+                            background: header.column.getIsResizing() ? "#ea580c" : "#444",
+                            opacity: header.column.getIsResizing() ? 1 : 0,
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.opacity = "1"}
+                          onMouseLeave={(e) => { if (!header.column.getIsResizing()) e.currentTarget.style.opacity = "0"; }}
                         />
                       )}
                     </th>
@@ -533,9 +564,9 @@ export default function LeadGrid() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={columns.length} className="text-center py-8 text-gray-400">Loading...</td></tr>
+                <tr><td colSpan={columns.length} className="text-center py-8" style={{ color: "#555" }}>Loading...</td></tr>
               ) : leads.length === 0 ? (
-                <tr><td colSpan={columns.length} className="text-center py-8 text-gray-400">No leads found</td></tr>
+                <tr><td colSpan={columns.length} className="text-center py-8" style={{ color: "#555" }}>No leads found</td></tr>
               ) : (
                 <SortableContext items={leadIds} strategy={verticalListSortingStrategy}>
                   {table.getRowModel().rows.map((row) => (
@@ -552,34 +583,34 @@ export default function LeadGrid() {
 
       {/* Add Lead Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center" onClick={() => setShowAddModal(false)}>
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-lg font-semibold mb-4">Add New Lead</h2>
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" onClick={() => setShowAddModal(false)}>
+          <div className="rounded-xl shadow-2xl w-full max-w-md p-6" style={modalBg} onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-lg font-semibold mb-4" style={{ color: "#f0f0f0" }}>Add New Lead</h2>
             <div className="space-y-3">
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Business Name *</label>
-                <input className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-1 focus:ring-blue-400 focus:outline-none"
+                <label className="block text-sm mb-1" style={{ color: "#888" }}>Business Name *</label>
+                <input className="w-full px-3 py-2 rounded-md text-sm" style={inputStyle}
                   value={newLead.business_name} autoFocus
                   onChange={(e) => { setNewLead((p) => ({ ...p, business_name: e.target.value })); checkDuplicate(e.target.value, newLead.email); }} />
               </div>
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Contact Name</label>
-                <input className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-1 focus:ring-blue-400 focus:outline-none"
+                <label className="block text-sm mb-1" style={{ color: "#888" }}>Contact Name</label>
+                <input className="w-full px-3 py-2 rounded-md text-sm" style={inputStyle}
                   value={newLead.contact_name} onChange={(e) => setNewLead((p) => ({ ...p, contact_name: e.target.value }))} />
               </div>
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Email</label>
-                <input className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-1 focus:ring-blue-400 focus:outline-none"
+                <label className="block text-sm mb-1" style={{ color: "#888" }}>Email</label>
+                <input className="w-full px-3 py-2 rounded-md text-sm" style={inputStyle}
                   value={newLead.email}
                   onChange={(e) => { setNewLead((p) => ({ ...p, email: e.target.value })); checkDuplicate(newLead.business_name, e.target.value); }} />
               </div>
               {duplicateWarning && (
-                <div className="px-3 py-2 bg-amber-50 border border-amber-200 rounded-md text-sm text-amber-700">{duplicateWarning}</div>
+                <div className="px-3 py-2 rounded-md text-sm" style={{ background: "rgba(234,179,8,0.1)", border: "1px solid rgba(234,179,8,0.2)", color: "#eab308" }}>{duplicateWarning}</div>
               )}
             </div>
             <div className="flex justify-end gap-2 mt-5">
-              <button className="px-4 py-2 text-sm text-gray-600" onClick={() => { setShowAddModal(false); setDuplicateWarning(""); }}>Cancel</button>
-              <button className="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700" onClick={addLead}>Add Lead</button>
+              <button className="px-4 py-2 text-sm" style={{ color: "#666" }} onClick={() => { setShowAddModal(false); setDuplicateWarning(""); }}>Cancel</button>
+              <button className="px-4 py-2 text-sm font-semibold rounded-md" style={{ background: "#ea580c", color: "#fff" }} onClick={addLead}>Add Lead</button>
             </div>
           </div>
         </div>
@@ -587,14 +618,14 @@ export default function LeadGrid() {
 
       {/* Import Modal */}
       {showImportModal && (
-        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center" onClick={() => setShowImportModal(false)}>
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-lg font-semibold mb-2">Import Leads</h2>
-            <p className="text-sm text-gray-500 mb-4">Upload CSV or Excel. Duplicates (matching name) will be skipped.</p>
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" onClick={() => setShowImportModal(false)}>
+          <div className="rounded-xl shadow-2xl w-full max-w-md p-6" style={modalBg} onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-lg font-semibold mb-2" style={{ color: "#f0f0f0" }}>Import Leads</h2>
+            <p className="text-sm mb-4" style={{ color: "#666" }}>Upload CSV or Excel. Duplicates will be skipped.</p>
             <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls" onChange={handleImport}
-              className="w-full text-sm border border-gray-300 rounded-md p-2 file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:bg-blue-50 file:text-blue-600 file:text-sm" />
+              className="w-full text-sm rounded-md p-2" style={{ ...inputStyle, cursor: "pointer" }} />
             <div className="flex justify-end mt-4">
-              <button className="px-4 py-2 text-sm text-gray-600" onClick={() => setShowImportModal(false)}>Cancel</button>
+              <button className="px-4 py-2 text-sm" style={{ color: "#666" }} onClick={() => setShowImportModal(false)}>Cancel</button>
             </div>
           </div>
         </div>
@@ -602,19 +633,19 @@ export default function LeadGrid() {
 
       {/* Add Column Modal */}
       {showAddColumnModal && (
-        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center" onClick={() => setShowAddColumnModal(false)}>
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-lg font-semibold mb-4">Add Column</h2>
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" onClick={() => setShowAddColumnModal(false)}>
+          <div className="rounded-xl shadow-2xl w-full max-w-sm p-6" style={modalBg} onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-lg font-semibold mb-4" style={{ color: "#f0f0f0" }}>Add Column</h2>
             <div className="space-y-3">
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Column Name</label>
-                <input className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-1 focus:ring-blue-400 focus:outline-none"
+                <label className="block text-sm mb-1" style={{ color: "#888" }}>Column Name</label>
+                <input className="w-full px-3 py-2 rounded-md text-sm" style={inputStyle}
                   value={newColName} onChange={(e) => setNewColName(e.target.value)} autoFocus
                   onKeyDown={(e) => { if (e.key === "Enter") addCustomColumn(); }} />
               </div>
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Type</label>
-                <select className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                <label className="block text-sm mb-1" style={{ color: "#888" }}>Type</label>
+                <select className="w-full px-3 py-2 rounded-md text-sm" style={inputStyle}
                   value={newColType} onChange={(e) => setNewColType(e.target.value)}>
                   <option value="text">Text</option>
                   <option value="number">Number</option>
@@ -626,8 +657,8 @@ export default function LeadGrid() {
               </div>
             </div>
             <div className="flex justify-end gap-2 mt-5">
-              <button className="px-4 py-2 text-sm text-gray-600" onClick={() => setShowAddColumnModal(false)}>Cancel</button>
-              <button className="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700" onClick={addCustomColumn}>Add Column</button>
+              <button className="px-4 py-2 text-sm" style={{ color: "#666" }} onClick={() => setShowAddColumnModal(false)}>Cancel</button>
+              <button className="px-4 py-2 text-sm font-semibold rounded-md" style={{ background: "#ea580c", color: "#fff" }} onClick={addCustomColumn}>Add Column</button>
             </div>
           </div>
         </div>
