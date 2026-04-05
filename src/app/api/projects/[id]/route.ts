@@ -68,3 +68,30 @@ export async function PUT(
 
   return NextResponse.json(updated);
 }
+
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  await initDb();
+  const { id } = await params;
+  const db = getClient();
+
+  // Get the lead_id before deleting
+  const project = first(await db.execute({ sql: "SELECT lead_id FROM projects WHERE id = ?", args: [Number(id)] }));
+  if (!project) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  const leadId = project.lead_id as number;
+
+  // Delete project (project_tasks and project_files cascade)
+  await db.execute({ sql: "DELETE FROM projects WHERE id = ?", args: [Number(id)] });
+
+  // Delete lead and all associated data (activities, notes, custom_field_values cascade)
+  await db.execute({ sql: "DELETE FROM activities WHERE lead_id = ?", args: [leadId] });
+  await db.execute({ sql: "DELETE FROM lead_notes WHERE lead_id = ?", args: [leadId] });
+  await db.execute({ sql: "DELETE FROM custom_field_values WHERE lead_id = ?", args: [leadId] });
+  await db.execute({ sql: "DELETE FROM email_logs WHERE lead_id = ?", args: [leadId] });
+  await db.execute({ sql: "DELETE FROM leads WHERE id = ?", args: [leadId] });
+
+  return NextResponse.json({ ok: true });
+}

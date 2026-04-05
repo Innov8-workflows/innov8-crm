@@ -29,6 +29,7 @@ export default function LiveClients() {
   const [editingCell, setEditingCell] = useState<{ id: number; field: string } | null>(null);
   const [editValue, setEditValue] = useState("");
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
 
   const fetchClients = useCallback(async () => {
     const res = await fetch(`/api/projects?completed=true&client_status=${clientFilter}`);
@@ -70,6 +71,13 @@ export default function LiveClients() {
       body: JSON.stringify({ client_status: "active" }),
     });
     setClients((prev) => prev.filter((c) => c.id !== id));
+    fetchStats();
+  }, [fetchStats]);
+
+  const deleteClient = useCallback(async (id: number) => {
+    await fetch(`/api/projects/${id}`, { method: "DELETE" });
+    setClients((prev) => prev.filter((c) => c.id !== id));
+    setConfirmDelete(null);
     fetchStats();
   }, [fetchStats]);
 
@@ -252,6 +260,7 @@ export default function LiveClients() {
             isLostView={isLostView}
             onMarkLost={markAsLost}
             onReactivate={reactivateClient}
+            onDelete={setConfirmDelete}
           />
         ) : (
           <CardView
@@ -262,6 +271,7 @@ export default function LiveClients() {
             isLostView={isLostView}
             onMarkLost={markAsLost}
             onReactivate={reactivateClient}
+            onDelete={setConfirmDelete}
           />
         )}
       </div>
@@ -277,6 +287,38 @@ export default function LiveClients() {
           onReactivate={(id) => { reactivateClient(id); setSelectedProject(null); }}
           isLostView={isLostView}
         />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {confirmDelete !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.7)" }}
+          onClick={() => setConfirmDelete(null)}>
+          <div className="rounded-xl p-6 max-w-sm w-full mx-4" style={{ background: "#1e1e1e", border: "1px solid #2a2a2a" }}
+            onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "#ef444420" }}>
+                <svg className="w-5 h-5" fill="none" stroke="#ef4444" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold" style={{ color: "#f0f0f0" }}>Delete Client Permanently</h3>
+                <p className="text-xs mt-0.5" style={{ color: "#888" }}>
+                  {clients.find((c) => c.id === confirmDelete)?.business_name}
+                </p>
+              </div>
+            </div>
+            <p className="text-xs mb-4" style={{ color: "#888" }}>
+              This will permanently delete the project, all files, tasks, and the original lead with all its notes, activities and email logs. This cannot be undone.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button className="px-3 py-1.5 text-sm rounded-md" style={{ background: "#252525", color: "#ccc" }}
+                onClick={() => setConfirmDelete(null)}>Cancel</button>
+              <button className="px-3 py-1.5 text-sm font-semibold rounded-md" style={{ background: "#ef4444", color: "#fff" }}
+                onClick={() => deleteClient(confirmDelete)}>Delete Permanently</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -301,6 +343,7 @@ interface GridProps {
   isLostView: boolean;
   onMarkLost: (id: number, e?: React.MouseEvent) => void;
   onReactivate: (id: number, e?: React.MouseEvent) => void;
+  onDelete: (id: number) => void;
 }
 
 const GRID_COLUMNS: { key: SortKey; label: string; width: string; editable?: boolean; type?: string }[] = [
@@ -314,8 +357,8 @@ const GRID_COLUMNS: { key: SortKey; label: string; width: string; editable?: boo
   { key: "completed_at", label: "Completed", width: "minmax(110px, 0.7fr)" },
 ];
 
-function GridView({ clients, sortKey, sortDir, onSort, editingCell, editValue, onStartEdit, onEditChange, onCommitEdit, onCancelEdit, formatDate, isOverdue, onOpenProject, isLostView, onMarkLost, onReactivate }: GridProps) {
-  const gridTemplate = `40px ${GRID_COLUMNS.map((c) => c.width).join(" ")} 80px`;
+function GridView({ clients, sortKey, sortDir, onSort, editingCell, editValue, onStartEdit, onEditChange, onCommitEdit, onCancelEdit, formatDate, isOverdue, onOpenProject, isLostView, onMarkLost, onReactivate, onDelete }: GridProps) {
+  const gridTemplate = `40px ${GRID_COLUMNS.map((c) => c.width).join(" ")} 100px`;
 
   return (
     <div style={{ minWidth: 900 }}>
@@ -431,7 +474,7 @@ function GridView({ clients, sortKey, sortDir, onSort, editingCell, editValue, o
           })}
 
           {/* Action column */}
-          <div className="px-2">
+          <div className="px-2 flex items-center gap-1">
             {isLostView ? (
               <button className="text-xs px-2 py-1 rounded transition-colors"
                 style={{ color: "#22c55e", border: "1px solid #22c55e30" }}
@@ -449,6 +492,16 @@ function GridView({ clients, sortKey, sortDir, onSort, editingCell, editValue, o
                 Lost
               </button>
             )}
+            <button className="p-1 rounded transition-colors"
+              style={{ color: "#555" }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = "#ef4444"; e.currentTarget.style.background = "#ef444415"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = "#555"; e.currentTarget.style.background = "transparent"; }}
+              onClick={(e) => { e.stopPropagation(); onDelete(client.id); }}
+              title="Delete permanently">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+              </svg>
+            </button>
           </div>
         </div>
       ))}
@@ -466,9 +519,10 @@ interface CardProps {
   isLostView: boolean;
   onMarkLost: (id: number, e?: React.MouseEvent) => void;
   onReactivate: (id: number, e?: React.MouseEvent) => void;
+  onDelete: (id: number) => void;
 }
 
-function CardView({ clients, formatDate, isOverdue, onOpenProject, isLostView, onMarkLost, onReactivate }: CardProps) {
+function CardView({ clients, formatDate, isOverdue, onOpenProject, isLostView, onMarkLost, onReactivate, onDelete }: CardProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4">
       {clients.map((client) => {
@@ -574,6 +628,16 @@ function CardView({ clients, formatDate, isOverdue, onOpenProject, isLostView, o
                       Lost
                     </button>
                   )}
+                  <button className="p-1 rounded transition-colors"
+                    style={{ color: "#555" }}
+                    onMouseEnter={(e) => { e.currentTarget.style.color = "#ef4444"; e.currentTarget.style.background = "#ef444415"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.color = "#555"; e.currentTarget.style.background = "transparent"; }}
+                    onClick={(e) => { e.stopPropagation(); onDelete(client.id); }}
+                    title="Delete permanently">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                    </svg>
+                  </button>
                 </div>
               </div>
             </div>
