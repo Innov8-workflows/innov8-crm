@@ -329,7 +329,7 @@ export default function LeadGrid() {
         size: 35,
         cell: (info) => <span className="text-gray-400 text-xs">{info.row.index + 1}</span>,
       }),
-      ...editableFields.map((field) =>
+      ...(editableFields.map((field) =>
         columnHelper.accessor(field as keyof Lead, {
           id: field,
           header: ({ column }) => (
@@ -351,7 +351,7 @@ export default function LeadGrid() {
             field === "capex" ? 70 : 100,
           cell: (info) => renderCell(info.row.original.id, field, info.getValue(), getColType(field)),
         })
-      ),
+      ) as ColumnDef<Lead, unknown>[]),
       columnHelper.display({
         id: "actions",
         header: "",
