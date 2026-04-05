@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getClient, initDb, all, first } from "@/lib/db";
-import type { InValue } from "@libsql/client";
+import { getDb, persist } from "@/lib/db";
 
 export async function GET(request: NextRequest) {
-  await initDb();
-  const db = getClient();
+  const db = await getDb();
   const params = request.nextUrl.searchParams;
 
   const businessType = params.get("business_type");
@@ -20,7 +18,7 @@ export async function GET(request: NextRequest) {
   const sortDir = order === "desc" ? "DESC" : "ASC";
 
   const conditions: string[] = [];
-  const values: InValue[] = [];
+  const values: (string | number)[] = [];
 
   if (businessType && businessType !== "All") {
     conditions.push("business_type LIKE ?");
@@ -33,30 +31,35 @@ export async function GET(request: NextRequest) {
   }
 
   const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+  const sql = `SELECT * FROM leads ${where} ORDER BY ${sortCol} ${sortDir}`;
 
-  const result = await db.execute({
-    sql: `SELECT * FROM leads ${where} ORDER BY sort_order ASC, ${sortCol} ${sortDir}`,
-    args: values,
-  });
+  const stmt = db.prepare(sql);
+  values.forEach((v, i) => stmt.bind({ [i + 1]: v }));
 
-  const countResult = await db.execute({
-    sql: `SELECT COUNT(*) as total FROM leads ${where}`,
-    args: values,
-  });
+  const leads = [];
+  while (stmt.step()) {
+    leads.push(stmt.getAsObject());
+  }
+  stmt.free();
 
-  return NextResponse.json({ leads: all(result), total: first(countResult)?.total });
+  const countStmt = db.prepare(`SELECT COUNT(*) as total FROM leads ${where}`);
+  values.forEach((v, i) => countStmt.bind({ [i + 1]: v }));
+  countStmt.step();
+  const total = countStmt.getAsObject().total;
+  countStmt.free();
+
+  return NextResponse.json({ leads, total });
 }
 
 export async function POST(request: NextRequest) {
-  await initDb();
-  const db = getClient();
+  const db = await getDb();
   const body = await request.json();
 
   const {
     business_name, contact_name = "", email = "", phone = "",
     business_type = "", location = "", website_status = 0,
     emailed = 0, messaged = 0, responded = 0, followed_up = 0,
-    capex = null, notes = "", status = "new", follow_up_date = "", demo_site_url = "",
+    capex = null, notes = "",
   } = body;
 
   if (!business_name) {
@@ -64,19 +67,20 @@ export async function POST(request: NextRequest) {
   }
 
   const now = new Date().toISOString();
+  db.run(
+    `INSERT INTO leads (business_name, contact_name, email, phone, business_type, location,
+      website_status, emailed, messaged, responded, followed_up, capex, notes, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [business_name, contact_name, email, phone, business_type, location,
+      website_status, emailed, messaged, responded, followed_up, capex, notes, now, now]
+  );
 
-  // Always append at bottom: set sort_order to max + 1
-  const maxOrder = first(await db.execute("SELECT COALESCE(MAX(sort_order), 0) as v FROM leads"));
-  const nextOrder = ((maxOrder?.v as number) || 0) + 1;
+  persist();
 
-  const result = await db.execute({
-    sql: `INSERT INTO leads (business_name, contact_name, email, phone, business_type, location,
-      website_status, emailed, messaged, responded, followed_up, capex, notes, status, follow_up_date, demo_site_url, sort_order, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    args: [business_name, contact_name, email, phone, business_type, location,
-      website_status, emailed, messaged, responded, followed_up, capex, notes, status, follow_up_date, demo_site_url, nextOrder, now, now],
-  });
+  const stmt = db.prepare("SELECT * FROM leads WHERE id = last_insert_rowid()");
+  stmt.step();
+  const lead = stmt.getAsObject();
+  stmt.free();
 
-  const lead = first(await db.execute({ sql: "SELECT * FROM leads WHERE id = ?", args: [result.lastInsertRowid!] }));
   return NextResponse.json(lead, { status: 201 });
 }

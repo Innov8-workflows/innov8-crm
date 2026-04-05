@@ -12,6 +12,7 @@ import {
   type ColumnDef,
   type VisibilityState,
   type RowSelectionState,
+  type ColumnSizingState,
 } from "@tanstack/react-table";
 import {
   DndContext,
@@ -51,22 +52,10 @@ interface ColConfig {
 }
 
 const DEFAULT_LABELS: Record<string, string> = {
-  business_name: "Business",
-  contact_name: "Owner",
-  business_type: "Business Type",
-  location: "Location",
-  website_status: "Website?",
-  email: "Email",
-  phone: "Number",
-  emailed: "Emailed",
-  messaged: "Messaged",
-  responded: "Responded",
-  followed_up: "Followed Up",
-  capex: "CAPEX",
-  notes: "Notes",
-  status: "Stage",
-  follow_up_date: "Follow Up",
-  demo_site_url: "Demo Site",
+  business_name: "Business", contact_name: "Owner", business_type: "Business Type",
+  location: "Location", website_status: "Website?", email: "Email", phone: "Number",
+  emailed: "Emailed", messaged: "Messaged", responded: "Responded", followed_up: "Followed Up",
+  capex: "CAPEX", notes: "Notes", status: "Stage", follow_up_date: "Follow Up", demo_site_url: "Demo Site",
 };
 
 const DEFAULT_TYPES: Record<string, string> = {
@@ -74,8 +63,7 @@ const DEFAULT_TYPES: Record<string, string> = {
   location: "text", website_status: "checkbox", email: "email",
   phone: "phone", emailed: "checkbox", messaged: "checkbox",
   responded: "checkbox", followed_up: "checkbox", capex: "number",
-  notes: "text", status: "pipeline", follow_up_date: "date",
-  demo_site_url: "url",
+  notes: "text", status: "pipeline", follow_up_date: "date", demo_site_url: "url",
 };
 
 export default function LeadGrid() {
@@ -86,23 +74,51 @@ export default function LeadGrid() {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({});
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [showColumnMenu, setShowColumnMenu] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [showBulkMenu, setShowBulkMenu] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showAddColumnModal, setShowAddColumnModal] = useState(false);
+  const [newColName, setNewColName] = useState("");
+  const [newColType, setNewColType] = useState("text");
   const [newLead, setNewLead] = useState({ business_name: "", email: "", contact_name: "" });
-  const [duplicateWarning, setDuplicateWarning] = useState<string>("");
+  const [duplicateWarning, setDuplicateWarning] = useState("");
   const [colConfigs, setColConfigs] = useState<Record<string, ColConfig>>({});
+  const [customColumns, setCustomColumns] = useState<ColConfig[]>([]);
+  const [customFieldValues, setCustomFieldValues] = useState<Record<string, Record<string, string>>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Ref to prevent re-fetch on inline edit
+  const skipNextFetch = useRef(false);
 
-  // Column configs
+  // Load column configs + custom columns
   useEffect(() => {
     fetch("/api/columns").then((r) => r.json()).then((data) => {
       const configs: Record<string, ColConfig> = {};
-      for (const col of data.columns || []) configs[col.id as string] = col as ColConfig;
+      const custom: ColConfig[] = [];
+      for (const col of data.columns || []) {
+        const c = col as ColConfig;
+        configs[c.id] = c;
+        // Custom columns start with "custom_"
+        if (c.id.startsWith("custom_")) custom.push(c);
+      }
       setColConfigs(configs);
+      setCustomColumns(custom);
+    });
+  }, []);
+
+  // Load custom field values
+  useEffect(() => {
+    fetch("/api/custom-fields").then((r) => r.json()).then((data) => {
+      const map: Record<string, Record<string, string>> = {};
+      for (const v of data.values || []) {
+        const leadId = String(v.lead_id);
+        if (!map[leadId]) map[leadId] = {};
+        map[leadId][v.field_id as string] = v.value as string;
+      }
+      setCustomFieldValues(map);
     });
   }, []);
 
@@ -118,6 +134,7 @@ export default function LeadGrid() {
   }, []);
 
   const fetchLeads = useCallback(async () => {
+    if (skipNextFetch.current) { skipNextFetch.current = false; return; }
     const params = new URLSearchParams();
     if (activeTab !== "All") params.set("business_type", activeTab);
     if (search) params.set("search", search);
@@ -129,15 +146,44 @@ export default function LeadGrid() {
 
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
 
+  // Stable update: only update local state, no re-fetch
   const updateLead = useCallback(async (id: number, field: string, value: string | number | null) => {
     setLeads((prev) => prev.map((l) => (l.id === id ? { ...l, [field]: value } : l)));
+    skipNextFetch.current = true;
     await fetch(`/api/leads/${id}`, {
       method: "PUT", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ [field]: value }),
     });
   }, []);
 
-  // Add lead with duplicate detection
+  // Update custom field value
+  const updateCustomField = useCallback(async (leadId: number, fieldId: string, value: string) => {
+    setCustomFieldValues((prev) => ({
+      ...prev,
+      [String(leadId)]: { ...(prev[String(leadId)] || {}), [fieldId]: value },
+    }));
+    await fetch("/api/custom-fields", {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lead_id: leadId, field_id: fieldId, value }),
+    });
+  }, []);
+
+  // Add custom column
+  const addCustomColumn = useCallback(async () => {
+    if (!newColName.trim()) return;
+    const id = "custom_" + newColName.toLowerCase().replace(/[^a-z0-9]/g, "_").replace(/_+/g, "_");
+    await fetch("/api/columns", {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, label: newColName.trim(), col_type: newColType }),
+    });
+    const newConfig = { id, label: newColName.trim(), col_type: newColType };
+    setColConfigs((prev) => ({ ...prev, [id]: newConfig }));
+    setCustomColumns((prev) => [...prev, newConfig]);
+    setNewColName("");
+    setNewColType("text");
+    setShowAddColumnModal(false);
+  }, [newColName, newColType]);
+
   const checkDuplicate = useCallback(async (name: string, email: string) => {
     if (!name && !email) { setDuplicateWarning(""); return; }
     const params = new URLSearchParams();
@@ -145,22 +191,17 @@ export default function LeadGrid() {
     if (email) params.set("email", email);
     const res = await fetch(`/api/leads/check-duplicate?${params}`);
     const data = await res.json();
-    if (data.hasDuplicates) {
-      const names = data.duplicates.map((d: { business_name: string }) => d.business_name).join(", ");
-      setDuplicateWarning(`Possible duplicate: ${names}`);
-    } else {
-      setDuplicateWarning("");
-    }
+    setDuplicateWarning(data.hasDuplicates
+      ? `Possible duplicate: ${data.duplicates.map((d: { business_name: string }) => d.business_name).join(", ")}`
+      : "");
   }, []);
 
+  // Add lead — always appends at bottom (API handles sort_order)
   const addLead = useCallback(async () => {
     if (!newLead.business_name.trim()) return;
     const res = await fetch("/api/leads", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...newLead,
-        business_type: activeTab !== "All" ? activeTab : "",
-      }),
+      body: JSON.stringify({ ...newLead, business_type: activeTab !== "All" ? activeTab : "" }),
     });
     const lead = await res.json();
     setLeads((prev) => [...prev, lead]);
@@ -171,6 +212,7 @@ export default function LeadGrid() {
 
   const deleteLead = useCallback(async (id: number) => {
     setLeads((prev) => prev.filter((l) => l.id !== id));
+    skipNextFetch.current = true;
     await fetch(`/api/leads/${id}`, { method: "DELETE" });
   }, []);
 
@@ -193,7 +235,6 @@ export default function LeadGrid() {
     fetchLeads();
   }, [selectedIds, fetchLeads]);
 
-  // Import
   const handleImport = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -209,7 +250,7 @@ export default function LeadGrid() {
 
   // DnD
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor)
   );
 
@@ -235,7 +276,7 @@ export default function LeadGrid() {
     setShowExportMenu(false);
   }, [activeTab]);
 
-  // Columns
+  // Built-in fields
   const editableFields = useMemo(() => [
     "status", "business_name", "contact_name", "business_type", "location",
     "follow_up_date", "website_status", "email", "phone", "demo_site_url",
@@ -244,118 +285,97 @@ export default function LeadGrid() {
 
   const renderCell = useCallback(
     (id: number, field: string, value: unknown, colType: string) => {
-      if (field === "status") {
-        return <PipelineBadge value={(value as string) || "new"} onChange={(v) => updateLead(id, field, v)} />;
-      }
-      if (field === "follow_up_date") {
-        return <FollowUpDate value={(value as string) || ""} onChange={(v) => updateLead(id, field, v)} />;
-      }
+      if (field === "status") return <PipelineBadge value={(value as string) || "new"} onChange={(v) => updateLead(id, field, v)} />;
+      if (field === "follow_up_date") return <FollowUpDate value={(value as string) || ""} onChange={(v) => updateLead(id, field, v)} />;
       if (field === "demo_site_url") {
         const url = value as string;
-        if (url) {
-          return (
-            <a href={url} target="_blank" rel="noreferrer"
-              className="text-blue-600 hover:underline text-xs truncate block px-2 py-1" title={url}>
-              View site
-            </a>
-          );
-        }
-        return (
-          <EditableCell value="" onSave={(v) => updateLead(id, field, v)} />
-        );
+        return url
+          ? <a href={url} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline text-xs truncate block px-2 py-1" title={url}>View site</a>
+          : <EditableCell value="" onSave={(v) => updateLead(id, field, v)} />;
       }
       if (colType === "checkbox") {
-        return (
-          <StatusCheckbox
-            checked={!!value}
-            onChange={(v) => updateLead(id, field, v ? 1 : 0)}
-            color={
-              field === "website_status" ? "red" :
-              field === "responded" ? "blue" :
-              field === "followed_up" ? "orange" : "green"
-            }
-          />
-        );
+        return <StatusCheckbox checked={!!value} onChange={(v) => updateLead(id, field, v ? 1 : 0)}
+          color={field === "website_status" ? "red" : field === "responded" ? "blue" : field === "followed_up" ? "orange" : "green"} />;
       }
-      return (
-        <EditableCell
-          value={(value as string | number) ?? ""}
-          type={colType === "number" ? "number" : "text"}
-          onSave={(v) => updateLead(id, field, colType === "number" && v === "" ? null : v)}
-        />
-      );
+      return <EditableCell value={(value as string | number) ?? ""} type={colType === "number" ? "number" : "text"}
+        onSave={(v) => updateLead(id, field, colType === "number" && v === "" ? null : v)} />;
     },
     [updateLead]
   );
 
   const columns = useMemo<ColumnDef<Lead, unknown>[]>(
     () => [
-      // Selection checkbox
-      columnHelper.display({
-        id: "select",
-        header: ({ table }) => (
-          <input
-            type="checkbox"
-            className="rounded"
-            checked={table.getIsAllRowsSelected()}
-            onChange={table.getToggleAllRowsSelectedHandler()}
-          />
-        ),
-        size: 30,
-        cell: ({ row }) => (
-          <input
-            type="checkbox"
-            className="rounded"
-            checked={row.getIsSelected()}
-            onChange={row.getToggleSelectedHandler()}
-          />
-        ),
-      }),
-      columnHelper.display({
-        id: "drag_handle",
-        header: "",
-        size: 24,
-        cell: () => (
-          <div className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 flex justify-center">
-            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M7 2a2 2 0 10.001 4.001A2 2 0 007 2zm0 6a2 2 0 10.001 4.001A2 2 0 007 8zm0 6a2 2 0 10.001 4.001A2 2 0 007 14zm6-8a2 2 0 10-.001-4.001A2 2 0 0013 6zm0 2a2 2 0 10.001 4.001A2 2 0 0013 8zm0 6a2 2 0 10.001 4.001A2 2 0 0013 14z" />
-            </svg>
-          </div>
-        ),
-      }),
-      columnHelper.display({
-        id: "row_num",
-        header: "#",
-        size: 35,
-        cell: (info) => <span className="text-gray-400 text-xs">{info.row.index + 1}</span>,
-      }),
+      columnHelper.display({ id: "select", header: ({ table }) => (
+        <input type="checkbox" className="rounded" checked={table.getIsAllRowsSelected()} onChange={table.getToggleAllRowsSelectedHandler()} />
+      ), size: 30, enableResizing: false, cell: ({ row }) => (
+        <input type="checkbox" className="rounded" checked={row.getIsSelected()} onChange={row.getToggleSelectedHandler()} />
+      )}),
+      columnHelper.display({ id: "drag_handle", header: "", size: 24, enableResizing: false, cell: () => (
+        <div className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 flex justify-center">
+          <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M7 2a2 2 0 10.001 4.001A2 2 0 007 2zm0 6a2 2 0 10.001 4.001A2 2 0 007 8zm0 6a2 2 0 10.001 4.001A2 2 0 007 14zm6-8a2 2 0 10-.001-4.001A2 2 0 0013 6zm0 2a2 2 0 10.001 4.001A2 2 0 0013 8zm0 6a2 2 0 10.001 4.001A2 2 0 0013 14z" />
+          </svg>
+        </div>
+      )}),
+      columnHelper.display({ id: "row_num", header: "#", size: 35, enableResizing: false,
+        cell: (info) => <span className="text-gray-400 text-xs">{info.row.index + 1}</span> }),
+      // Built-in editable columns
       ...(editableFields.map((field) =>
         columnHelper.accessor(field as keyof Lead, {
           id: field,
           header: ({ column }) => (
-            <ColumnHeaderEditor
-              columnId={field}
-              label={getLabel(field)}
-              colType={getColType(field)}
-              onSave={saveColConfig}
-              onSort={column.getToggleSortingHandler()}
-              sortDir={column.getIsSorted()}
-            />
+            <ColumnHeaderEditor columnId={field} label={getLabel(field)} colType={getColType(field)}
+              onSave={saveColConfig} onSort={column.getToggleSortingHandler()} sortDir={column.getIsSorted()} />
           ),
-          size:
-            field === "business_name" ? 200 : field === "notes" ? 180 :
-            field === "email" ? 180 : field === "phone" ? 120 :
-            field === "status" ? 110 : field === "follow_up_date" ? 90 :
+          size: field === "business_name" ? 200 : field === "notes" ? 180 : field === "email" ? 180 :
+            field === "phone" ? 120 : field === "status" ? 110 : field === "follow_up_date" ? 90 :
             field === "demo_site_url" ? 80 :
             ["emailed", "messaged", "responded", "followed_up", "website_status"].includes(field) ? 70 :
             field === "capex" ? 70 : 100,
+          minSize: 40,
+          enableResizing: true,
           cell: (info) => renderCell(info.row.original.id, field, info.getValue(), getColType(field)),
         })
       ) as ColumnDef<Lead, unknown>[]),
+      // Custom columns
+      ...customColumns.map((cc) =>
+        columnHelper.display({
+          id: cc.id,
+          header: ({ column }) => (
+            <ColumnHeaderEditor columnId={cc.id} label={cc.label} colType={cc.col_type}
+              onSave={saveColConfig} onSort={column.getToggleSortingHandler()} sortDir={column.getIsSorted()} />
+          ),
+          size: 120,
+          minSize: 40,
+          enableResizing: true,
+          cell: (info) => {
+            const leadId = info.row.original.id;
+            const val = customFieldValues[String(leadId)]?.[cc.id] || "";
+            if (cc.col_type === "checkbox") {
+              return <StatusCheckbox checked={val === "1"} onChange={(v) => updateCustomField(leadId, cc.id, v ? "1" : "0")} color="green" />;
+            }
+            return <EditableCell value={val} type={cc.col_type === "number" ? "number" : "text"}
+              onSave={(v) => updateCustomField(leadId, cc.id, String(v))} />;
+          },
+        })
+      ),
+      // "+" Add column button
       columnHelper.display({
-        id: "actions",
-        header: "",
-        size: 50,
+        id: "add_column",
+        header: () => (
+          <button onClick={() => setShowAddColumnModal(true)}
+            className="w-full flex justify-center text-gray-400 hover:text-blue-500" title="Add column">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
+        ),
+        size: 36,
+        enableResizing: false,
+        cell: () => null,
+      }),
+      columnHelper.display({
+        id: "actions", header: "", size: 50, enableResizing: false,
         cell: (info) => (
           <div className="flex gap-0.5 justify-center">
             <button className="p-1 text-gray-400 hover:text-blue-500" title="View details"
@@ -374,21 +394,24 @@ export default function LeadGrid() {
         ),
       }),
     ],
-    [editableFields, getLabel, getColType, saveColConfig, renderCell, deleteLead]
+    [editableFields, customColumns, customFieldValues, getLabel, getColType, saveColConfig, renderCell, deleteLead, updateCustomField]
   );
 
   const table = useReactTable({
     data: leads,
     columns,
-    state: { sorting, columnVisibility, rowSelection },
+    state: { sorting, columnVisibility, rowSelection, columnSizing },
     onSortingChange: setSorting,
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
+    onColumnSizingChange: setColumnSizing,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getRowId: (row) => String(row.id),
     enableRowSelection: true,
+    enableColumnResizing: true,
+    columnResizeMode: "onChange",
   });
 
   const leadIds = useMemo(() => leads.map((l) => l.id), [leads]);
@@ -400,26 +423,18 @@ export default function LeadGrid() {
         <h1 className="text-xl font-bold text-gray-900">innov8 CRM</h1>
         <div className="flex items-center gap-2">
           <span className="text-sm text-gray-500">{leads.length} leads</span>
-
-          {/* Import */}
-          <button
-            onClick={() => setShowImportModal(true)}
-            className="px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 flex items-center gap-1.5"
-          >
+          <button onClick={() => setShowImportModal(true)}
+            className="px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 flex items-center gap-1.5">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-            </svg>
-            Import
+            </svg>Import
           </button>
-
-          {/* Export */}
           <div className="relative">
             <button onClick={() => setShowExportMenu(!showExportMenu)}
               className="px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 flex items-center gap-1.5">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              Export
+              </svg>Export
             </button>
             {showExportMenu && (
               <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-40 py-1">
@@ -428,21 +443,15 @@ export default function LeadGrid() {
               </div>
             )}
           </div>
-
           <button onClick={() => setShowAddModal(true)}
-            className="px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
-            + New Lead
-          </button>
+            className="px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">+ New Lead</button>
         </div>
       </div>
 
-      {/* Stats bar */}
       <StatsBar />
-
-      {/* Tabs */}
       <TabBar tabs={TABS} active={activeTab} onChange={setActiveTab} />
 
-      {/* Toolbar + Bulk actions */}
+      {/* Toolbar */}
       <div className="flex items-center gap-3 px-4 py-2 bg-gray-50 border-b border-gray-200">
         <div className="relative flex-1 max-w-xs">
           <svg className="absolute left-2.5 top-2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -452,13 +461,10 @@ export default function LeadGrid() {
             className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-400"
             value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
-
         {selectedIds.length > 0 && (
           <div className="relative">
-            <button
-              className="px-3 py-1.5 text-sm text-white bg-indigo-600 rounded-md hover:bg-indigo-700 flex items-center gap-1"
-              onClick={() => setShowBulkMenu(!showBulkMenu)}
-            >
+            <button className="px-3 py-1.5 text-sm text-white bg-indigo-600 rounded-md hover:bg-indigo-700"
+              onClick={() => setShowBulkMenu(!showBulkMenu)}>
               {selectedIds.length} selected — Bulk actions
             </button>
             {showBulkMenu && (
@@ -476,21 +482,18 @@ export default function LeadGrid() {
                 <button className="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50" onClick={() => bulkAction("update", "responded", 1)}>Mark as Responded</button>
                 <div className="border-t border-gray-100 my-1" />
                 <button className="w-full text-left px-3 py-1.5 text-sm text-red-600 hover:bg-red-50"
-                  onClick={() => { if (confirm(`Delete ${selectedIds.length} leads?`)) bulkAction("delete"); }}>
-                  Delete selected
-                </button>
+                  onClick={() => { if (confirm(`Delete ${selectedIds.length} leads?`)) bulkAction("delete"); }}>Delete selected</button>
               </div>
             )}
           </div>
         )}
-
         <div className="relative">
           <button className="px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-100"
             onClick={() => setShowColumnMenu(!showColumnMenu)}>Columns</button>
           {showColumnMenu && (
             <div className="absolute top-full mt-1 right-0 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-40 py-1 max-h-80 overflow-auto">
               {table.getAllLeafColumns()
-                .filter((c) => !["row_num", "actions", "drag_handle", "select"].includes(c.id))
+                .filter((c) => !["row_num", "actions", "drag_handle", "select", "add_column"].includes(c.id))
                 .map((column) => (
                   <label key={column.id} className="flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-gray-50 cursor-pointer">
                     <input type="checkbox" checked={column.getIsVisible()} onChange={column.getToggleVisibilityHandler()} />
@@ -500,21 +503,29 @@ export default function LeadGrid() {
             </div>
           )}
         </div>
-
-        <span className="text-xs text-gray-400 hidden lg:inline">Right-click header to rename / change type</span>
+        <span className="text-xs text-gray-400 hidden lg:inline">Drag column edges to resize</span>
       </div>
 
       {/* Table */}
       <div className="flex-1 overflow-auto">
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} modifiers={[restrictToVerticalAxis]}>
-          <table className="w-full text-sm border-collapse">
+          <table className="text-sm border-collapse" style={{ width: table.getTotalSize() }}>
             <thead className="bg-gray-50 sticky top-0 z-10">
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr key={headerGroup.id}>
                   {headerGroup.headers.map((header) => (
-                    <th key={header.id} className="px-1 py-2 text-left border-b border-gray-200 select-none"
+                    <th key={header.id} className="px-1 py-2 text-left border-b border-gray-200 select-none relative group"
                       style={{ width: header.getSize() }}>
                       {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                      {/* Resize handle */}
+                      {header.column.getCanResize() && (
+                        <div
+                          onMouseDown={header.getResizeHandler()}
+                          onTouchStart={header.getResizeHandler()}
+                          className={`absolute right-0 top-0 h-full w-1 cursor-col-resize select-none touch-none
+                            ${header.column.getIsResizing() ? "bg-blue-500 opacity-100" : "bg-gray-300 opacity-0 group-hover:opacity-100"}`}
+                        />
+                      )}
                     </th>
                   ))}
                 </tr>
@@ -537,7 +548,6 @@ export default function LeadGrid() {
         </DndContext>
       </div>
 
-      {/* Detail panel */}
       {selectedLead && <EmailLogPanel lead={selectedLead} onClose={() => setSelectedLead(null)} />}
 
       {/* Add Lead Modal */}
@@ -549,32 +559,26 @@ export default function LeadGrid() {
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Business Name *</label>
                 <input className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-1 focus:ring-blue-400 focus:outline-none"
-                  value={newLead.business_name}
-                  onChange={(e) => { setNewLead((p) => ({ ...p, business_name: e.target.value })); checkDuplicate(e.target.value, newLead.email); }}
-                  placeholder="e.g. Smith Plumbing Ltd" autoFocus />
+                  value={newLead.business_name} autoFocus
+                  onChange={(e) => { setNewLead((p) => ({ ...p, business_name: e.target.value })); checkDuplicate(e.target.value, newLead.email); }} />
               </div>
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Contact Name</label>
                 <input className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-1 focus:ring-blue-400 focus:outline-none"
-                  value={newLead.contact_name}
-                  onChange={(e) => setNewLead((p) => ({ ...p, contact_name: e.target.value }))}
-                  placeholder="e.g. John Smith" />
+                  value={newLead.contact_name} onChange={(e) => setNewLead((p) => ({ ...p, contact_name: e.target.value }))} />
               </div>
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Email</label>
                 <input className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-1 focus:ring-blue-400 focus:outline-none"
                   value={newLead.email}
-                  onChange={(e) => { setNewLead((p) => ({ ...p, email: e.target.value })); checkDuplicate(newLead.business_name, e.target.value); }}
-                  placeholder="e.g. john@smithplumbing.com" />
+                  onChange={(e) => { setNewLead((p) => ({ ...p, email: e.target.value })); checkDuplicate(newLead.business_name, e.target.value); }} />
               </div>
               {duplicateWarning && (
-                <div className="px-3 py-2 bg-amber-50 border border-amber-200 rounded-md text-sm text-amber-700">
-                  ⚠ {duplicateWarning}
-                </div>
+                <div className="px-3 py-2 bg-amber-50 border border-amber-200 rounded-md text-sm text-amber-700">{duplicateWarning}</div>
               )}
             </div>
             <div className="flex justify-end gap-2 mt-5">
-              <button className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800" onClick={() => { setShowAddModal(false); setDuplicateWarning(""); }}>Cancel</button>
+              <button className="px-4 py-2 text-sm text-gray-600" onClick={() => { setShowAddModal(false); setDuplicateWarning(""); }}>Cancel</button>
               <button className="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700" onClick={addLead}>Add Lead</button>
             </div>
           </div>
@@ -586,10 +590,7 @@ export default function LeadGrid() {
         <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center" onClick={() => setShowImportModal(false)}>
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-lg font-semibold mb-2">Import Leads</h2>
-            <p className="text-sm text-gray-500 mb-4">
-              Upload a CSV or Excel file. Columns should include: Business Name, Owner/Contact, Email, Phone, Type, Location, Notes.
-              Duplicates (matching business name) will be skipped.
-            </p>
+            <p className="text-sm text-gray-500 mb-4">Upload CSV or Excel. Duplicates (matching name) will be skipped.</p>
             <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls" onChange={handleImport}
               className="w-full text-sm border border-gray-300 rounded-md p-2 file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:bg-blue-50 file:text-blue-600 file:text-sm" />
             <div className="flex justify-end mt-4">
@@ -599,7 +600,39 @@ export default function LeadGrid() {
         </div>
       )}
 
-      {/* Click-away overlays */}
+      {/* Add Column Modal */}
+      {showAddColumnModal && (
+        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center" onClick={() => setShowAddColumnModal(false)}>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-lg font-semibold mb-4">Add Column</h2>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Column Name</label>
+                <input className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-1 focus:ring-blue-400 focus:outline-none"
+                  value={newColName} onChange={(e) => setNewColName(e.target.value)} autoFocus
+                  onKeyDown={(e) => { if (e.key === "Enter") addCustomColumn(); }} />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Type</label>
+                <select className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                  value={newColType} onChange={(e) => setNewColType(e.target.value)}>
+                  <option value="text">Text</option>
+                  <option value="number">Number</option>
+                  <option value="checkbox">Checkbox</option>
+                  <option value="email">Email</option>
+                  <option value="phone">Phone</option>
+                  <option value="url">URL</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-5">
+              <button className="px-4 py-2 text-sm text-gray-600" onClick={() => setShowAddColumnModal(false)}>Cancel</button>
+              <button className="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700" onClick={addCustomColumn}>Add Column</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {(showColumnMenu || showExportMenu || showBulkMenu) && (
         <div className="fixed inset-0 z-30" onClick={() => { setShowColumnMenu(false); setShowExportMenu(false); setShowBulkMenu(false); }} />
       )}

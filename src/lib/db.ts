@@ -83,6 +83,14 @@ export async function initDb() {
       password_hash TEXT NOT NULL,
       created_at TEXT DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS custom_field_values (
+      lead_id INTEGER NOT NULL,
+      field_id TEXT NOT NULL,
+      value TEXT DEFAULT '',
+      PRIMARY KEY (lead_id, field_id),
+      FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE CASCADE
+    );
   `);
 
   const migrations = [
