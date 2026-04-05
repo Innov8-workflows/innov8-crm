@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
   const stage = request.nextUrl.searchParams.get("stage");
   const completed = request.nextUrl.searchParams.get("completed");
 
-  let sql = `SELECT p.*, l.business_name, l.contact_name, l.email, l.phone, l.business_type, l.location
+  let sql = `SELECT p.*, l.business_name, l.contact_name, l.email, l.phone, l.business_type, l.location, l.capex, l.demo_site_url
     FROM projects p JOIN leads l ON p.lead_id = l.id`;
   const args: unknown[] = [];
 
@@ -25,7 +25,37 @@ export async function GET(request: NextRequest) {
   sql += " ORDER BY p.sort_order ASC, p.created_at DESC";
 
   const result = await db.execute({ sql, args: args as never[] });
-  return NextResponse.json({ projects: all(result) });
+  const projects = all(result);
+
+  // For completed projects, enrich with cover images and task stats
+  if (completed === "true" && projects.length > 0) {
+    const ids = projects.map((p: Record<string, unknown>) => p.id);
+    const placeholders = ids.map(() => "?").join(",");
+
+    const [coverResult, taskResult] = await Promise.all([
+      db.execute({ sql: `SELECT project_id, url FROM project_files WHERE project_id IN (${placeholders}) AND is_cover = 1`, args: ids as never[] }),
+      db.execute({ sql: `SELECT project_id, COUNT(*) as total, SUM(CASE WHEN completed = 1 THEN 1 ELSE 0 END) as done FROM project_tasks WHERE project_id IN (${placeholders}) GROUP BY project_id`, args: ids as never[] }),
+    ]);
+
+    const covers: Record<number, string> = {};
+    for (const row of all(coverResult)) {
+      covers[row.project_id as number] = row.url as string;
+    }
+
+    const taskStats: Record<number, { total: number; done: number }> = {};
+    for (const row of all(taskResult)) {
+      taskStats[row.project_id as number] = { total: row.total as number, done: row.done as number };
+    }
+
+    for (const p of projects) {
+      const pid = p.id as number;
+      (p as Record<string, unknown>).cover_image = covers[pid] || null;
+      (p as Record<string, unknown>).tasks_total = taskStats[pid]?.total || 0;
+      (p as Record<string, unknown>).tasks_done = taskStats[pid]?.done || 0;
+    }
+  }
+
+  return NextResponse.json({ projects });
 }
 
 // Create project from a won lead

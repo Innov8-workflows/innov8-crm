@@ -42,6 +42,12 @@ export interface Project {
   phone?: string;
   business_type?: string;
   location?: string;
+  capex?: number;
+  demo_site_url?: string;
+  // Enriched for completed projects
+  cover_image?: string | null;
+  tasks_total?: number;
+  tasks_done?: number;
 }
 
 export interface ProjectTask {
