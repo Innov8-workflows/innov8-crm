@@ -316,7 +316,7 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
                     field.key === "project_notes" ? (
                       <textarea className="w-full px-3 py-2 text-sm rounded-md" rows={3}
                         style={{ background: "#1e1e1e", border: "1px solid #ea580c", color: "#f0f0f0", outline: "none", resize: "vertical" }}
-                        defaultValue={(details as Record<string, unknown>)[field.key] as string}
+                        defaultValue={(details as unknown as Record<string, unknown>)[field.key] as string}
                         autoFocus
                         onBlur={(e) => updateDetail(field.key, e.target.value)} />
                     ) : (
@@ -324,7 +324,7 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
                         style={{ background: "#1e1e1e", border: "1px solid #ea580c", color: "#f0f0f0", outline: "none",
                           ...(field.type === "date" ? { colorScheme: "dark" } : {}) }}
                         type={field.type || "text"}
-                        defaultValue={(details as Record<string, unknown>)[field.key] as string}
+                        defaultValue={(details as unknown as Record<string, unknown>)[field.key] as string}
                         autoFocus
                         onBlur={(e) => updateDetail(field.key, field.type === "number" ? Number(e.target.value) : e.target.value)}
                         onKeyDown={(e) => { if (e.key === "Enter") updateDetail(field.key, field.type === "number" ? Number((e.target as HTMLInputElement).value) : (e.target as HTMLInputElement).value); }} />
@@ -332,13 +332,13 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
                   ) : (
                     <div className="px-3 py-2 text-sm rounded-md cursor-pointer min-h-[36px]"
                       style={{ background: "#1e1e1e", border: "1px solid #2a2a2a",
-                        color: (details as Record<string, unknown>)[field.key] ? "#f0f0f0" : "#444" }}
+                        color: (details as unknown as Record<string, unknown>)[field.key] ? "#f0f0f0" : "#444" }}
                       onClick={() => setEditing(field.key)}
                       onMouseEnter={(e) => e.currentTarget.style.borderColor = "#444"}
                       onMouseLeave={(e) => e.currentTarget.style.borderColor = "#2a2a2a"}>
                       {field.key === "monthly_fee"
                         ? (details.monthly_fee ? `£${details.monthly_fee}` : field.placeholder)
-                        : (details as Record<string, unknown>)[field.key] as string || field.placeholder}
+                        : (details as unknown as Record<string, unknown>)[field.key] as string || field.placeholder}
                     </div>
                   )}
                 </div>

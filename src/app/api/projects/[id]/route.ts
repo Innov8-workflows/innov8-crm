@@ -48,7 +48,7 @@ export async function PUT(
   if (body.completed_at) {
     const project = first(await db.execute({ sql: "SELECT lead_id FROM projects WHERE id = ?", args: [Number(id)] }));
     if (project) {
-      await db.execute({ sql: "UPDATE leads SET status = 'completed', updated_at = ? WHERE id = ?", args: [new Date().toISOString(), project.lead_id] });
+      await db.execute({ sql: "UPDATE leads SET status = 'completed', updated_at = ? WHERE id = ?", args: [new Date().toISOString(), project.lead_id as number] });
     }
   }
 
