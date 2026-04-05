@@ -13,6 +13,8 @@ import {
   type VisibilityState,
   type RowSelectionState,
   type ColumnSizingState,
+  type ColumnOrderState,
+  type Header,
 } from "@tanstack/react-table";
 import {
   DndContext,
@@ -26,9 +28,12 @@ import {
 import {
   SortableContext,
   verticalListSortingStrategy,
+  horizontalListSortingStrategy,
   arrayMove,
+  useSortable,
 } from "@dnd-kit/sortable";
-import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
+import { CSS } from "@dnd-kit/utilities";
+import { restrictToVerticalAxis, restrictToHorizontalAxis } from "@dnd-kit/modifiers";
 import type { Lead } from "@/types";
 import { PIPELINE_STAGES, ROW_COLORS } from "@/types";
 import EditableCell from "./EditableCell";
@@ -40,6 +45,41 @@ import ColumnHeaderEditor from "./ColumnHeaderEditor";
 import StatsBar from "./StatsBar";
 import PipelineBadge from "./PipelineBadge";
 import FollowUpDate from "./FollowUpDate";
+
+function DraggableColumnHeader({ header }: { header: Header<Lead, unknown> }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: header.id });
+  const style: React.CSSProperties = {
+    width: header.getSize(),
+    borderBottom: "1px solid #2a2a2a",
+    transform: CSS.Translate.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : 1,
+    position: "relative",
+    zIndex: isDragging ? 20 : undefined,
+    cursor: isDragging ? "grabbing" : undefined,
+  };
+
+  const pinnedIds = ["select", "add_column", "actions"];
+  const isPinned = pinnedIds.includes(header.id);
+
+  return (
+    <th ref={setNodeRef} className="px-1 py-2 text-left select-none relative group" style={style}
+      {...(isPinned ? {} : { ...attributes, ...listeners })}>
+      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+      {header.column.getCanResize() && (
+        <div onMouseDown={header.getResizeHandler()} onTouchStart={header.getResizeHandler()}
+          className="absolute right-0 top-0 h-full w-1 cursor-col-resize select-none touch-none transition-opacity"
+          style={{
+            background: header.column.getIsResizing() ? "#ea580c" : "#444",
+            opacity: header.column.getIsResizing() ? 1 : 0,
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.opacity = "1"}
+          onMouseLeave={(e) => { if (!header.column.getIsResizing()) e.currentTarget.style.opacity = "0"; }}
+        />
+      )}
+    </th>
+  );
+}
 
 const TABS = ["All", "Plumbing", "Electrician", "Driveway", "Other"];
 
@@ -75,6 +115,7 @@ export default function LeadGrid() {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({});
+  const [columnOrder, setColumnOrder] = useState<ColumnOrderState>([]);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [showColumnMenu, setShowColumnMenu] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
@@ -441,11 +482,12 @@ export default function LeadGrid() {
   const table = useReactTable({
     data: leads,
     columns,
-    state: { sorting, columnVisibility, rowSelection, columnSizing },
+    state: { sorting, columnVisibility, rowSelection, columnSizing, columnOrder },
     onSortingChange: setSorting,
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
     onColumnSizingChange: setColumnSizing,
+    onColumnOrderChange: setColumnOrder,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -454,6 +496,18 @@ export default function LeadGrid() {
     enableColumnResizing: true,
     columnResizeMode: "onChange",
   });
+
+  const handleColumnDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    setColumnOrder((prev) => {
+      const currentOrder = prev.length > 0 ? prev : table.getAllLeafColumns().map((c) => c.id);
+      const oldIndex = currentOrder.indexOf(String(active.id));
+      const newIndex = currentOrder.indexOf(String(over.id));
+      if (oldIndex === -1 || newIndex === -1) return prev;
+      return arrayMove(currentOrder, oldIndex, newIndex);
+    });
+  }, [table]);
 
   const handleExportPdf = useCallback(() => {
     setShowExportMenu(false);
@@ -664,27 +718,17 @@ export default function LeadGrid() {
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} modifiers={[restrictToVerticalAxis]}>
           <table className="text-sm border-collapse" style={{ width: table.getTotalSize() }}>
             <thead className="sticky top-0 z-10" style={{ background: "#161616" }}>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <tr key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <th key={header.id} className="px-1 py-2 text-left select-none relative group"
-                      style={{ width: header.getSize(), borderBottom: "1px solid #2a2a2a" }}>
-                      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                      {header.column.getCanResize() && (
-                        <div onMouseDown={header.getResizeHandler()} onTouchStart={header.getResizeHandler()}
-                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize select-none touch-none transition-opacity"
-                          style={{
-                            background: header.column.getIsResizing() ? "#ea580c" : "#444",
-                            opacity: header.column.getIsResizing() ? 1 : 0,
-                          }}
-                          onMouseEnter={(e) => e.currentTarget.style.opacity = "1"}
-                          onMouseLeave={(e) => { if (!header.column.getIsResizing()) e.currentTarget.style.opacity = "0"; }}
-                        />
-                      )}
-                    </th>
-                  ))}
-                </tr>
-              ))}
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleColumnDragEnd} modifiers={[restrictToHorizontalAxis]}>
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <tr key={headerGroup.id}>
+                    <SortableContext items={headerGroup.headers.map((h) => h.id)} strategy={horizontalListSortingStrategy}>
+                      {headerGroup.headers.map((header) => (
+                        <DraggableColumnHeader key={header.id} header={header} />
+                      ))}
+                    </SortableContext>
+                  </tr>
+                ))}
+              </DndContext>
             </thead>
             <tbody>
               {loading ? (
