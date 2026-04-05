@@ -7,7 +7,7 @@ interface ColumnHeaderEditorProps {
   label: string;
   colType: string;
   onSave: (columnId: string, label: string, colType: string) => void;
-  onSort?: () => void;
+  onSort?: ((event: unknown) => void) | undefined;
   sortDir?: false | "asc" | "desc";
 }
 
