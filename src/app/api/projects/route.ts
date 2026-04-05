@@ -32,14 +32,22 @@ export async function GET(request: NextRequest) {
     const ids = projects.map((p: Record<string, unknown>) => p.id);
     const placeholders = ids.map(() => "?").join(",");
 
-    const [coverResult, taskResult] = await Promise.all([
+    const [coverResult, allImagesResult, taskResult] = await Promise.all([
+      // Explicitly set covers
       db.execute({ sql: `SELECT project_id, url FROM project_files WHERE project_id IN (${placeholders}) AND is_cover = 1`, args: ids as never[] }),
+      // Fallback: first image file per project (for when no cover is set)
+      db.execute({ sql: `SELECT project_id, url FROM project_files WHERE project_id IN (${placeholders}) AND (file_type LIKE 'image/%' OR url LIKE 'data:image/%') ORDER BY created_at ASC`, args: ids as never[] }),
       db.execute({ sql: `SELECT project_id, COUNT(*) as total, SUM(CASE WHEN completed = 1 THEN 1 ELSE 0 END) as done FROM project_tasks WHERE project_id IN (${placeholders}) GROUP BY project_id`, args: ids as never[] }),
     ]);
 
     const covers: Record<number, string> = {};
     for (const row of all(coverResult)) {
       covers[row.project_id as number] = row.url as string;
+    }
+    // Fallback to first image if no explicit cover
+    for (const row of all(allImagesResult)) {
+      const pid = row.project_id as number;
+      if (!covers[pid]) covers[pid] = row.url as string;
     }
 
     const taskStats: Record<number, { total: number; done: number }> = {};
