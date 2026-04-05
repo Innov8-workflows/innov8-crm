@@ -20,6 +20,7 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
   const [newTaskStage, setNewTaskStage] = useState("");
   const [newFileUrl, setNewFileUrl] = useState("");
   const [newFileName, setNewFileName] = useState("");
+  const [showUrlForm, setShowUrlForm] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
 
   const fetchTasks = useCallback(async () => {
@@ -63,7 +64,7 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
     });
   };
 
-  const addFile = async () => {
+  const addFileUrl = async () => {
     if (!newFileUrl.trim() || !newFileName.trim()) return;
     await fetch("/api/project-files", {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -71,7 +72,31 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
     });
     setNewFileUrl("");
     setNewFileName("");
+    setShowUrlForm(false);
     fetchFiles();
+    onUpdate();
+  };
+
+  const uploadFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("project_id", String(project.id));
+    formData.append("name", file.name);
+    await fetch("/api/project-files", { method: "POST", body: formData });
+    e.target.value = "";
+    fetchFiles();
+    onUpdate();
+  };
+
+  const setCover = async (fileId: number) => {
+    await fetch("/api/project-files", {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: fileId, is_cover: 1 }),
+    });
+    setFiles((prev) => prev.map((f) => ({ ...f, is_cover: f.id === fileId ? 1 : 0 } as ProjectFile)));
+    onUpdate();
   };
 
   const deleteFile = async (id: number) => {
@@ -248,53 +273,109 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
 
           {activeTab === "files" && (
             <div className="space-y-4">
-              {/* Add file */}
+              {/* Action buttons */}
               <div className="flex gap-2">
-                <input className="flex-1 px-3 py-1.5 text-sm rounded-md"
-                  style={{ background: "#1e1e1e", border: "1px solid #2a2a2a", color: "#f0f0f0", outline: "none" }}
-                  placeholder="File name..." value={newFileName}
-                  onChange={(e) => setNewFileName(e.target.value)} />
-                <input className="flex-1 px-3 py-1.5 text-sm rounded-md"
-                  style={{ background: "#1e1e1e", border: "1px solid #2a2a2a", color: "#f0f0f0", outline: "none" }}
-                  placeholder="URL (paste link)..." value={newFileUrl}
-                  onChange={(e) => setNewFileUrl(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") addFile(); }} />
-                <button onClick={addFile} className="px-3 py-1.5 text-sm rounded-md font-medium"
-                  style={{ background: "#ea580c", color: "#fff" }}>Add</button>
+                <label className="flex-1 cursor-pointer">
+                  <div className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
+                    style={{ background: "#ea580c", color: "#fff" }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = "#f97316"}
+                    onMouseLeave={(e) => e.currentTarget.style.background = "#ea580c"}>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                    Attach File
+                  </div>
+                  <input type="file" className="hidden" accept="image/*,.pdf,.doc,.docx,.html,.txt,.zip"
+                    onChange={uploadFile} />
+                </label>
+                <button onClick={() => setShowUrlForm(!showUrlForm)}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
+                  style={{ background: "#1e1e1e", border: "1px solid #333", color: "#ccc" }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = "#252525"; e.currentTarget.style.borderColor = "#ea580c"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "#1e1e1e"; e.currentTarget.style.borderColor = "#333"; }}>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                  Add URL Link
+                </button>
               </div>
 
+              {/* URL form */}
+              {showUrlForm && (
+                <div className="p-3 rounded-lg space-y-2" style={{ background: "#1a1a1a", border: "1px solid #2a2a2a" }}>
+                  <input className="w-full px-3 py-1.5 text-sm rounded-md"
+                    style={{ background: "#1e1e1e", border: "1px solid #2a2a2a", color: "#f0f0f0", outline: "none" }}
+                    placeholder="File name (e.g. Logo, Contract, Brief)..." value={newFileName}
+                    onChange={(e) => setNewFileName(e.target.value)} />
+                  <input className="w-full px-3 py-1.5 text-sm rounded-md"
+                    style={{ background: "#1e1e1e", border: "1px solid #2a2a2a", color: "#f0f0f0", outline: "none" }}
+                    placeholder="https://drive.google.com/..." value={newFileUrl}
+                    onChange={(e) => setNewFileUrl(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") addFileUrl(); }} />
+                  <div className="flex justify-end gap-2">
+                    <button onClick={() => { setShowUrlForm(false); setNewFileName(""); setNewFileUrl(""); }}
+                      className="px-3 py-1.5 text-xs" style={{ color: "#666" }}>Cancel</button>
+                    <button onClick={addFileUrl} className="px-4 py-1.5 text-sm rounded-md font-medium"
+                      style={{ background: "#ea580c", color: "#fff" }}>Save</button>
+                  </div>
+                </div>
+              )}
+
+              {/* File list */}
               {files.length === 0 ? (
                 <div className="text-center py-8" style={{ color: "#444" }}>
+                  <svg className="w-10 h-10 mx-auto mb-2" fill="none" stroke="currentColor" strokeWidth={1} viewBox="0 0 24 24" style={{ color: "#333" }}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
                   <p className="text-sm">No files yet</p>
-                  <p className="text-xs mt-1">Add links to Google Drive, Dropbox, or any URL</p>
+                  <p className="text-xs mt-1">Upload images, documents or add links</p>
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {files.map((file) => (
-                    <div key={file.id} className="flex items-center gap-3 px-3 py-2.5 rounded-lg group"
-                      style={{ background: "#1e1e1e", border: "1px solid #2a2a2a" }}>
-                      <div className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0"
-                        style={{ background: "#252525" }}>
-                        <svg className="w-4 h-4" style={{ color: "#888" }} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                  {files.map((file) => {
+                    const isImage = (file.file_type || "").startsWith("image/") || (file.url || "").startsWith("data:image/");
+                    const isCover = (file as unknown as Record<string, unknown>).is_cover === 1;
+                    return (
+                      <div key={file.id} className="rounded-lg overflow-hidden group"
+                        style={{ background: "#1e1e1e", border: `1px solid ${isCover ? "#ea580c" : "#2a2a2a"}` }}>
+                        {/* Image preview */}
+                        {isImage && (
+                          <div className="w-full h-32 overflow-hidden" style={{ background: "#111" }}>
+                            <img src={file.url} alt={file.name} className="w-full h-full object-cover" />
+                          </div>
+                        )}
+                        <div className="flex items-center gap-3 px-3 py-2.5">
+                          {!isImage && (
+                            <div className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0"
+                              style={{ background: "#252525" }}>
+                              <svg className="w-4 h-4" style={{ color: "#888" }} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <a href={file.url.startsWith("data:") ? undefined : file.url} target="_blank" rel="noreferrer"
+                              className="text-sm font-medium truncate block" style={{ color: "#ea580c" }}>{file.name}</a>
+                            {!file.url.startsWith("data:") && (
+                              <p className="text-xs truncate" style={{ color: "#555" }}>{file.url}</p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {isImage && (
+                              <button onClick={() => setCover(file.id)} title={isCover ? "Cover image" : "Set as cover"}
+                                className="p-1 rounded" style={{ color: isCover ? "#ea580c" : "#555" }}>
+                                <svg className="w-3.5 h-3.5" fill={isCover ? "currentColor" : "none"} stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                              </button>
+                            )}
+                            <button onClick={() => deleteFile(file.id)}
+                              className="p-1" style={{ color: "#555" }}
+                              onMouseEnter={(e) => e.currentTarget.style.color = "#ef4444"}
+                              onMouseLeave={(e) => e.currentTarget.style.color = "#555"}>
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <a href={file.url} target="_blank" rel="noreferrer"
-                          className="text-sm font-medium truncate block" style={{ color: "#ea580c" }}>{file.name}</a>
-                        <p className="text-xs truncate" style={{ color: "#555" }}>{file.url}</p>
-                      </div>
-                      <span className="text-xs" style={{ color: "#444" }}>
-                        {new Date(file.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
-                      </span>
-                      <button onClick={() => deleteFile(file.id)}
-                        className="opacity-0 group-hover:opacity-100 p-1 transition-opacity" style={{ color: "#555" }}
-                        onMouseEnter={(e) => e.currentTarget.style.color = "#ef4444"}
-                        onMouseLeave={(e) => e.currentTarget.style.color = "#555"}>
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                      </button>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

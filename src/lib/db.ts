@@ -137,6 +137,7 @@ export async function initDb() {
     "ALTER TABLE leads ADD COLUMN status TEXT DEFAULT 'new'",
     "ALTER TABLE leads ADD COLUMN follow_up_date TEXT DEFAULT ''",
     "ALTER TABLE leads ADD COLUMN demo_site_url TEXT DEFAULT ''",
+    "ALTER TABLE project_files ADD COLUMN is_cover INTEGER DEFAULT 0",
   ];
   for (const sql of migrations) {
     try { await db.execute(sql); } catch { /* column exists */ }

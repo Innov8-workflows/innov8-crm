@@ -17,18 +17,71 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   await initDb();
   const db = getClient();
-  const { project_id, name, url, file_type = "", size = 0 } = await request.json();
 
-  if (!project_id || !name || !url) return NextResponse.json({ error: "project_id, name, url required" }, { status: 400 });
+  const contentType = request.headers.get("content-type") || "";
+
+  let project_id: number, name: string, url: string, file_type = "", size = 0, is_cover = 0;
+
+  if (contentType.includes("multipart/form-data")) {
+    // File upload via FormData
+    const formData = await request.formData();
+    project_id = Number(formData.get("project_id"));
+    name = formData.get("name") as string || "file";
+    is_cover = Number(formData.get("is_cover") || 0);
+    const file = formData.get("file") as File;
+
+    if (!file || !project_id) {
+      return NextResponse.json({ error: "project_id and file required" }, { status: 400 });
+    }
+
+    file_type = file.type;
+    size = file.size;
+
+    // Convert to base64 data URL for storage (works for images up to ~5MB)
+    const buffer = Buffer.from(await file.arrayBuffer());
+    url = `data:${file.type};base64,${buffer.toString("base64")}`;
+    name = name || file.name;
+  } else {
+    // JSON body (URL link)
+    const body = await request.json();
+    project_id = body.project_id;
+    name = body.name;
+    url = body.url;
+    file_type = body.file_type || "";
+    size = body.size || 0;
+    is_cover = body.is_cover || 0;
+
+    if (!project_id || !name || !url) {
+      return NextResponse.json({ error: "project_id, name, url required" }, { status: 400 });
+    }
+  }
 
   const now = new Date().toISOString();
   const result = await db.execute({
-    sql: "INSERT INTO project_files (project_id, name, url, file_type, size, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-    args: [project_id, name, url, file_type, size, now],
+    sql: "INSERT INTO project_files (project_id, name, url, file_type, size, is_cover, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    args: [project_id, name, url, file_type, size, is_cover, now],
   });
 
-  const file = first(await db.execute({ sql: "SELECT * FROM project_files WHERE id = ?", args: [result.lastInsertRowid!] }));
-  return NextResponse.json(file, { status: 201 });
+  const savedFile = first(await db.execute({ sql: "SELECT * FROM project_files WHERE id = ?", args: [result.lastInsertRowid!] }));
+  return NextResponse.json(savedFile, { status: 201 });
+}
+
+export async function PUT(request: NextRequest) {
+  await initDb();
+  const db = getClient();
+  const { id, is_cover } = await request.json();
+  if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
+
+  if (is_cover !== undefined) {
+    // Clear other covers for this project first
+    const file = first(await db.execute({ sql: "SELECT project_id FROM project_files WHERE id = ?", args: [id] }));
+    if (file) {
+      await db.execute({ sql: "UPDATE project_files SET is_cover = 0 WHERE project_id = ?", args: [file.project_id as number] });
+    }
+    await db.execute({ sql: "UPDATE project_files SET is_cover = ? WHERE id = ?", args: [is_cover ? 1 : 0, id] });
+  }
+
+  return NextResponse.json({ ok: true });
 }
 
 export async function DELETE(request: NextRequest) {

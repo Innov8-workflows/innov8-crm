@@ -1,22 +1,40 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import type { Project } from "@/types";
+import type { Project, ProjectFile } from "@/types";
 import { PROJECT_STAGES } from "@/types";
 import ProjectDetailModal from "./ProjectDetailModal";
 
 export default function KanbanBoard() {
   const [projects, setProjects] = useState<Project[]>([]);
+  const [coverImages, setCoverImages] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(true);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [dragProject, setDragProject] = useState<number | null>(null);
 
+  const fetchCoverImages = useCallback(async (projectIds: number[]) => {
+    const covers: Record<number, string> = {};
+    for (const pid of projectIds) {
+      const res = await fetch(`/api/project-files?project_id=${pid}`);
+      const data = await res.json();
+      const cover = (data.files || []).find((f: ProjectFile & { is_cover?: number }) => f.is_cover === 1);
+      if (cover) covers[pid] = cover.url;
+      else {
+        const firstImg = (data.files || []).find((f: ProjectFile) => (f.file_type || "").startsWith("image/") || (f.url || "").startsWith("data:image/"));
+        if (firstImg) covers[pid] = firstImg.url;
+      }
+    }
+    setCoverImages(covers);
+  }, []);
+
   const fetchProjects = useCallback(async () => {
     const res = await fetch("/api/projects?completed=false");
     const data = await res.json();
-    setProjects(data.projects || []);
+    const projs = data.projects || [];
+    setProjects(projs);
     setLoading(false);
-  }, []);
+    if (projs.length > 0) fetchCoverImages(projs.map((p: Project) => p.id));
+  }, [fetchCoverImages]);
 
   useEffect(() => { fetchProjects(); }, [fetchProjects]);
 
@@ -99,6 +117,12 @@ export default function KanbanBoard() {
                       onMouseLeave={(e) => { if (dragProject !== project.id) e.currentTarget.style.borderColor = "#2a2a2a"; }}
                       onClick={() => setSelectedProject(project)}
                     >
+                      {/* Cover image */}
+                      {coverImages[project.id] && (
+                        <div className="w-full h-28 -mt-3 -mx-3 mb-2 overflow-hidden rounded-t-lg" style={{ width: "calc(100% + 24px)" }}>
+                          <img src={coverImages[project.id]} alt="" className="w-full h-full object-cover" />
+                        </div>
+                      )}
                       <h3 className="text-sm font-medium truncate" style={{ color: "#f0f0f0" }}>
                         {project.business_name}
                       </h3>
