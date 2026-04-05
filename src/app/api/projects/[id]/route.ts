@@ -36,13 +36,22 @@ export async function PUT(
     if (field in body) { updates.push(`${field} = ?`); values.push(body[field]); }
   }
 
-  if (updates.length === 0) return NextResponse.json({ error: "No fields" }, { status: 400 });
+  // Handle capex — stored on the lead, not the project
+  if ("capex" in body) {
+    const proj = first(await db.execute({ sql: "SELECT lead_id FROM projects WHERE id = ?", args: [Number(id)] }));
+    if (proj) {
+      await db.execute({ sql: "UPDATE leads SET capex = ?, updated_at = ? WHERE id = ?", args: [body.capex, new Date().toISOString(), proj.lead_id as number] });
+    }
+  }
 
-  updates.push("updated_at = ?");
-  values.push(new Date().toISOString());
-  values.push(Number(id));
+  if (updates.length === 0 && !("capex" in body)) return NextResponse.json({ error: "No fields" }, { status: 400 });
 
-  await db.execute({ sql: `UPDATE projects SET ${updates.join(", ")} WHERE id = ?`, args: values as never[] });
+  if (updates.length > 0) {
+    updates.push("updated_at = ?");
+    values.push(new Date().toISOString());
+    values.push(Number(id));
+    await db.execute({ sql: `UPDATE projects SET ${updates.join(", ")} WHERE id = ?`, args: values as never[] });
+  }
 
   // If completing the project, also update the lead
   if (body.completed_at) {

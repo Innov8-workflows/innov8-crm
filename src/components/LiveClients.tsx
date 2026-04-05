@@ -610,12 +610,20 @@ function CardView({ clients, formatDate, isOverdue, onOpenProject, isLostView, o
                     {client.contact_name}{client.business_type ? ` · ${client.business_type}` : ""}
                   </p>
                 </div>
-                {client.monthly_fee > 0 && (
-                  <span className="text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0 ml-2"
-                    style={{ background: isLostView ? "#ef444420" : "#22c55e20", color: isLostView ? "#ef4444" : "#22c55e" }}>
-                    {isLostView ? "-" : ""}£{client.monthly_fee}/mo
-                  </span>
-                )}
+                <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                  {client.capex != null && client.capex > 0 && (
+                    <span className="text-xs font-bold px-2 py-0.5 rounded-full"
+                      style={{ background: "#ea580c20", color: "#ea580c" }}>
+                      £{client.capex}
+                    </span>
+                  )}
+                  {client.monthly_fee > 0 && (
+                    <span className="text-xs font-bold px-2 py-0.5 rounded-full"
+                      style={{ background: isLostView ? "#ef444420" : "#22c55e20", color: isLostView ? "#ef4444" : "#22c55e" }}>
+                      {isLostView ? "-" : ""}£{client.monthly_fee}/mo
+                    </span>
+                  )}
+                </div>
               </div>
 
               {client.domain && (
