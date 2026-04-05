@@ -22,6 +22,8 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
   const [newFileName, setNewFileName] = useState("");
   const [showUrlForm, setShowUrlForm] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const fetchTasks = useCallback(async () => {
     const res = await fetch(`/api/project-tasks?project_id=${project.id}`);
@@ -107,13 +109,27 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
     });
   };
 
-  const updateDetail = async (field: string, value: string | number) => {
+  const updateDetail = (field: string, value: string | number) => {
     setDetails((prev) => ({ ...prev, [field]: value }));
     setEditing(null);
+    setHasUnsavedChanges(true);
+  };
+
+  const saveAllDetails = async () => {
+    setSaving(true);
     await fetch(`/api/projects/${project.id}`, {
       method: "PUT", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ [field]: value }),
+      body: JSON.stringify({
+        domain: details.domain,
+        hosting_info: details.hosting_info,
+        monthly_fee: details.monthly_fee,
+        renewal_date: details.renewal_date,
+        login_details: details.login_details,
+        project_notes: details.project_notes,
+      }),
     });
+    setSaving(false);
+    setHasUnsavedChanges(false);
     onUpdate();
   };
 
@@ -424,6 +440,36 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
                   )}
                 </div>
               ))}
+
+              {/* Save button */}
+              <div className="flex items-center justify-between pt-4 mt-2" style={{ borderTop: "1px solid #2a2a2a" }}>
+                {hasUnsavedChanges ? (
+                  <span className="text-xs flex items-center gap-1.5" style={{ color: "#eab308" }}>
+                    <span className="w-2 h-2 rounded-full" style={{ background: "#eab308" }} />
+                    Unsaved changes
+                  </span>
+                ) : (
+                  <span className="text-xs flex items-center gap-1.5" style={{ color: "#22c55e" }}>
+                    <span className="w-2 h-2 rounded-full" style={{ background: "#22c55e" }} />
+                    All changes saved
+                  </span>
+                )}
+                <button
+                  onClick={saveAllDetails}
+                  disabled={!hasUnsavedChanges || saving}
+                  className="px-5 py-2 text-sm font-semibold rounded-lg transition-all"
+                  style={{
+                    background: hasUnsavedChanges ? "#ea580c" : "#252525",
+                    color: hasUnsavedChanges ? "#fff" : "#555",
+                    opacity: saving ? 0.6 : 1,
+                    cursor: hasUnsavedChanges ? "pointer" : "default",
+                  }}
+                  onMouseEnter={(e) => { if (hasUnsavedChanges) e.currentTarget.style.background = "#f97316"; }}
+                  onMouseLeave={(e) => { if (hasUnsavedChanges) e.currentTarget.style.background = "#ea580c"; }}
+                >
+                  {saving ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
             </div>
           )}
         </div>
