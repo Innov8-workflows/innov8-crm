@@ -436,6 +436,52 @@ export default function LeadGrid() {
     columnResizeMode: "onChange",
   });
 
+  const handleExportPdf = useCallback(() => {
+    setShowExportMenu(false);
+    const visible = table.getVisibleLeafColumns().map((c) => c.id).filter((id) => id !== "select");
+    const rows = table.getFilteredRowModel().rows;
+    const now = new Date().toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+    const title = activeTab === "All" ? "All Prospects" : `${activeTab} Prospects`;
+
+    const labelMap: Record<string, string> = { ...DEFAULT_LABELS };
+    for (const [k, v] of Object.entries(colConfigs)) labelMap[k] = v.label;
+
+    const checkFields = ["website_status", "emailed", "messaged", "responded", "followed_up"];
+
+    const thCells = visible.map((id) => `<th style="padding:6px 10px;text-align:left;border-bottom:2px solid #ea580c;font-size:11px;color:#333;white-space:nowrap">${labelMap[id] || id}</th>`).join("");
+    const bodyRows = rows.map((row, i) => {
+      const bg = i % 2 === 0 ? "#fff" : "#fafafa";
+      const cells = visible.map((id) => {
+        const val = row.original[id as keyof typeof row.original] ?? "";
+        let display = String(val);
+        if (checkFields.includes(id)) display = val ? "Yes" : "No";
+        if (id === "capex" && val) display = `£${Number(val).toFixed(2)}`;
+        if (id === "status") {
+          const stage = PIPELINE_STAGES.find((s) => s.value === val);
+          display = stage?.label || display;
+        }
+        return `<td style="padding:5px 10px;font-size:10px;color:#444;border-bottom:1px solid #eee;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${display || "—"}</td>`;
+      }).join("");
+      return `<tr style="background:${bg}">${cells}</tr>`;
+    }).join("");
+
+    const html = `<!DOCTYPE html><html><head><title>${title} - innov8 CRM</title>
+<style>@page{size:landscape;margin:12mm}body{font-family:-apple-system,sans-serif;margin:0;padding:20px}table{width:100%;border-collapse:collapse}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style>
+</head><body>
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+  <div>
+    <h1 style="margin:0;font-size:18px;color:#0f0f0f">${title}</h1>
+    <p style="margin:2px 0 0;font-size:11px;color:#888">${rows.length} leads · Exported ${now}</p>
+  </div>
+  <div style="font-size:14px;font-weight:700;color:#ea580c">innov8 CRM</div>
+</div>
+<table><thead><tr>${thCells}</tr></thead><tbody>${bodyRows}</tbody></table>
+</body></html>`;
+
+    const w = window.open("", "_blank");
+    if (w) { w.document.write(html); w.document.close(); w.onload = () => { w.print(); }; }
+  }, [activeTab, colConfigs, table]);
+
   const leadIds = useMemo(() => leads.map((l) => l.id), [leads]);
 
   const btnStyle = { background: "transparent", border: "1px solid #333", color: "#ccc", borderRadius: "6px" };
@@ -467,6 +513,9 @@ export default function LeadGrid() {
             </button>
             {showExportMenu && (
               <div className="absolute right-0 top-full mt-1 w-48 rounded-lg shadow-xl z-40 py-1" style={dropdownStyle}>
+                <button className="w-full text-left px-3 py-2 text-sm" style={{ color: "#ccc" }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = "#252525"} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                  onClick={handleExportPdf}>Export as PDF</button>
                 <button className="w-full text-left px-3 py-2 text-sm" style={{ color: "#ccc" }}
                   onMouseEnter={(e) => e.currentTarget.style.background = "#252525"} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
                   onClick={() => handleExport("xlsx")}>Export as Excel (.xlsx)</button>
