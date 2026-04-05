@@ -33,6 +33,7 @@ export interface Project {
   login_details: string;
   project_notes: string;
   completed_at: string;
+  client_status: string;
   created_at: string;
   updated_at: string;
   // Joined from leads

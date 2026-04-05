@@ -9,9 +9,12 @@ interface Props {
   onClose: () => void;
   onUpdate: () => void;
   onComplete: (projectId: number) => void;
+  onMarkLost?: (projectId: number) => void;
+  onReactivate?: (projectId: number) => void;
+  isLostView?: boolean;
 }
 
-export default function ProjectDetailModal({ project, onClose, onUpdate, onComplete }: Props) {
+export default function ProjectDetailModal({ project, onClose, onUpdate, onComplete, onMarkLost, onReactivate, isLostView }: Props) {
   const [tasks, setTasks] = useState<ProjectTask[]>([]);
   const [files, setFiles] = useState<ProjectFile[]>([]);
   const [details, setDetails] = useState(project);
@@ -171,10 +174,22 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
             </div>
           </div>
           <div className="flex items-center gap-2 ml-4">
-            {progress === 100 && (
+            {progress === 100 && !project.completed_at && (
               <button className="px-3 py-1.5 text-sm font-semibold rounded-md" style={{ background: "#22c55e", color: "#fff" }}
                 onClick={() => onComplete(project.id)}>
                 Mark Complete
+              </button>
+            )}
+            {project.completed_at && isLostView && onReactivate && (
+              <button className="px-3 py-1.5 text-sm font-semibold rounded-md" style={{ background: "#22c55e", color: "#fff" }}
+                onClick={() => onReactivate(project.id)}>
+                Restore Client
+              </button>
+            )}
+            {project.completed_at && !isLostView && onMarkLost && (
+              <button className="px-3 py-1.5 text-sm font-semibold rounded-md" style={{ background: "#ef4444", color: "#fff" }}
+                onClick={() => onMarkLost(project.id)}>
+                Mark as Lost
               </button>
             )}
             <button onClick={onClose} className="p-1.5 rounded-md transition-colors" style={{ color: "#666" }}

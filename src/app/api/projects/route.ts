@@ -6,6 +6,7 @@ export async function GET(request: NextRequest) {
   const db = getClient();
   const stage = request.nextUrl.searchParams.get("stage");
   const completed = request.nextUrl.searchParams.get("completed");
+  const clientStatus = request.nextUrl.searchParams.get("client_status");
 
   let sql = `SELECT p.*, l.business_name, l.contact_name, l.email, l.phone, l.business_type, l.location, l.capex, l.demo_site_url
     FROM projects p JOIN leads l ON p.lead_id = l.id`;
@@ -20,6 +21,14 @@ export async function GET(request: NextRequest) {
   if (stage) {
     sql += (sql.includes("WHERE") ? " AND" : " WHERE") + " p.stage = ?";
     args.push(stage);
+  }
+
+  // Filter by client_status (active/lost) — defaults to active for completed projects
+  if (clientStatus) {
+    sql += (sql.includes("WHERE") ? " AND" : " WHERE") + " (p.client_status = ? OR (p.client_status IS NULL AND ? = 'active'))";
+    args.push(clientStatus, clientStatus);
+  } else if (completed === "true") {
+    sql += " AND (p.client_status = 'active' OR p.client_status IS NULL)";
   }
 
   sql += " ORDER BY p.sort_order ASC, p.created_at DESC";

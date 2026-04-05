@@ -9,17 +9,20 @@ interface ClientStats {
   capex: number;
   clientCount: number;
   overdueRenewals: number;
+  lostClients: number;
 }
 
 type SortKey = "business_name" | "contact_name" | "business_type" | "location" | "monthly_fee" | "renewal_date" | "domain" | "completed_at";
 type SortDir = "asc" | "desc";
 type ViewMode = "grid" | "card";
+type ClientFilter = "active" | "lost";
 
 export default function LiveClients() {
   const [clients, setClients] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<ClientStats | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("card");
+  const [clientFilter, setClientFilter] = useState<ClientFilter>("active");
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("business_name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
@@ -28,11 +31,11 @@ export default function LiveClients() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   const fetchClients = useCallback(async () => {
-    const res = await fetch("/api/projects?completed=true");
+    const res = await fetch(`/api/projects?completed=true&client_status=${clientFilter}`);
     const data = await res.json();
     setClients(data.projects || []);
     setLoading(false);
-  }, []);
+  }, [clientFilter]);
 
   const fetchStats = useCallback(async () => {
     const res = await fetch("/api/clients/stats");
@@ -47,6 +50,26 @@ export default function LiveClients() {
       method: "PUT", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ [field]: value }),
     });
+    fetchStats();
+  }, [fetchStats]);
+
+  const markAsLost = useCallback(async (id: number, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    await fetch(`/api/projects/${id}`, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ client_status: "lost" }),
+    });
+    setClients((prev) => prev.filter((c) => c.id !== id));
+    fetchStats();
+  }, [fetchStats]);
+
+  const reactivateClient = useCallback(async (id: number, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    await fetch(`/api/projects/${id}`, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ client_status: "active" }),
+    });
+    setClients((prev) => prev.filter((c) => c.id !== id));
     fetchStats();
   }, [fetchStats]);
 
@@ -98,6 +121,8 @@ export default function LiveClients() {
     return new Date(d + "T00:00:00") < new Date(new Date().toISOString().split("T")[0] + "T00:00:00");
   };
 
+  const isLostView = clientFilter === "lost";
+
   if (loading) {
     return <div className="flex-1 flex items-center justify-center" style={{ color: "#555" }}>Loading clients...</div>;
   }
@@ -106,12 +131,13 @@ export default function LiveClients() {
     <div className="flex-1 flex flex-col" style={{ minHeight: 0 }}>
       {/* Dashboard Stats */}
       <div style={{ background: "#131313", borderBottom: "1px solid #2a2a2a" }}>
-        <div className="grid grid-cols-4 gap-3 px-4 py-3">
+        <div className="grid grid-cols-5 gap-3 px-4 py-3">
           {[
             { label: "Live Clients", value: stats?.clientCount ?? clients.length, color: "#f0f0f0", icon: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" },
             { label: "Monthly Revenue", value: `£${(stats?.mrr ?? 0).toFixed(2)}`, color: "#22c55e", icon: "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" },
             { label: "Total CAPEX", value: `£${(stats?.capex ?? 0).toFixed(2)}`, color: "#ea580c", icon: "M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" },
             { label: "Overdue Renewals", value: stats?.overdueRenewals ?? 0, color: stats?.overdueRenewals ? "#ef4444" : "#666", icon: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" },
+            { label: "Lost Clients", value: stats?.lostClients ?? 0, color: stats?.lostClients ? "#ef4444" : "#666", icon: "M22 10.5h-6m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM4 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 0110.374 21c-2.331 0-4.512-.645-6.374-1.766z" },
           ].map((card) => (
             <div key={card.label} className="flex items-center gap-3 p-3 rounded-lg" style={{ background: "#1e1e1e", border: "1px solid #2a2a2a" }}>
               <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `${card.color}15` }}>
@@ -128,7 +154,7 @@ export default function LiveClients() {
         </div>
       </div>
 
-      {/* Toolbar: Search + View Toggle */}
+      {/* Toolbar: Search + Filter + View Toggle */}
       <div className="flex items-center gap-3 px-4 py-2" style={{ background: "#131313", borderBottom: "1px solid #2a2a2a" }}>
         <div className="relative flex-1" style={{ maxWidth: 320 }}>
           <svg className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2" fill="none" stroke="#666" strokeWidth={1.5} viewBox="0 0 24 24">
@@ -142,6 +168,32 @@ export default function LiveClients() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
+
+        {/* Active / Lost toggle */}
+        <div className="flex rounded-md overflow-hidden" style={{ border: "1px solid #2a2a2a" }}>
+          <button
+            className="px-3 py-1.5 text-xs font-medium flex items-center gap-1.5 transition-colors"
+            style={{ background: !isLostView ? "#22c55e" : "#1e1e1e", color: !isLostView ? "#fff" : "#888" }}
+            onClick={() => setClientFilter("active")}
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4" />
+            </svg>
+            Active
+          </button>
+          <button
+            className="px-3 py-1.5 text-xs font-medium flex items-center gap-1.5 transition-colors"
+            style={{ background: isLostView ? "#ef4444" : "#1e1e1e", color: isLostView ? "#fff" : "#888" }}
+            onClick={() => setClientFilter("lost")}
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            Lost{stats?.lostClients ? ` (${stats.lostClients})` : ""}
+          </button>
+        </div>
+
+        {/* Grid / Card toggle */}
         <div className="flex rounded-md overflow-hidden" style={{ border: "1px solid #2a2a2a" }}>
           {(["grid", "card"] as const).map((mode) => (
             <button
@@ -174,10 +226,13 @@ export default function LiveClients() {
         {clients.length === 0 ? (
           <div className="text-center py-16" style={{ color: "#444" }}>
             <svg className="w-12 h-12 mx-auto mb-3" fill="none" stroke="currentColor" strokeWidth={1} viewBox="0 0 24 24" style={{ color: "#333" }}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d={isLostView
+                ? "M22 10.5h-6m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM4 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 0110.374 21c-2.331 0-4.512-.645-6.374-1.766z"
+                : "M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+              } />
             </svg>
-            <p className="text-sm">No live clients yet</p>
-            <p className="text-xs mt-1">Complete projects to see them here</p>
+            <p className="text-sm">{isLostView ? "No lost clients" : "No live clients yet"}</p>
+            <p className="text-xs mt-1">{isLostView ? "Clients you mark as lost will appear here" : "Complete projects to see them here"}</p>
           </div>
         ) : viewMode === "grid" ? (
           <GridView
@@ -194,6 +249,9 @@ export default function LiveClients() {
             formatDate={formatDate}
             isOverdue={isOverdue}
             onOpenProject={setSelectedProject}
+            isLostView={isLostView}
+            onMarkLost={markAsLost}
+            onReactivate={reactivateClient}
           />
         ) : (
           <CardView
@@ -201,6 +259,9 @@ export default function LiveClients() {
             formatDate={formatDate}
             isOverdue={isOverdue}
             onOpenProject={setSelectedProject}
+            isLostView={isLostView}
+            onMarkLost={markAsLost}
+            onReactivate={reactivateClient}
           />
         )}
       </div>
@@ -212,6 +273,9 @@ export default function LiveClients() {
           onClose={() => setSelectedProject(null)}
           onUpdate={() => { fetchClients(); fetchStats(); }}
           onComplete={() => {}}
+          onMarkLost={(id) => { markAsLost(id); setSelectedProject(null); }}
+          onReactivate={(id) => { reactivateClient(id); setSelectedProject(null); }}
+          isLostView={isLostView}
         />
       )}
     </div>
@@ -234,6 +298,9 @@ interface GridProps {
   formatDate: (d: string) => string;
   isOverdue: (d: string) => boolean;
   onOpenProject: (p: Project) => void;
+  isLostView: boolean;
+  onMarkLost: (id: number, e?: React.MouseEvent) => void;
+  onReactivate: (id: number, e?: React.MouseEvent) => void;
 }
 
 const GRID_COLUMNS: { key: SortKey; label: string; width: string; editable?: boolean; type?: string }[] = [
@@ -247,8 +314,8 @@ const GRID_COLUMNS: { key: SortKey; label: string; width: string; editable?: boo
   { key: "completed_at", label: "Completed", width: "minmax(110px, 0.7fr)" },
 ];
 
-function GridView({ clients, sortKey, sortDir, onSort, editingCell, editValue, onStartEdit, onEditChange, onCommitEdit, onCancelEdit, formatDate, isOverdue, onOpenProject }: GridProps) {
-  const gridTemplate = `40px ${GRID_COLUMNS.map((c) => c.width).join(" ")}`;
+function GridView({ clients, sortKey, sortDir, onSort, editingCell, editValue, onStartEdit, onEditChange, onCommitEdit, onCancelEdit, formatDate, isOverdue, onOpenProject, isLostView, onMarkLost, onReactivate }: GridProps) {
+  const gridTemplate = `40px ${GRID_COLUMNS.map((c) => c.width).join(" ")} 80px`;
 
   return (
     <div style={{ minWidth: 900 }}>
@@ -272,6 +339,7 @@ function GridView({ clients, sortKey, sortDir, onSort, editingCell, editValue, o
             )}
           </button>
         ))}
+        <span className="text-xs px-2" style={{ color: "#888" }}>Action</span>
       </div>
 
       {/* Rows */}
@@ -310,7 +378,6 @@ function GridView({ clients, sortKey, sortDir, onSort, editingCell, editValue, o
               );
             }
 
-            // Special rendering per column
             if (col.key === "business_name") {
               return (
                 <button key={col.key} className="text-xs font-medium px-2 text-left truncate" style={{ color: "#f0f0f0" }}
@@ -322,12 +389,9 @@ function GridView({ clients, sortKey, sortDir, onSort, editingCell, editValue, o
 
             if (col.key === "monthly_fee") {
               return (
-                <span
-                  key={col.key}
-                  className="text-xs font-semibold px-2 cursor-pointer rounded py-0.5"
+                <span key={col.key} className="text-xs font-semibold px-2 cursor-pointer rounded py-0.5"
                   style={{ color: Number(rawValue) > 0 ? "#22c55e" : "#444" }}
-                  onClick={() => col.editable && onStartEdit(client.id, col.key, rawValue as string | number)}
-                >
+                  onClick={() => col.editable && onStartEdit(client.id, col.key, rawValue as string | number)}>
                   {Number(rawValue) > 0 ? `£${Number(rawValue).toFixed(2)}` : "—"}
                 </span>
               );
@@ -336,50 +400,56 @@ function GridView({ clients, sortKey, sortDir, onSort, editingCell, editValue, o
             if (col.key === "renewal_date") {
               const overdue = isOverdue(String(rawValue));
               return (
-                <span
-                  key={col.key}
-                  className="text-xs px-2 cursor-pointer rounded py-0.5"
+                <span key={col.key} className="text-xs px-2 cursor-pointer rounded py-0.5"
                   style={{ color: overdue ? "#ef4444" : rawValue ? "#ccc" : "#444" }}
-                  onClick={() => col.editable && onStartEdit(client.id, col.key, rawValue as string | number)}
-                >
-                  {rawValue ? formatDate(String(rawValue)) : "—"}
-                  {overdue && " !"}
+                  onClick={() => col.editable && onStartEdit(client.id, col.key, rawValue as string | number)}>
+                  {rawValue ? formatDate(String(rawValue)) : "—"}{overdue && " !"}
                 </span>
               );
             }
 
             if (col.key === "completed_at") {
-              return (
-                <span key={col.key} className="text-xs px-2" style={{ color: "#888" }}>
-                  {rawValue ? formatDate(String(rawValue)) : "—"}
-                </span>
-              );
+              return <span key={col.key} className="text-xs px-2" style={{ color: "#888" }}>{rawValue ? formatDate(String(rawValue)) : "—"}</span>;
             }
 
             if (col.key === "domain") {
               return (
-                <span
-                  key={col.key}
-                  className="text-xs px-2 truncate cursor-pointer"
-                  style={{ color: rawValue ? "#ea580c" : "#444" }}
-                  onClick={() => col.editable && onStartEdit(client.id, col.key, rawValue as string | number)}
-                >
+                <span key={col.key} className="text-xs px-2 truncate cursor-pointer" style={{ color: rawValue ? "#ea580c" : "#444" }}
+                  onClick={() => col.editable && onStartEdit(client.id, col.key, rawValue as string | number)}>
                   {String(rawValue) || "—"}
                 </span>
               );
             }
 
             return (
-              <span
-                key={col.key}
-                className={`text-xs px-2 truncate ${col.editable ? "cursor-pointer" : ""}`}
+              <span key={col.key} className={`text-xs px-2 truncate ${col.editable ? "cursor-pointer" : ""}`}
                 style={{ color: rawValue ? "#ccc" : "#444" }}
-                onClick={() => col.editable && onStartEdit(client.id, col.key, rawValue as string | number)}
-              >
+                onClick={() => col.editable && onStartEdit(client.id, col.key, rawValue as string | number)}>
                 {String(rawValue) || "—"}
               </span>
             );
           })}
+
+          {/* Action column */}
+          <div className="px-2">
+            {isLostView ? (
+              <button className="text-xs px-2 py-1 rounded transition-colors"
+                style={{ color: "#22c55e", border: "1px solid #22c55e30" }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "#22c55e20"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                onClick={(e) => onReactivate(client.id, e)}>
+                Restore
+              </button>
+            ) : (
+              <button className="text-xs px-2 py-1 rounded transition-colors"
+                style={{ color: "#ef4444", border: "1px solid #ef444430" }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "#ef444420"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                onClick={(e) => onMarkLost(client.id, e)}>
+                Lost
+              </button>
+            )}
+          </div>
         </div>
       ))}
     </div>
@@ -393,9 +463,12 @@ interface CardProps {
   formatDate: (d: string) => string;
   isOverdue: (d: string) => boolean;
   onOpenProject: (p: Project) => void;
+  isLostView: boolean;
+  onMarkLost: (id: number, e?: React.MouseEvent) => void;
+  onReactivate: (id: number, e?: React.MouseEvent) => void;
 }
 
-function CardView({ clients, formatDate, isOverdue, onOpenProject }: CardProps) {
+function CardView({ clients, formatDate, isOverdue, onOpenProject, isLostView, onMarkLost, onReactivate }: CardProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4">
       {clients.map((client) => {
@@ -405,16 +478,23 @@ function CardView({ clients, formatDate, isOverdue, onOpenProject }: CardProps) 
         return (
           <div
             key={client.id}
-            className="rounded-xl overflow-hidden cursor-pointer transition-all"
-            style={{ background: "#161616", border: "1px solid #2a2a2a" }}
-            onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#444"; e.currentTarget.style.transform = "translateY(-2px)"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#2a2a2a"; e.currentTarget.style.transform = "translateY(0)"; }}
+            className="rounded-xl overflow-hidden cursor-pointer transition-all relative"
+            style={{ background: "#161616", border: `1px solid ${isLostView ? "#ef444440" : "#2a2a2a"}`, opacity: isLostView ? 0.75 : 1 }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = isLostView ? "#ef4444" : "#444"; e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.opacity = "1"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = isLostView ? "#ef444440" : "#2a2a2a"; e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.opacity = isLostView ? "0.75" : "1"; }}
             onClick={() => onOpenProject(client)}
           >
+            {/* Lost badge */}
+            {isLostView && (
+              <div className="absolute top-2 right-2 z-10 px-2 py-0.5 rounded-full text-xs font-bold" style={{ background: "#ef4444", color: "#fff" }}>
+                LOST
+              </div>
+            )}
+
             {/* Cover Image */}
             {client.cover_image ? (
               <div className="w-full h-36 overflow-hidden" style={{ background: "#1e1e1e" }}>
-                <img src={client.cover_image} alt={client.business_name || ""} className="w-full h-full object-cover" />
+                <img src={client.cover_image} alt={client.business_name || ""} className="w-full h-full object-cover" style={isLostView ? { filter: "grayscale(60%)" } : {}} />
               </div>
             ) : (
               <div className="w-full h-20 flex items-center justify-center" style={{ background: "linear-gradient(135deg, #1e1e1e 0%, #2a2a2a 100%)" }}>
@@ -426,7 +506,6 @@ function CardView({ clients, formatDate, isOverdue, onOpenProject }: CardProps) 
 
             {/* Card Body */}
             <div className="p-3">
-              {/* Header */}
               <div className="flex items-start justify-between mb-1">
                 <div className="flex-1 min-w-0">
                   <h3 className="text-sm font-semibold truncate" style={{ color: "#f0f0f0" }}>{client.business_name}</h3>
@@ -434,20 +513,18 @@ function CardView({ clients, formatDate, isOverdue, onOpenProject }: CardProps) 
                     {client.contact_name}{client.business_type ? ` · ${client.business_type}` : ""}
                   </p>
                 </div>
-                {/* Monthly fee badge */}
                 {client.monthly_fee > 0 && (
-                  <span className="text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0 ml-2" style={{ background: "#22c55e20", color: "#22c55e" }}>
-                    £{client.monthly_fee}/mo
+                  <span className="text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0 ml-2"
+                    style={{ background: isLostView ? "#ef444420" : "#22c55e20", color: isLostView ? "#ef4444" : "#22c55e" }}>
+                    {isLostView ? "-" : ""}£{client.monthly_fee}/mo
                   </span>
                 )}
               </div>
 
-              {/* Domain */}
               {client.domain && (
                 <p className="text-xs mt-1 truncate" style={{ color: "#ea580c" }}>{client.domain}</p>
               )}
 
-              {/* Task progress bar */}
               {client.tasks_total !== undefined && client.tasks_total > 0 && (
                 <div className="mt-2">
                   <div className="flex items-center justify-between text-xs mb-1">
@@ -460,7 +537,7 @@ function CardView({ clients, formatDate, isOverdue, onOpenProject }: CardProps) 
                 </div>
               )}
 
-              {/* Footer */}
+              {/* Footer with action */}
               <div className="flex items-center justify-between mt-2 pt-2" style={{ borderTop: "1px solid #2a2a2a" }}>
                 <div className="flex items-center gap-2">
                   {client.email && (
@@ -474,11 +551,30 @@ function CardView({ clients, formatDate, isOverdue, onOpenProject }: CardProps) 
                     </svg>
                   )}
                 </div>
-                {client.renewal_date && (
-                  <span className="text-xs" style={{ color: overdue ? "#ef4444" : "#888" }}>
-                    {overdue ? "Overdue: " : ""}{formatDate(client.renewal_date)}
-                  </span>
-                )}
+                <div className="flex items-center gap-2">
+                  {client.renewal_date && (
+                    <span className="text-xs" style={{ color: overdue ? "#ef4444" : "#888" }}>
+                      {overdue ? "Overdue: " : ""}{formatDate(client.renewal_date)}
+                    </span>
+                  )}
+                  {isLostView ? (
+                    <button className="text-xs px-2 py-0.5 rounded transition-colors"
+                      style={{ color: "#22c55e", border: "1px solid #22c55e30" }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = "#22c55e20"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                      onClick={(e) => onReactivate(client.id, e)}>
+                      Restore
+                    </button>
+                  ) : (
+                    <button className="text-xs px-2 py-0.5 rounded transition-colors"
+                      style={{ color: "#ef4444", border: "1px solid #ef444430" }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = "#ef444420"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                      onClick={(e) => onMarkLost(client.id, e)}>
+                      Lost
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>

@@ -28,7 +28,7 @@ export async function PUT(
   const db = getClient();
   const body = await request.json();
 
-  const allowed = ["stage", "sort_order", "domain", "hosting_info", "monthly_fee", "renewal_date", "login_details", "project_notes", "completed_at"];
+  const allowed = ["stage", "sort_order", "domain", "hosting_info", "monthly_fee", "renewal_date", "login_details", "project_notes", "completed_at", "client_status"];
   const updates: string[] = [];
   const values: unknown[] = [];
 
@@ -49,6 +49,15 @@ export async function PUT(
     const project = first(await db.execute({ sql: "SELECT lead_id FROM projects WHERE id = ?", args: [Number(id)] }));
     if (project) {
       await db.execute({ sql: "UPDATE leads SET status = 'completed', updated_at = ? WHERE id = ?", args: [new Date().toISOString(), project.lead_id as number] });
+    }
+  }
+
+  // If marking as lost/reactivating, update the lead status too
+  if (body.client_status) {
+    const project = first(await db.execute({ sql: "SELECT lead_id FROM projects WHERE id = ?", args: [Number(id)] }));
+    if (project) {
+      const leadStatus = body.client_status === "lost" ? "lost" : "completed";
+      await db.execute({ sql: "UPDATE leads SET status = ?, updated_at = ? WHERE id = ?", args: [leadStatus, new Date().toISOString(), project.lead_id as number] });
     }
   }
 
