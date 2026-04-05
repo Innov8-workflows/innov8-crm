@@ -23,12 +23,13 @@ export async function GET(request: NextRequest) {
     args.push(stage);
   }
 
-  // Filter by client_status (active/lost) — defaults to active for completed projects
-  if (clientStatus) {
-    sql += (sql.includes("WHERE") ? " AND" : " WHERE") + " (p.client_status = ? OR (p.client_status IS NULL AND ? = 'active'))";
-    args.push(clientStatus, clientStatus);
+  // Filter by client_status — defaults to active+refine for completed projects
+  if (clientStatus === "lost") {
+    sql += (sql.includes("WHERE") ? " AND" : " WHERE") + " p.client_status = 'lost'";
+  } else if (clientStatus === "active") {
+    sql += (sql.includes("WHERE") ? " AND" : " WHERE") + " (p.client_status IN ('active', 'refine') OR p.client_status IS NULL)";
   } else if (completed === "true") {
-    sql += " AND (p.client_status = 'active' OR p.client_status IS NULL)";
+    sql += " AND (p.client_status IN ('active', 'refine') OR p.client_status IS NULL)";
   }
 
   sql += " ORDER BY p.sort_order ASC, p.created_at DESC";

@@ -74,6 +74,17 @@ export default function LiveClients() {
     fetchStats();
   }, [fetchStats]);
 
+  const cycleStatus = useCallback(async (id: number, currentStatus: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    // Cycle: active → refine → active (lost is handled by the Lost button)
+    const nextStatus = currentStatus === "active" || !currentStatus ? "refine" : "active";
+    setClients((prev) => prev.map((c) => (c.id === id ? { ...c, client_status: nextStatus } : c)));
+    await fetch(`/api/projects/${id}`, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ client_status: nextStatus }),
+    });
+  }, []);
+
   const deleteClient = useCallback(async (id: number) => {
     await fetch(`/api/projects/${id}`, { method: "DELETE" });
     setClients((prev) => prev.filter((c) => c.id !== id));
@@ -261,6 +272,7 @@ export default function LiveClients() {
             onMarkLost={markAsLost}
             onReactivate={reactivateClient}
             onDelete={setConfirmDelete}
+            onCycleStatus={cycleStatus}
           />
         ) : (
           <CardView
@@ -272,6 +284,7 @@ export default function LiveClients() {
             onMarkLost={markAsLost}
             onReactivate={reactivateClient}
             onDelete={setConfirmDelete}
+            onCycleStatus={cycleStatus}
           />
         )}
       </div>
@@ -344,7 +357,14 @@ interface GridProps {
   onMarkLost: (id: number, e?: React.MouseEvent) => void;
   onReactivate: (id: number, e?: React.MouseEvent) => void;
   onDelete: (id: number) => void;
+  onCycleStatus: (id: number, currentStatus: string, e?: React.MouseEvent) => void;
 }
+
+const STATUS_BADGE: Record<string, { label: string; color: string; bg: string }> = {
+  active: { label: "LIVE", color: "#22c55e", bg: "#22c55e20" },
+  refine: { label: "REFINE", color: "#eab308", bg: "#eab30820" },
+  lost: { label: "LOST", color: "#ef4444", bg: "#ef444420" },
+};
 
 const GRID_COLUMNS: { key: SortKey; label: string; width: string; editable?: boolean; type?: string }[] = [
   { key: "business_name", label: "Business", width: "minmax(160px, 1.5fr)" },
@@ -357,14 +377,15 @@ const GRID_COLUMNS: { key: SortKey; label: string; width: string; editable?: boo
   { key: "completed_at", label: "Completed", width: "minmax(110px, 0.7fr)" },
 ];
 
-function GridView({ clients, sortKey, sortDir, onSort, editingCell, editValue, onStartEdit, onEditChange, onCommitEdit, onCancelEdit, formatDate, isOverdue, onOpenProject, isLostView, onMarkLost, onReactivate, onDelete }: GridProps) {
-  const gridTemplate = `40px ${GRID_COLUMNS.map((c) => c.width).join(" ")} 100px`;
+function GridView({ clients, sortKey, sortDir, onSort, editingCell, editValue, onStartEdit, onEditChange, onCommitEdit, onCancelEdit, formatDate, isOverdue, onOpenProject, isLostView, onMarkLost, onReactivate, onDelete, onCycleStatus }: GridProps) {
+  const gridTemplate = `40px 70px ${GRID_COLUMNS.map((c) => c.width).join(" ")} 100px`;
 
   return (
     <div style={{ minWidth: 900 }}>
       {/* Header */}
       <div className="grid items-center px-2 py-1.5 sticky top-0 z-10" style={{ gridTemplateColumns: gridTemplate, background: "#161616", borderBottom: "1px solid #2a2a2a" }}>
         <div />
+        <span className="text-xs font-medium px-2" style={{ color: "#888" }}>Status</span>
         {GRID_COLUMNS.map((col) => (
           <button
             key={col.key}
@@ -400,6 +421,20 @@ function GridView({ clients, sortKey, sortDir, onSort, editingCell, editValue, o
         >
           {/* Row number */}
           <span className="text-xs text-center" style={{ color: "#444" }}>{idx + 1}</span>
+
+          {/* Status badge */}
+          {(() => {
+            const status = client.client_status || "active";
+            const badge = STATUS_BADGE[status] || STATUS_BADGE.active;
+            return (
+              <button className="text-xs font-bold px-2 py-0.5 rounded-full mx-1 transition-colors"
+                style={{ background: badge.bg, color: badge.color, border: `1px solid ${badge.color}40` }}
+                onClick={(e) => { e.stopPropagation(); onCycleStatus(client.id, status, e); }}
+                title="Click to change status">
+                {badge.label}
+              </button>
+            );
+          })()}
 
           {GRID_COLUMNS.map((col) => {
             const isEditing = editingCell?.id === client.id && editingCell?.field === col.key;
@@ -520,9 +555,10 @@ interface CardProps {
   onMarkLost: (id: number, e?: React.MouseEvent) => void;
   onReactivate: (id: number, e?: React.MouseEvent) => void;
   onDelete: (id: number) => void;
+  onCycleStatus: (id: number, currentStatus: string, e?: React.MouseEvent) => void;
 }
 
-function CardView({ clients, formatDate, isOverdue, onOpenProject, isLostView, onMarkLost, onReactivate, onDelete }: CardProps) {
+function CardView({ clients, formatDate, isOverdue, onOpenProject, isLostView, onMarkLost, onReactivate, onDelete, onCycleStatus }: CardProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4">
       {clients.map((client) => {
@@ -538,12 +574,19 @@ function CardView({ clients, formatDate, isOverdue, onOpenProject, isLostView, o
             onMouseLeave={(e) => { e.currentTarget.style.borderColor = isLostView ? "#ef444440" : "#2a2a2a"; e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.opacity = isLostView ? "0.75" : "1"; }}
             onClick={() => onOpenProject(client)}
           >
-            {/* Lost badge */}
-            {isLostView && (
-              <div className="absolute top-2 right-2 z-10 px-2 py-0.5 rounded-full text-xs font-bold" style={{ background: "#ef4444", color: "#fff" }}>
-                LOST
-              </div>
-            )}
+            {/* Status badge */}
+            {(() => {
+              const status = isLostView ? "lost" : (client.client_status || "active");
+              const badge = STATUS_BADGE[status] || STATUS_BADGE.active;
+              return (
+                <button className="absolute top-2 right-2 z-10 px-2.5 py-0.5 rounded-full text-xs font-bold transition-colors"
+                  style={{ background: badge.color, color: "#fff", boxShadow: "0 2px 4px rgba(0,0,0,0.3)" }}
+                  onClick={(e) => { e.stopPropagation(); if (!isLostView) onCycleStatus(client.id, status, e); }}
+                  title={isLostView ? "Lost client" : "Click to change status"}>
+                  {badge.label}
+                </button>
+              );
+            })()}
 
             {/* Cover Image */}
             {client.cover_image ? (

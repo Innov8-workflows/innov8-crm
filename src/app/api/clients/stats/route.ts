@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getClient, initDb, first } from "@/lib/db";
 
-const ACTIVE_FILTER = "completed_at != '' AND (client_status = 'active' OR client_status IS NULL)";
+const ACTIVE_FILTER = "completed_at != '' AND (client_status IN ('active', 'refine') OR client_status IS NULL)";
 
 export async function GET() {
   await initDb();
