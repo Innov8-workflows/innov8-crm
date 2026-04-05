@@ -15,38 +15,43 @@ const views = [
 
 export default function ViewNav({ active, onChange, projectCount = 0, clientCount = 0 }: ViewNavProps) {
   return (
-    <div className="flex items-center gap-1 px-4 py-1.5" style={{ background: "#0f0f0f", borderBottom: "1px solid #1e1e1e" }}>
-      {views.map((view) => {
-        const isActive = active === view.id;
-        const count = view.id === "projects" ? projectCount : view.id === "clients" ? clientCount : 0;
-        return (
-          <button
-            key={view.id}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all"
-            style={{
-              background: isActive ? "rgba(234,88,12,0.12)" : "transparent",
-              color: isActive ? "#f97316" : "#666",
-              border: isActive ? "1px solid rgba(234,88,12,0.25)" : "1px solid transparent",
-            }}
-            onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.color = "#aaa"; }}
-            onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.color = "#666"; }}
-            onClick={() => onChange(view.id)}
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d={view.icon} />
-            </svg>
-            {view.label}
-            {count > 0 && (
-              <span className="px-1.5 py-0.5 rounded-full text-xs" style={{
-                background: isActive ? "rgba(234,88,12,0.2)" : "#252525",
-                color: isActive ? "#f97316" : "#888",
-              }}>
-                {count}
-              </span>
-            )}
-          </button>
-        );
-      })}
+    <div className="flex items-center gap-1.5 px-4 py-2 flex-shrink-0" style={{ background: "#0a0a0a", borderBottom: "1px solid #1e1e1e" }}>
+      <div className="w-7 h-7 rounded-md flex items-center justify-center font-mono text-xs font-medium text-white flex-shrink-0" style={{ background: "#ea580c" }}>
+        i8
+      </div>
+      <div className="flex items-center gap-1 ml-2">
+        {views.map((view) => {
+          const isActive = active === view.id;
+          const count = view.id === "projects" ? projectCount : view.id === "clients" ? clientCount : 0;
+          return (
+            <button
+              key={view.id}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
+              style={{
+                background: isActive ? "rgba(234,88,12,0.15)" : "transparent",
+                color: isActive ? "#f97316" : "#555",
+                border: isActive ? "1px solid rgba(234,88,12,0.3)" : "1px solid transparent",
+              }}
+              onMouseEnter={(e) => { if (!isActive) { e.currentTarget.style.color = "#aaa"; e.currentTarget.style.background = "#161616"; } }}
+              onMouseLeave={(e) => { if (!isActive) { e.currentTarget.style.color = "#555"; e.currentTarget.style.background = "transparent"; } }}
+              onClick={() => onChange(view.id)}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d={view.icon} />
+              </svg>
+              {view.label}
+              {count > 0 && (
+                <span className="px-1.5 py-0.5 rounded-full text-xs font-bold" style={{
+                  background: isActive ? "rgba(234,88,12,0.25)" : "#252525",
+                  color: isActive ? "#f97316" : "#888",
+                }}>
+                  {count}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

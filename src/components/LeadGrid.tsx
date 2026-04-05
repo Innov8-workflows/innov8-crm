@@ -450,8 +450,7 @@ export default function LeadGrid() {
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-2" style={{ background: "#131313", borderBottom: "1px solid #2a2a2a" }}>
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center font-mono text-xs font-medium text-white" style={{ background: "#ea580c" }}>i8</div>
-          <h1 className="text-lg font-bold" style={{ color: "#f0f0f0" }}>innov8 CRM</h1>
+          <h1 className="text-sm font-semibold" style={{ color: "#888" }}>Prospects</h1>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm" style={{ color: "#666" }}>{leads.length} leads</span>
