@@ -163,6 +163,14 @@ export default function LeadGrid() {
       method: "PUT", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ [field]: value }),
     });
+
+    // Auto-create project when lead is marked as "won"
+    if (field === "status" && value === "won") {
+      await fetch("/api/projects", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lead_id: id }),
+      });
+    }
   }, []);
 
   // Update custom field value

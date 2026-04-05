@@ -91,6 +91,45 @@ export async function initDb() {
       PRIMARY KEY (lead_id, field_id),
       FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS projects (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      lead_id INTEGER NOT NULL UNIQUE,
+      stage TEXT DEFAULT 'onboarding',
+      sort_order INTEGER DEFAULT 0,
+      domain TEXT DEFAULT '',
+      hosting_info TEXT DEFAULT '',
+      monthly_fee REAL DEFAULT 0,
+      renewal_date TEXT DEFAULT '',
+      login_details TEXT DEFAULT '',
+      project_notes TEXT DEFAULT '',
+      completed_at TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (lead_id) REFERENCES leads(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS project_tasks (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      project_id INTEGER NOT NULL,
+      title TEXT NOT NULL,
+      completed INTEGER DEFAULT 0,
+      sort_order INTEGER DEFAULT 0,
+      stage TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS project_files (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      project_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      url TEXT NOT NULL,
+      file_type TEXT DEFAULT '',
+      size INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+    );
   `);
 
   const migrations = [
