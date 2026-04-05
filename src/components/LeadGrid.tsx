@@ -90,8 +90,17 @@ export default function LeadGrid() {
   const [customColumns, setCustomColumns] = useState<ColConfig[]>([]);
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, Record<string, string>>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [currentUser, setCurrentUser] = useState("");
+  const [showUserMenu, setShowUserMenu] = useState(false);
   // Ref to prevent re-fetch on inline edit
   const skipNextFetch = useRef(false);
+
+  // Get current user
+  useEffect(() => {
+    fetch("/api/auth/me").then((r) => r.json()).then((data) => {
+      if (data.username) setCurrentUser(data.username);
+    });
+  }, []);
 
   // Load column configs + custom columns
   useEffect(() => {
@@ -462,6 +471,46 @@ export default function LeadGrid() {
           </div>
           <button onClick={() => setShowAddModal(true)}
             className="px-3 py-1.5 text-sm font-semibold rounded-md" style={{ background: "#ea580c", color: "#fff" }}>+ New Lead</button>
+
+          {/* User menu */}
+          <div className="relative ml-1">
+            <button onClick={() => setShowUserMenu(!showUserMenu)}
+              className="flex items-center gap-2 px-2 py-1 rounded-md transition-colors"
+              style={{ border: "1px solid #2a2a2a" }}
+              onMouseEnter={(e) => e.currentTarget.style.background = "#1e1e1e"}
+              onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
+              <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold"
+                style={{ background: "#ea580c", color: "#fff" }}>
+                {currentUser ? currentUser[0].toUpperCase() : "?"}
+              </div>
+              <span className="text-sm hidden sm:inline" style={{ color: "#ccc" }}>{currentUser}</span>
+              <svg className="w-3.5 h-3.5" style={{ color: "#666" }} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {showUserMenu && (
+              <div className="absolute right-0 top-full mt-1 w-44 rounded-lg shadow-xl z-50 py-1"
+                style={{ background: "#1e1e1e", border: "1px solid #333" }}>
+                <div className="px-3 py-2 text-xs" style={{ color: "#666", borderBottom: "1px solid #2a2a2a" }}>
+                  Signed in as <span style={{ color: "#ccc" }}>{currentUser}</span>
+                </div>
+                <button
+                  className="w-full text-left px-3 py-2 text-sm flex items-center gap-2 transition-colors"
+                  style={{ color: "#ef4444" }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = "rgba(239,68,68,0.1)"}
+                  onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                  onClick={async () => {
+                    await fetch("/api/auth/logout", { method: "POST" });
+                    window.location.href = "/login";
+                  }}>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                  Sign out
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -664,8 +713,8 @@ export default function LeadGrid() {
         </div>
       )}
 
-      {(showColumnMenu || showExportMenu || showBulkMenu) && (
-        <div className="fixed inset-0 z-30" onClick={() => { setShowColumnMenu(false); setShowExportMenu(false); setShowBulkMenu(false); }} />
+      {(showColumnMenu || showExportMenu || showBulkMenu || showUserMenu) && (
+        <div className="fixed inset-0 z-30" onClick={() => { setShowColumnMenu(false); setShowExportMenu(false); setShowBulkMenu(false); setShowUserMenu(false); }} />
       )}
     </div>
   );
