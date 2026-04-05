@@ -35,3 +35,17 @@ export async function PUT(request: NextRequest) {
 
   return NextResponse.json({ ok: true });
 }
+
+export async function DELETE(request: NextRequest) {
+  await initDb();
+  const db = getClient();
+  const { id } = await request.json();
+
+  if (!id) return NextResponse.json({ error: "id is required" }, { status: 400 });
+
+  // Delete column config and all associated values
+  await db.execute({ sql: "DELETE FROM custom_field_values WHERE field_id = ?", args: [id] });
+  await db.execute({ sql: "DELETE FROM column_config WHERE id = ?", args: [id] });
+
+  return NextResponse.json({ ok: true });
+}

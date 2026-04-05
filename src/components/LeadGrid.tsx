@@ -142,6 +142,24 @@ export default function LeadGrid() {
     });
   }, []);
 
+  const deleteColumn = useCallback(async (columnId: string) => {
+    await fetch("/api/columns", {
+      method: "DELETE", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: columnId }),
+    });
+    setCustomColumns((prev) => prev.filter((c) => c.id !== columnId));
+    setColConfigs((prev) => { const next = { ...prev }; delete next[columnId]; return next; });
+    setCustomFieldValues((prev) => {
+      const next = { ...prev };
+      for (const leadId of Object.keys(next)) {
+        const fields = { ...next[leadId] };
+        delete fields[columnId];
+        next[leadId] = fields;
+      }
+      return next;
+    });
+  }, []);
+
   const fetchLeads = useCallback(async () => {
     if (skipNextFetch.current) { skipNextFetch.current = false; return; }
     const params = new URLSearchParams();
@@ -361,7 +379,8 @@ export default function LeadGrid() {
           id: cc.id,
           header: ({ column }) => (
             <ColumnHeaderEditor columnId={cc.id} label={cc.label} colType={cc.col_type}
-              onSave={saveColConfig} onSort={column.getToggleSortingHandler()} sortDir={column.getIsSorted()} />
+              onSave={saveColConfig} onSort={column.getToggleSortingHandler()} sortDir={column.getIsSorted()}
+              onDelete={deleteColumn} />
           ),
           size: 120,
           minSize: 40,
@@ -416,7 +435,7 @@ export default function LeadGrid() {
         ),
       }),
     ],
-    [editableFields, customColumns, customFieldValues, getLabel, getColType, saveColConfig, renderCell, deleteLead, updateCustomField]
+    [editableFields, customColumns, customFieldValues, getLabel, getColType, saveColConfig, deleteColumn, renderCell, deleteLead, updateCustomField]
   );
 
   const table = useReactTable({
