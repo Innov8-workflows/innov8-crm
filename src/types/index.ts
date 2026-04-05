@@ -101,9 +101,9 @@ export type LeadUpdate = Partial<Omit<Lead, "id" | "created_at" | "updated_at">>
 
 export const PIPELINE_STAGES = [
   { value: "new", label: "New", color: "#6B7280" },
-  { value: "contacted", label: "Contacted", color: "#3B82F6" },
-  { value: "demo_sent", label: "Demo Sent", color: "#8B5CF6" },
-  { value: "interested", label: "Interested", color: "#F59E0B" },
+  { value: "emailed", label: "Emailed", color: "#3B82F6" },
+  { value: "messaged", label: "Messaged", color: "#8B5CF6" },
+  { value: "called", label: "Called", color: "#F59E0B" },
   { value: "meeting_booked", label: "Meeting Booked", color: "#10B981" },
   { value: "won", label: "Won", color: "#059669" },
   { value: "lost", label: "Lost", color: "#EF4444" },
@@ -119,7 +119,7 @@ export const PROJECT_STAGES = [
 ] as const;
 
 export const ROW_COLORS: Record<string, string> = {
-  new: "", contacted: "bg-blue-50/40", demo_sent: "bg-purple-50/40",
-  interested: "bg-amber-50/40", meeting_booked: "bg-green-50/40",
+  new: "", emailed: "bg-blue-50/40", messaged: "bg-purple-50/40",
+  called: "bg-amber-50/40", meeting_booked: "bg-green-50/40",
   won: "bg-emerald-50/50", lost: "bg-red-50/30",
 };

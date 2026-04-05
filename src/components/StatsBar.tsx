@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 
 interface Stats {
-  total: number; contacted: number; demoSent: number; responded: number;
+  total: number; emailed: number; messaged: number; called: number;
   meetingsBooked: number; won: number; lost: number; overdue: number;
-  dueToday: number; emailedThisWeek: number;
+  dueToday: number;
 }
 
 export default function StatsBar() {
@@ -20,12 +20,12 @@ export default function StatsBar() {
 
   const cards = [
     { label: "Total Leads", value: stats.total, color: "#f0f0f0" },
-    { label: "Contacted", value: stats.contacted, color: "#3b82f6" },
-    { label: "Demos Sent", value: stats.demoSent, color: "#a855f7" },
-    { label: "Responded", value: stats.responded, color: "#eab308" },
-    { label: "Meetings", value: stats.meetingsBooked, color: "#22c55e" },
+    { label: "Emailed", value: stats.emailed, color: "#3b82f6" },
+    { label: "Messaged", value: stats.messaged, color: "#8b5cf6" },
+    { label: "Called", value: stats.called, color: "#f59e0b" },
+    { label: "Meetings", value: stats.meetingsBooked, color: "#10b981" },
     { label: "Won", value: stats.won, color: "#059669" },
-    { label: "Emailed (7d)", value: stats.emailedThisWeek, color: "#f97316" },
+    { label: "Lost", value: stats.lost, color: "#ef4444" },
   ];
 
   const alerts = [];
