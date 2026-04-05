@@ -10,7 +10,7 @@ interface Stats {
 
 export default function StatsBar() {
   const [stats, setStats] = useState<Stats | null>(null);
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
 
   useEffect(() => {
     fetch("/api/leads/stats").then((r) => r.json()).then(setStats);

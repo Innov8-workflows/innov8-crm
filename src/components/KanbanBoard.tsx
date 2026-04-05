@@ -70,6 +70,36 @@ export default function KanbanBoard() {
 
   return (
     <>
+      {/* Project Dashboard */}
+      <div style={{ background: "#131313", borderBottom: "1px solid #2a2a2a" }}>
+        <div className="grid gap-3 px-4 py-3" style={{ gridTemplateColumns: `repeat(${PROJECT_STAGES.length + 1}, 1fr)` }}>
+          <div className="flex items-center gap-3 p-3 rounded-lg" style={{ background: "#1e1e1e", border: "1px solid #2a2a2a" }}>
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "#ea580c15" }}>
+              <svg className="w-5 h-5" fill="none" stroke="#ea580c" strokeWidth={1.5} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 6.878V6a2.25 2.25 0 012.25-2.25h7.5A2.25 2.25 0 0118 6v.878m-12 0c.235-.083.487-.128.75-.128h10.5c.263 0 .515.045.75.128m-12 0A2.25 2.25 0 004.5 9v.878m13.5-3A2.25 2.25 0 0119.5 9v.878m0 0a2.246 2.246 0 00-.75-.128H5.25c-.263 0-.515.045-.75.128m15 0A2.25 2.25 0 0121 12v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18v-6c0-1.007.662-1.858 1.574-2.144z" />
+              </svg>
+            </div>
+            <div>
+              <div className="text-xl font-bold" style={{ color: "#f0f0f0" }}>{projects.length}</div>
+              <div className="text-xs" style={{ color: "#666" }}>Total Projects</div>
+            </div>
+          </div>
+          {PROJECT_STAGES.map((stage) => {
+            const count = getProjectsByStage(stage.value).length;
+            return (
+              <div key={stage.value} className="flex items-center gap-3 p-3 rounded-lg" style={{ background: "#1e1e1e", border: "1px solid #2a2a2a" }}>
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `${stage.color}15` }}>
+                  <div className="w-3 h-3 rounded-full" style={{ background: stage.color }} />
+                </div>
+                <div>
+                  <div className="text-xl font-bold" style={{ color: count > 0 ? stage.color : "#444" }}>{count}</div>
+                  <div className="text-xs" style={{ color: "#666" }}>{stage.label}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
       <div className="flex-1 overflow-x-auto p-4">
         <div className="flex gap-4 h-full min-w-max">
           {PROJECT_STAGES.map((stage) => {
