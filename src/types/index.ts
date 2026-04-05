@@ -111,11 +111,11 @@ export const PIPELINE_STAGES = [
 
 export const PROJECT_STAGES = [
   { value: "onboarding", label: "Onboarding", color: "#6B7280" },
-  { value: "design", label: "Design", color: "#3B82F6" },
-  { value: "content", label: "Content", color: "#a855f7" },
+  { value: "design_content", label: "Design & Content", color: "#3B82F6" },
   { value: "build", label: "Build", color: "#eab308" },
   { value: "review", label: "Review", color: "#f97316" },
   { value: "launch", label: "Launch", color: "#22c55e" },
+  { value: "completed", label: "Completed", color: "#059669" },
 ] as const;
 
 export const ROW_COLORS: Record<string, string> = {

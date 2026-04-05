@@ -139,6 +139,8 @@ export async function initDb() {
     "ALTER TABLE leads ADD COLUMN demo_site_url TEXT DEFAULT ''",
     "ALTER TABLE project_files ADD COLUMN is_cover INTEGER DEFAULT 0",
     "ALTER TABLE projects ADD COLUMN client_status TEXT DEFAULT 'active'",
+    "UPDATE projects SET stage = 'design_content' WHERE stage IN ('design', 'content')",
+    "UPDATE project_tasks SET stage = 'design_content' WHERE stage IN ('design', 'content')",
   ];
   for (const sql of migrations) {
     try { await db.execute(sql); } catch { /* column exists */ }

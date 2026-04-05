@@ -28,9 +28,18 @@ export default function KanbanBoard() {
   }, []);
 
   const fetchProjects = useCallback(async () => {
-    const res = await fetch("/api/projects?completed=false");
-    const data = await res.json();
-    const projs = data.projects || [];
+    // Fetch both active incomplete and active completed projects for the kanban
+    const [incRes, compRes] = await Promise.all([
+      fetch("/api/projects?completed=false"),
+      fetch("/api/projects?completed=true"),
+    ]);
+    const [incData, compData] = await Promise.all([incRes.json(), compRes.json()]);
+    const allProjs = [...(incData.projects || []), ...(compData.projects || [])];
+    // Mark completed projects with stage "completed" for display
+    const projs = allProjs.map((p: Project) => ({
+      ...p,
+      stage: p.completed_at ? "completed" : p.stage,
+    }));
     setProjects(projs);
     setLoading(false);
     if (projs.length > 0) fetchCoverImages(projs.map((p: Project) => p.id));
@@ -40,11 +49,24 @@ export default function KanbanBoard() {
 
   const moveProject = useCallback(async (projectId: number, newStage: string) => {
     setProjects((prev) => prev.map((p) => (p.id === projectId ? { ...p, stage: newStage } : p)));
-    await fetch(`/api/projects/${projectId}`, {
-      method: "PUT", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ stage: newStage }),
-    });
-  }, []);
+
+    if (newStage === "completed") {
+      // Moving to completed — set completed_at
+      await fetch(`/api/projects/${projectId}`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stage: "launch", completed_at: new Date().toISOString() }),
+      });
+    } else {
+      // Moving to a non-completed stage — clear completed_at if it was completed
+      const project = projects.find((p) => p.id === projectId);
+      const updates: Record<string, string> = { stage: newStage };
+      if (project?.completed_at) updates.completed_at = "";
+      await fetch(`/api/projects/${projectId}`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+      });
+    }
+  }, [projects]);
 
   const completeProject = useCallback(async (projectId: number) => {
     const now = new Date().toISOString();
@@ -52,17 +74,11 @@ export default function KanbanBoard() {
       method: "PUT", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ completed_at: now }),
     });
-    setProjects((prev) => prev.filter((p) => p.id !== projectId));
+    setProjects((prev) => prev.map((p) => (p.id === projectId ? { ...p, stage: "completed", completed_at: now } : p)));
     setSelectedProject(null);
   }, []);
 
   const getProjectsByStage = (stage: string) => projects.filter((p) => p.stage === stage);
-
-  const getTaskProgress = (project: Project) => {
-    // We don't have tasks loaded here — just show the stage
-    return project.stage;
-  };
-  void getTaskProgress;
 
   if (loading) {
     return <div className="flex-1 flex items-center justify-center" style={{ color: "#555" }}>Loading projects...</div>;
@@ -104,22 +120,23 @@ export default function KanbanBoard() {
         <div className="flex gap-4 h-full min-w-max">
           {PROJECT_STAGES.map((stage) => {
             const stageProjects = getProjectsByStage(stage.value);
+            const isCompleted = stage.value === "completed";
             return (
               <div
                 key={stage.value}
                 className="w-72 flex-shrink-0 flex flex-col rounded-xl"
-                style={{ background: "#161616", border: "1px solid #2a2a2a" }}
+                style={{ background: isCompleted ? "#0d1f0d" : "#161616", border: `1px solid ${isCompleted ? "#059669" + "40" : "#2a2a2a"}` }}
                 onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = stage.color; }}
-                onDragLeave={(e) => { e.currentTarget.style.borderColor = "#2a2a2a"; }}
+                onDragLeave={(e) => { e.currentTarget.style.borderColor = isCompleted ? "#059669" + "40" : "#2a2a2a"; }}
                 onDrop={(e) => {
                   e.preventDefault();
-                  e.currentTarget.style.borderColor = "#2a2a2a";
+                  e.currentTarget.style.borderColor = isCompleted ? "#059669" + "40" : "#2a2a2a";
                   if (dragProject) moveProject(dragProject, stage.value);
                   setDragProject(null);
                 }}
               >
                 {/* Column header */}
-                <div className="flex items-center justify-between px-3 py-2.5" style={{ borderBottom: "1px solid #2a2a2a" }}>
+                <div className="flex items-center justify-between px-3 py-2.5" style={{ borderBottom: `1px solid ${isCompleted ? "#059669" + "30" : "#2a2a2a"}` }}>
                   <div className="flex items-center gap-2">
                     <div className="w-2.5 h-2.5 rounded-full" style={{ background: stage.color }} />
                     <span className="text-sm font-semibold" style={{ color: "#ccc" }}>{stage.label}</span>
@@ -139,12 +156,12 @@ export default function KanbanBoard() {
                       onDragEnd={() => setDragProject(null)}
                       className="rounded-lg p-3 cursor-pointer transition-all"
                       style={{
-                        background: "#1e1e1e",
-                        border: `1px solid ${dragProject === project.id ? stage.color : "#2a2a2a"}`,
+                        background: isCompleted ? "#132613" : "#1e1e1e",
+                        border: `1px solid ${dragProject === project.id ? stage.color : isCompleted ? "#059669" + "30" : "#2a2a2a"}`,
                         opacity: dragProject === project.id ? 0.5 : 1,
                       }}
                       onMouseEnter={(e) => e.currentTarget.style.borderColor = "#444"}
-                      onMouseLeave={(e) => { if (dragProject !== project.id) e.currentTarget.style.borderColor = "#2a2a2a"; }}
+                      onMouseLeave={(e) => { if (dragProject !== project.id) e.currentTarget.style.borderColor = isCompleted ? "#059669" + "30" : "#2a2a2a"; }}
                       onClick={() => setSelectedProject(project)}
                     >
                       {/* Cover image */}
@@ -166,7 +183,9 @@ export default function KanbanBoard() {
                       )}
                       <div className="flex items-center justify-between mt-2">
                         <span className="text-xs" style={{ color: "#555" }}>
-                          {new Date(project.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                          {isCompleted && project.completed_at
+                            ? `Done ${new Date(project.completed_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`
+                            : new Date(project.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
                         </span>
                         {project.monthly_fee > 0 && (
                           <span className="text-xs font-medium" style={{ color: "#22c55e" }}>
@@ -179,7 +198,7 @@ export default function KanbanBoard() {
 
                   {stageProjects.length === 0 && (
                     <div className="text-center py-8 text-xs" style={{ color: "#333" }}>
-                      Drag projects here
+                      {isCompleted ? "Drag completed projects here" : "Drag projects here"}
                     </div>
                   )}
                 </div>
