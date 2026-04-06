@@ -401,16 +401,17 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
     (id: number, field: string, value: unknown, colType: string) => {
       if (field === "owner") {
         const current = (value as string) || "";
+        const ownerColor = current === "Truthfu1" ? "#ea580c" : current === "LowKey" ? "#c084fc" : "#555";
         return (
           <select
-            className="text-xs rounded px-1 py-0.5 w-full cursor-pointer"
-            style={{ background: "transparent", color: current ? "#ea580c" : "#555", border: "none", outline: "none" }}
+            className="text-xs rounded px-1 py-0.5 w-full cursor-pointer font-semibold"
+            style={{ background: "transparent", color: ownerColor, border: "none", outline: "none" }}
             value={current}
             onChange={(e) => updateLead(id, field, e.target.value)}
           >
             <option value="" style={{ background: "#1e1e1e", color: "#555" }}>—</option>
             {usersList.map((u) => (
-              <option key={u} value={u} style={{ background: "#1e1e1e", color: "#f0f0f0" }}>{u}</option>
+              <option key={u} value={u} style={{ background: "#1e1e1e", color: u === "Truthfu1" ? "#ea580c" : u === "LowKey" ? "#c084fc" : "#f0f0f0" }}>{u}</option>
             ))}
           </select>
         );

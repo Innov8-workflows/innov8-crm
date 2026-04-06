@@ -36,6 +36,7 @@ export default function ViewNav({ active, onChange, projectCount = 0, clientCoun
   }, [showDropdown]);
 
   const ownerLabel = ownerFilter === "" ? "All" : ownerFilter === "__unassigned__" ? "Unassigned" : ownerFilter;
+  const ownerBtnColor = ownerFilter === "Truthfu1" ? "#ea580c" : ownerFilter === "LowKey" ? "#c084fc" : ownerFilter ? "#ea580c" : "";
 
   return (
     <div className="flex items-center gap-2 px-4 py-2 flex-shrink-0" style={{ background: "#0a0a0a", borderBottom: "2px solid #1e1e1e" }}>
@@ -91,7 +92,7 @@ export default function ViewNav({ active, onChange, projectCount = 0, clientCoun
       <div className="ml-auto relative" ref={dropdownRef}>
         <button
           className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors"
-          style={{ background: ownerFilter ? "#ea580c20" : "#1e1e1e", border: `1px solid ${ownerFilter ? "#ea580c" : "#333"}`, color: ownerFilter ? "#ea580c" : "#888" }}
+          style={{ background: ownerBtnColor ? `${ownerBtnColor}20` : "#1e1e1e", border: `1px solid ${ownerBtnColor || "#333"}`, color: ownerBtnColor || "#888" }}
           onClick={() => setShowDropdown(!showDropdown)}
           onMouseEnter={(e) => { if (!ownerFilter) e.currentTarget.style.borderColor = "#ea580c"; }}
           onMouseLeave={(e) => { if (!ownerFilter) e.currentTarget.style.borderColor = "#333"; }}
@@ -107,20 +108,24 @@ export default function ViewNav({ active, onChange, projectCount = 0, clientCoun
         {showDropdown && (
           <div className="absolute right-0 top-full mt-1 w-48 rounded-lg shadow-xl z-50 py-1" style={{ background: "#1e1e1e", border: "1px solid #333" }}>
             {[
-              { value: "", label: "All" },
-              { value: "__unassigned__", label: "Unassigned" },
-              ...users.map((u) => ({ value: u, label: u })),
-            ].map((opt) => (
-              <button key={opt.value}
-                className="w-full text-left px-3 py-2 text-sm flex items-center justify-between transition-colors"
-                style={{ color: ownerFilter === opt.value ? "#ea580c" : "#ccc", fontWeight: ownerFilter === opt.value ? 600 : 400 }}
-                onMouseEnter={(e) => e.currentTarget.style.background = "#252525"}
-                onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
-                onClick={() => { onOwnerChange(opt.value); setShowDropdown(false); }}>
-                {opt.label}
-                {ownerFilter === opt.value && <span style={{ color: "#ea580c" }}>&#10003;</span>}
-              </button>
-            ))}
+              { value: "", label: "All", color: "" },
+              { value: "__unassigned__", label: "Unassigned", color: "" },
+              ...users.map((u) => ({ value: u, label: u, color: u === "Truthfu1" ? "#ea580c" : u === "LowKey" ? "#c084fc" : "" })),
+            ].map((opt) => {
+              const isActive = ownerFilter === opt.value;
+              const textColor = isActive ? (opt.color || "#ea580c") : opt.color || "#ccc";
+              return (
+                <button key={opt.value}
+                  className="w-full text-left px-3 py-2 text-sm flex items-center justify-between transition-colors"
+                  style={{ color: textColor, fontWeight: isActive ? 600 : opt.color ? 500 : 400 }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = "#252525"}
+                  onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                  onClick={() => { onOwnerChange(opt.value); setShowDropdown(false); }}>
+                  {opt.label}
+                  {isActive && <span style={{ color: textColor }}>&#10003;</span>}
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
