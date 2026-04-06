@@ -633,7 +633,7 @@ function CardView({ clients, formatDate, isOverdue, onOpenProject, isLostView, o
             {!isLostView && (
               <button className="absolute top-2 left-2 z-10 px-2 py-0.5 rounded-full text-xs font-bold transition-colors"
                 style={{
-                  background: (client.invoice_status === "invoiced") ? "#ec4899" : "#ef4444",
+                  background: (client.invoice_status === "invoiced") ? "#22c55e" : "#ef4444",
                   color: "#fff",
                   boxShadow: "0 2px 4px rgba(0,0,0,0.3)",
                 }}
