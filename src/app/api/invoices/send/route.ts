@@ -49,11 +49,13 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Create and send invoice
+    // Create and send invoice (use Stripe price if set, otherwise manual amount)
+    const stripePriceId = (project.stripe_price_id as string) || undefined;
     const invoice = await createAndSendInvoice(
       customerId,
       monthlyFee,
-      `Monthly website fee — ${businessName}`
+      `Monthly website fee — ${businessName}`,
+      stripePriceId
     );
 
     return NextResponse.json({

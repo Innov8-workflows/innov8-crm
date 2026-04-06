@@ -31,16 +31,26 @@ export async function getOrCreateCustomer(
 export async function createAndSendInvoice(
   customerId: string,
   amountPounds: number,
-  description: string
+  description: string,
+  stripePriceId?: string
 ): Promise<{ invoiceId: string; invoiceUrl: string; status: string }> {
   const stripe = getStripe();
-  // Create invoice item (amount in pence)
-  await stripe.invoiceItems.create({
-    customer: customerId,
-    amount: Math.round(amountPounds * 100),
-    currency: "gbp",
-    description,
-  });
+
+  if (stripePriceId) {
+    // Use Stripe price ID — pulls product name and amount from Stripe
+    await stripe.invoiceItems.create({
+      customer: customerId,
+      pricing: { price: stripePriceId },
+    });
+  } else {
+    // Manual amount fallback
+    await stripe.invoiceItems.create({
+      customer: customerId,
+      amount: Math.round(amountPounds * 100),
+      currency: "gbp",
+      description,
+    });
+  }
 
   // Create the invoice
   const invoice = await stripe.invoices.create({

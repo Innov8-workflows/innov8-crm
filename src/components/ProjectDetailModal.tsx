@@ -26,6 +26,7 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
   const [showUrlForm, setShowUrlForm] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [stripeProducts, setStripeProducts] = useState<{ price_id: string; name: string; amount: number; recurring: boolean; interval: string }[]>([]);
   const [saving, setSaving] = useState(false);
 
   const fetchTasks = useCallback(async () => {
@@ -41,6 +42,9 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
   }, [project.id]);
 
   useEffect(() => { fetchTasks(); fetchFiles(); }, [fetchTasks, fetchFiles]);
+  useEffect(() => {
+    fetch("/api/stripe/products").then((r) => r.json()).then((d) => setStripeProducts(d.products || [])).catch(() => {});
+  }, []);
 
   const stageOrder: string[] = PROJECT_STAGES.map((s) => s.value).filter((s) => s !== "completed");
 
@@ -152,6 +156,7 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
         renewal_date: details.renewal_date,
         login_details: details.login_details,
         project_notes: details.project_notes,
+        stripe_price_id: (details as unknown as Record<string, unknown>).stripe_price_id || "",
       }),
     });
     setSaving(false);
@@ -437,6 +442,30 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
 
           {activeTab === "details" && (
             <div className="space-y-4">
+              {/* Stripe Product / Tier selector */}
+              {stripeProducts.length > 0 && (
+                <div>
+                  <label className="block text-xs font-medium mb-1 uppercase" style={{ color: "#666" }}>Product / Tier</label>
+                  <select
+                    className="w-full px-3 py-2 text-sm rounded-md cursor-pointer"
+                    style={{ background: "#1e1e1e", border: "1px solid #2a2a2a", color: (details as unknown as Record<string, unknown>).stripe_price_id ? "#3b82f6" : "#888", outline: "none" }}
+                    value={((details as unknown as Record<string, unknown>).stripe_price_id as string) || ""}
+                    onChange={(e) => {
+                      const priceId = e.target.value;
+                      const product = stripeProducts.find((p) => p.price_id === priceId);
+                      setDetails((prev) => ({ ...prev, stripe_price_id: priceId, monthly_fee: product?.recurring ? product.amount : prev.monthly_fee } as typeof prev));
+                      setHasUnsavedChanges(true);
+                    }}
+                  >
+                    <option value="" style={{ background: "#1e1e1e", color: "#888" }}>No product selected</option>
+                    {stripeProducts.map((p) => (
+                      <option key={p.price_id} value={p.price_id} style={{ background: "#1e1e1e", color: "#f0f0f0" }}>
+                        {p.name} — £{p.amount.toFixed(2)}{p.recurring ? `/${p.interval === "month" ? "mo" : p.interval}` : " one-time"}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               {[
                 { key: "domain", label: "Domain", placeholder: "e.g. smithplumbing.co.uk" },
                 { key: "hosting_info", label: "Hosting", placeholder: "e.g. GitHub Pages, Vercel" },

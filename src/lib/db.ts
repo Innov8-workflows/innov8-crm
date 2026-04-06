@@ -143,6 +143,7 @@ export async function initDb() {
     "UPDATE project_tasks SET stage = 'design_content' WHERE stage IN ('design', 'content')",
     "ALTER TABLE leads ADD COLUMN owner TEXT DEFAULT ''",
     "ALTER TABLE leads ADD COLUMN stripe_customer_id TEXT DEFAULT ''",
+    "ALTER TABLE projects ADD COLUMN stripe_price_id TEXT DEFAULT ''",
   ];
   for (const sql of migrations) {
     try { await db.execute(sql); } catch { /* column exists */ }

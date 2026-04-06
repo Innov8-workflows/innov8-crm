@@ -11,7 +11,7 @@ export async function POST() {
 
   // Find active clients due for renewal today
   const result = await db.execute({
-    sql: `SELECT p.id as project_id, p.monthly_fee, p.renewal_date,
+    sql: `SELECT p.id as project_id, p.monthly_fee, p.renewal_date, p.stripe_price_id,
             l.id as lead_id, l.business_name, l.email, l.stripe_customer_id
           FROM projects p JOIN leads l ON p.lead_id = l.id
           WHERE p.completed_at != ''
@@ -52,8 +52,9 @@ export async function POST() {
         });
       }
 
-      // Send invoice
-      await createAndSendInvoice(customerId, monthlyFee, `Monthly website fee — ${businessName}`);
+      // Send invoice (use Stripe price if set)
+      const stripePriceId = (client.stripe_price_id as string) || undefined;
+      await createAndSendInvoice(customerId, monthlyFee, `Monthly website fee — ${businessName}`, stripePriceId);
 
       // Advance renewal date by 1 month
       const nextRenewal = new Date(today + "T00:00:00");
