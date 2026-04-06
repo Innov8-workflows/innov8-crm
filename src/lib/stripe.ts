@@ -74,14 +74,20 @@ export async function createAndSendInvoice(
     auto_advance: true,
   });
 
-  // Finalize and send
+  // Finalize the invoice
   const finalized = await stripe.invoices.finalizeInvoice(invoice.id);
-  await stripe.invoices.sendInvoice(invoice.id);
+
+  // Try to send via email, but don't fail if it can't be delivered
+  try {
+    await stripe.invoices.sendInvoice(invoice.id);
+  } catch {
+    // Email send failed (e.g. test mode, invalid email) — invoice is still created and accessible via URL
+  }
 
   return {
     invoiceId: finalized.id,
     invoiceUrl: finalized.hosted_invoice_url || "",
-    status: finalized.status || "sent",
+    status: finalized.status || "finalized",
   };
 }
 
