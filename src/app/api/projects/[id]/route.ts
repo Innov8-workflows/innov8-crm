@@ -28,7 +28,7 @@ export async function PUT(
   const db = getClient();
   const body = await request.json();
 
-  const allowed = ["stage", "sort_order", "domain", "hosting_info", "monthly_fee", "renewal_date", "login_details", "project_notes", "completed_at", "client_status", "stripe_price_id"];
+  const allowed = ["stage", "sort_order", "domain", "hosting_info", "monthly_fee", "renewal_date", "login_details", "project_notes", "completed_at", "client_status", "stripe_price_id", "invoice_status"];
   const updates: string[] = [];
   const values: unknown[] = [];
 

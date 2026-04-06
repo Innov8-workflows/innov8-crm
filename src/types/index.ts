@@ -37,6 +37,7 @@ export interface Project {
   completed_at: string;
   client_status: string;
   stripe_price_id: string;
+  invoice_status: string;
   created_at: string;
   updated_at: string;
   // Joined from leads

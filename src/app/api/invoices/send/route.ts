@@ -58,6 +58,12 @@ export async function POST(request: NextRequest) {
       stripePriceId
     );
 
+    // Mark as invoiced
+    await db.execute({
+      sql: "UPDATE projects SET invoice_status = 'invoiced', updated_at = ? WHERE id = ?",
+      args: [new Date().toISOString(), project_id],
+    });
+
     return NextResponse.json({
       ok: true,
       invoice_id: invoice.invoiceId,

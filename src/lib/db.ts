@@ -144,6 +144,7 @@ export async function initDb() {
     "ALTER TABLE leads ADD COLUMN owner TEXT DEFAULT ''",
     "ALTER TABLE leads ADD COLUMN stripe_customer_id TEXT DEFAULT ''",
     "ALTER TABLE projects ADD COLUMN stripe_price_id TEXT DEFAULT ''",
+    "ALTER TABLE projects ADD COLUMN invoice_status TEXT DEFAULT 'to_invoice'",
   ];
   for (const sql of migrations) {
     try { await db.execute(sql); } catch { /* column exists */ }

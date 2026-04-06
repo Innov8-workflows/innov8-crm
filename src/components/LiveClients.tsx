@@ -89,6 +89,16 @@ export default function LiveClients({ ownerFilter = "" }: { ownerFilter?: string
     });
   }, []);
 
+  const toggleInvoiceStatus = useCallback(async (id: number, currentStatus: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const next = currentStatus === "invoiced" ? "to_invoice" : "invoiced";
+    setClients((prev) => prev.map((c) => (c.id === id ? { ...c, invoice_status: next } : c)));
+    await fetch(`/api/projects/${id}`, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ invoice_status: next }),
+    });
+  }, []);
+
   const sendInvoice = useCallback(async (projectId: number, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     setInvoicing(projectId);
@@ -314,6 +324,7 @@ export default function LiveClients({ ownerFilter = "" }: { ownerFilter?: string
             onCycleStatus={cycleStatus}
             onSendInvoice={sendInvoice}
             invoicing={invoicing}
+            onToggleInvoiceStatus={toggleInvoiceStatus}
           />
         )}
       </div>
@@ -599,9 +610,10 @@ interface CardProps {
   onCycleStatus: (id: number, currentStatus: string, e?: React.MouseEvent) => void;
   onSendInvoice: (id: number, e?: React.MouseEvent) => void;
   invoicing: number | null;
+  onToggleInvoiceStatus: (id: number, currentStatus: string, e?: React.MouseEvent) => void;
 }
 
-function CardView({ clients, formatDate, isOverdue, onOpenProject, isLostView, onMarkLost, onReactivate, onDelete, onCycleStatus, onSendInvoice, invoicing }: CardProps) {
+function CardView({ clients, formatDate, isOverdue, onOpenProject, isLostView, onMarkLost, onReactivate, onDelete, onCycleStatus, onSendInvoice, invoicing, onToggleInvoiceStatus }: CardProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4">
       {clients.map((client) => {
@@ -617,7 +629,21 @@ function CardView({ clients, formatDate, isOverdue, onOpenProject, isLostView, o
             onMouseLeave={(e) => { e.currentTarget.style.borderColor = isLostView ? "#ef444440" : "#2a2a2a"; e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.opacity = isLostView ? "0.75" : "1"; }}
             onClick={() => onOpenProject(client)}
           >
-            {/* Status badge */}
+            {/* Invoice status badge — top left */}
+            {!isLostView && (
+              <button className="absolute top-2 left-2 z-10 px-2 py-0.5 rounded-full text-xs font-bold transition-colors"
+                style={{
+                  background: (client.invoice_status === "invoiced") ? "#ec4899" : "#ef4444",
+                  color: "#fff",
+                  boxShadow: "0 2px 4px rgba(0,0,0,0.3)",
+                }}
+                onClick={(e) => onToggleInvoiceStatus(client.id, client.invoice_status || "to_invoice", e)}
+                title="Click to toggle invoice status">
+                {client.invoice_status === "invoiced" ? "INVOICED" : "TO INVOICE"}
+              </button>
+            )}
+
+            {/* Client status badge — top right */}
             {(() => {
               const status = isLostView ? "lost" : (client.client_status || "active");
               const badge = STATUS_BADGE[status] || STATUS_BADGE.active;
