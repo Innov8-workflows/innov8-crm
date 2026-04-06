@@ -154,8 +154,15 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
     try {
       const savedOrder = localStorage.getItem("crm_columnOrder");
       if (savedOrder) {
-        const parsed = JSON.parse(savedOrder);
+        const parsed = JSON.parse(savedOrder) as string[];
         if (Array.isArray(parsed) && parsed.length > 0) {
+          // Ensure "owner" is present and positioned early (after row_num, before status)
+          if (!parsed.includes("owner")) {
+            const statusIdx = parsed.indexOf("status");
+            if (statusIdx !== -1) parsed.splice(statusIdx, 0, "owner");
+            else parsed.push("owner");
+            localStorage.setItem("crm_columnOrder", JSON.stringify(parsed));
+          }
           setColumnOrder(parsed);
           columnOrderRestored.current = true;
         }
