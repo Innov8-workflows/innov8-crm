@@ -1,13 +1,36 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getClient, initDb, first } from "@/lib/db";
 import type { InValue } from "@libsql/client";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   await initDb();
   const db = getClient();
 
-  const get = async (sql: string, args?: InValue[]) => {
-    const r = first(await db.execute({ sql, args: args || [] }));
+  const ownerParam = request.nextUrl.searchParams.get("owner");
+
+  // Build owner filter clause
+  let ownerClause = "";
+  const ownerArgs: InValue[] = [];
+  if (ownerParam === "__unassigned__") {
+    ownerClause = " AND (owner = '' OR owner IS NULL)";
+  } else if (ownerParam) {
+    ownerClause = " AND owner = ?";
+    ownerArgs.push(ownerParam);
+  }
+
+  const get = async (baseSql: string, extraArgs?: InValue[]) => {
+    // Inject owner filter: replace "FROM leads" with "FROM leads WHERE 1=1 {ownerClause}"
+    // or append to existing WHERE
+    let sql = baseSql;
+    const args = [...(extraArgs || []), ...ownerArgs];
+    if (ownerClause) {
+      if (sql.includes("WHERE")) {
+        sql = sql + ownerClause;
+      } else {
+        sql = sql.replace("FROM leads", "FROM leads WHERE 1=1" + ownerClause);
+      }
+    }
+    const r = first(await db.execute({ sql, args }));
     return (r?.v as number) || 0;
   };
 

@@ -32,6 +32,14 @@ export async function GET(request: NextRequest) {
     values.push(`%${search}%`, `%${search}%`, `%${search}%`);
   }
 
+  const ownerFilter = params.get("owner");
+  if (ownerFilter === "__unassigned__") {
+    conditions.push("(owner = '' OR owner IS NULL)");
+  } else if (ownerFilter) {
+    conditions.push("owner = ?");
+    values.push(ownerFilter);
+  }
+
   const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
   const result = await db.execute({
@@ -57,6 +65,7 @@ export async function POST(request: NextRequest) {
     business_type = "", location = "", website_status = 0,
     emailed = 0, messaged = 0, responded = 0, followed_up = 0,
     capex = null, notes = "", status = "new", follow_up_date = "", demo_site_url = "",
+    owner = "",
   } = body;
 
   if (!business_name) {
@@ -71,10 +80,10 @@ export async function POST(request: NextRequest) {
 
   const result = await db.execute({
     sql: `INSERT INTO leads (business_name, contact_name, email, phone, business_type, location,
-      website_status, emailed, messaged, responded, followed_up, capex, notes, status, follow_up_date, demo_site_url, sort_order, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      website_status, emailed, messaged, responded, followed_up, capex, notes, status, follow_up_date, demo_site_url, owner, sort_order, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     args: [business_name, contact_name, email, phone, business_type, location,
-      website_status, emailed, messaged, responded, followed_up, capex, notes, status, follow_up_date, demo_site_url, nextOrder, now, now],
+      website_status, emailed, messaged, responded, followed_up, capex, notes, status, follow_up_date, demo_site_url, owner, nextOrder, now, now],
   });
 
   const lead = first(await db.execute({ sql: "SELECT * FROM leads WHERE id = ?", args: [result.lastInsertRowid!] }));

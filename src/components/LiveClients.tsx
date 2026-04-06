@@ -17,7 +17,7 @@ type SortDir = "asc" | "desc";
 type ViewMode = "grid" | "card";
 type ClientFilter = "active" | "lost";
 
-export default function LiveClients() {
+export default function LiveClients({ ownerFilter = "" }: { ownerFilter?: string }) {
   const [clients, setClients] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<ClientStats | null>(null);
@@ -32,18 +32,20 @@ export default function LiveClients() {
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
 
   const fetchClients = useCallback(async () => {
-    const res = await fetch(`/api/projects?completed=true&client_status=${clientFilter}`);
+    const ownerParam = ownerFilter ? `&owner=${encodeURIComponent(ownerFilter)}` : "";
+    const res = await fetch(`/api/projects?completed=true&client_status=${clientFilter}${ownerParam}`);
     const data = await res.json();
     setClients(data.projects || []);
     setLoading(false);
-  }, [clientFilter]);
+  }, [clientFilter, ownerFilter]);
 
   const fetchStats = useCallback(async () => {
-    const res = await fetch("/api/clients/stats");
+    const ownerParam = ownerFilter ? `?owner=${encodeURIComponent(ownerFilter)}` : "";
+    const res = await fetch(`/api/clients/stats${ownerParam}`);
     setStats(await res.json());
-  }, []);
+  }, [ownerFilter]);
 
-  useEffect(() => { fetchClients(); fetchStats(); }, [clientFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { fetchClients(); fetchStats(); }, [clientFilter, ownerFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const updateClient = useCallback(async (id: number, field: string, value: string | number) => {
     setClients((prev) => prev.map((c) => (c.id === id ? { ...c, [field]: value } : c)));

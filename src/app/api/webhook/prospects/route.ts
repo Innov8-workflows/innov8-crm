@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
     try {
       const args = [
         businessName,
-        String(prospect.contact_name || prospect.owner || "").trim(),
+        String(prospect.contact_name || "").trim(),
         email,
         String(prospect.phone || "").trim(),
         String(businessType).trim(),
@@ -94,14 +94,15 @@ export async function POST(request: NextRequest) {
         prospect.website_status ?? (prospect.has_website ? 1 : 0),
         String(prospect.notes || "").trim(),
         String(prospect.demo_site_url || prospect.website_url || "").trim(),
+        String(prospect.assigned_owner || "").trim(),
         nextOrder,
         now,
         now,
       ] as never[];
       await db.execute({
         sql: `INSERT INTO leads (business_name, contact_name, email, phone, business_type, location,
-          website_status, notes, status, demo_site_url, sort_order, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'new', ?, ?, ?, ?)`,
+          website_status, notes, status, demo_site_url, owner, sort_order, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'new', ?, ?, ?, ?, ?)`,
         args,
       });
       results.added.push(businessName);

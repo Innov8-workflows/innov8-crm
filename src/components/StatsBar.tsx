@@ -8,13 +8,14 @@ interface Stats {
   dueToday: number;
 }
 
-export default function StatsBar() {
+export default function StatsBar({ ownerFilter = "" }: { ownerFilter?: string }) {
   const [stats, setStats] = useState<Stats | null>(null);
   const [expanded, setExpanded] = useState(true);
 
   useEffect(() => {
-    fetch("/api/leads/stats").then((r) => r.json()).then(setStats);
-  }, []);
+    const params = ownerFilter ? `?owner=${encodeURIComponent(ownerFilter)}` : "";
+    fetch(`/api/leads/stats${params}`).then((r) => r.json()).then(setStats);
+  }, [ownerFilter]);
 
   if (!stats) return null;
 

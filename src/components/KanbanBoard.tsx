@@ -5,7 +5,7 @@ import type { Project, ProjectFile } from "@/types";
 import { PROJECT_STAGES } from "@/types";
 import ProjectDetailModal from "./ProjectDetailModal";
 
-export default function KanbanBoard() {
+export default function KanbanBoard({ ownerFilter = "" }: { ownerFilter?: string }) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [coverImages, setCoverImages] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(true);
@@ -29,9 +29,10 @@ export default function KanbanBoard() {
 
   const fetchProjects = useCallback(async () => {
     // Fetch both active incomplete and active completed projects for the kanban
+    const ownerParam = ownerFilter ? `&owner=${encodeURIComponent(ownerFilter)}` : "";
     const [incRes, compRes] = await Promise.all([
-      fetch("/api/projects?completed=false"),
-      fetch("/api/projects?completed=true"),
+      fetch(`/api/projects?completed=false${ownerParam}`),
+      fetch(`/api/projects?completed=true${ownerParam}`),
     ]);
     const [incData, compData] = await Promise.all([incRes.json(), compRes.json()]);
     const allProjs = [...(incData.projects || []), ...(compData.projects || [])];
@@ -43,7 +44,7 @@ export default function KanbanBoard() {
     setProjects(projs);
     setLoading(false);
     if (projs.length > 0) fetchCoverImages(projs.map((p: Project) => p.id));
-  }, [fetchCoverImages]);
+  }, [fetchCoverImages, ownerFilter]);
 
   useEffect(() => { fetchProjects(); }, [fetchProjects]);
 

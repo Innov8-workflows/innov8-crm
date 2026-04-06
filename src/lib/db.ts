@@ -141,6 +141,7 @@ export async function initDb() {
     "ALTER TABLE projects ADD COLUMN client_status TEXT DEFAULT 'active'",
     "UPDATE projects SET stage = 'design_content' WHERE stage IN ('design', 'content')",
     "UPDATE project_tasks SET stage = 'design_content' WHERE stage IN ('design', 'content')",
+    "ALTER TABLE leads ADD COLUMN owner TEXT DEFAULT ''",
   ];
   for (const sql of migrations) {
     try { await db.execute(sql); } catch { /* column exists */ }

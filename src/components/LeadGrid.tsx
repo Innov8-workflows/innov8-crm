@@ -92,10 +92,11 @@ interface ColConfig {
 }
 
 const DEFAULT_LABELS: Record<string, string> = {
-  business_name: "Business", contact_name: "Owner", business_type: "Business Type",
+  business_name: "Business", contact_name: "Contact", business_type: "Business Type",
   location: "Location", website_status: "Website?", email: "Email", phone: "Number",
   emailed: "Emailed", messaged: "Messaged", responded: "Responded", followed_up: "Followed Up",
   capex: "CAPEX", notes: "Notes", status: "Stage", follow_up_date: "Follow Up", demo_site_url: "Demo Site",
+  owner: "Owner",
 };
 
 const DEFAULT_TYPES: Record<string, string> = {
@@ -104,9 +105,10 @@ const DEFAULT_TYPES: Record<string, string> = {
   phone: "phone", emailed: "checkbox", messaged: "checkbox",
   responded: "checkbox", followed_up: "checkbox", capex: "number",
   notes: "text", status: "pipeline", follow_up_date: "date", demo_site_url: "url",
+  owner: "text",
 };
 
-export default function LeadGrid() {
+export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string }) {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("All");
@@ -230,11 +232,12 @@ export default function LeadGrid() {
     const params = new URLSearchParams();
     if (activeTab !== "All") params.set("business_type", activeTab);
     if (search) params.set("search", search);
+    if (ownerFilter) params.set("owner", ownerFilter);
     const res = await fetch(`/api/leads?${params}`);
     const data = await res.json();
     setLeads(data.leads || []);
     setLoading(false);
-  }, [activeTab, search]);
+  }, [activeTab, search, ownerFilter]);
 
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
 
@@ -380,7 +383,7 @@ export default function LeadGrid() {
   const editableFields = useMemo(() => [
     "status", "business_name", "contact_name", "business_type", "location",
     "follow_up_date", "website_status", "email", "phone", "demo_site_url",
-    "emailed", "messaged", "responded", "followed_up", "capex", "notes",
+    "emailed", "messaged", "responded", "followed_up", "capex", "notes", "owner",
   ], []);
 
   const renderCell = useCallback(
@@ -675,7 +678,7 @@ export default function LeadGrid() {
         </div>
       </div>
 
-      <StatsBar />
+      <StatsBar ownerFilter={ownerFilter} />
       <TabBar tabs={TABS} active={activeTab} onChange={setActiveTab} />
 
       {/* Toolbar */}

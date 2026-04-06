@@ -17,6 +17,7 @@ export interface Lead {
   status: string;
   follow_up_date: string;
   demo_site_url: string;
+  owner: string;
   created_at: string;
   updated_at: string;
 }

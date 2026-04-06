@@ -8,7 +8,9 @@ export async function GET(request: NextRequest) {
   const completed = request.nextUrl.searchParams.get("completed");
   const clientStatus = request.nextUrl.searchParams.get("client_status");
 
-  let sql = `SELECT p.*, l.business_name, l.contact_name, l.email, l.phone, l.business_type, l.location, l.capex, l.demo_site_url
+  const ownerFilter = request.nextUrl.searchParams.get("owner");
+
+  let sql = `SELECT p.*, l.business_name, l.contact_name, l.email, l.phone, l.business_type, l.location, l.capex, l.demo_site_url, l.owner
     FROM projects p JOIN leads l ON p.lead_id = l.id`;
   const args: unknown[] = [];
 
@@ -30,6 +32,14 @@ export async function GET(request: NextRequest) {
     sql += (sql.includes("WHERE") ? " AND" : " WHERE") + " (p.client_status IN ('active', 'refine') OR p.client_status IS NULL)";
   } else if (completed === "true") {
     sql += " AND (p.client_status IN ('active', 'refine') OR p.client_status IS NULL)";
+  }
+
+  // Filter by owner (via lead)
+  if (ownerFilter === "__unassigned__") {
+    sql += (sql.includes("WHERE") ? " AND" : " WHERE") + " (l.owner = '' OR l.owner IS NULL)";
+  } else if (ownerFilter) {
+    sql += (sql.includes("WHERE") ? " AND" : " WHERE") + " l.owner = ?";
+    args.push(ownerFilter);
   }
 
   sql += " ORDER BY p.sort_order ASC, p.created_at DESC";

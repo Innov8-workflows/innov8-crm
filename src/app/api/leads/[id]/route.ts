@@ -26,7 +26,7 @@ export async function PUT(
   const allowedFields = [
     "business_name", "contact_name", "email", "phone", "business_type",
     "location", "website_status", "emailed", "messaged", "responded",
-    "followed_up", "capex", "notes", "status", "follow_up_date", "demo_site_url",
+    "followed_up", "capex", "notes", "status", "follow_up_date", "demo_site_url", "owner",
   ];
 
   const updates: string[] = [];
