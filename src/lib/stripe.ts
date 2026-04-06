@@ -37,11 +37,25 @@ export async function createAndSendInvoice(
   const stripe = getStripe();
 
   if (stripePriceId) {
-    // Use Stripe price ID — pulls product name and amount from Stripe
-    await stripe.invoiceItems.create({
-      customer: customerId,
-      pricing: { price: stripePriceId },
-    });
+    // Check if the price is recurring or one-time
+    const price = await stripe.prices.retrieve(stripePriceId);
+    if (price.recurring) {
+      // Recurring prices can't be used on invoice items directly
+      // Use the amount from the price instead
+      const productName = typeof price.product === "string" ? "" : "";
+      await stripe.invoiceItems.create({
+        customer: customerId,
+        amount: price.unit_amount || Math.round(amountPounds * 100),
+        currency: price.currency || "gbp",
+        description: description + (productName ? ` (${productName})` : ""),
+      });
+    } else {
+      // One-time price — use directly
+      await stripe.invoiceItems.create({
+        customer: customerId,
+        pricing: { price: stripePriceId },
+      });
+    }
   } else {
     // Manual amount fallback
     await stripe.invoiceItems.create({
