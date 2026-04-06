@@ -136,6 +136,30 @@ export default function LeadGrid() {
   // Ref to prevent re-fetch on inline edit
   const skipNextFetch = useRef(false);
 
+  // Restore column sizing from localStorage on mount
+  useEffect(() => {
+    try {
+      const savedSizing = localStorage.getItem("crm_columnSizing");
+      if (savedSizing) { const parsed = JSON.parse(savedSizing); if (parsed && Object.keys(parsed).length > 0) setColumnSizing(parsed); }
+    } catch {}
+  }, []);
+
+  // Restore column order from localStorage AFTER custom columns have loaded
+  const columnOrderRestored = useRef(false);
+  useEffect(() => {
+    if (columnOrderRestored.current) return;
+    try {
+      const savedOrder = localStorage.getItem("crm_columnOrder");
+      if (savedOrder) {
+        const parsed = JSON.parse(savedOrder);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setColumnOrder(parsed);
+          columnOrderRestored.current = true;
+        }
+      }
+    } catch {}
+  }, [customColumns]);
+
   // Get current user
   useEffect(() => {
     fetch("/api/auth/me").then((r) => r.json()).then((data) => {
@@ -486,7 +510,13 @@ export default function LeadGrid() {
     onSortingChange: setSorting,
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
-    onColumnSizingChange: setColumnSizing,
+    onColumnSizingChange: (updater) => {
+      setColumnSizing((prev) => {
+        const next = typeof updater === "function" ? updater(prev) : updater;
+        try { localStorage.setItem("crm_columnSizing", JSON.stringify(next)); } catch {}
+        return next;
+      });
+    },
     onColumnOrderChange: setColumnOrder,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -505,7 +535,9 @@ export default function LeadGrid() {
       const oldIndex = currentOrder.indexOf(String(active.id));
       const newIndex = currentOrder.indexOf(String(over.id));
       if (oldIndex === -1 || newIndex === -1) return prev;
-      return arrayMove(currentOrder, oldIndex, newIndex);
+      const newOrder = arrayMove(currentOrder, oldIndex, newIndex);
+      try { localStorage.setItem("crm_columnOrder", JSON.stringify(newOrder)); } catch {}
+      return newOrder;
     });
   }, [table]);
 
