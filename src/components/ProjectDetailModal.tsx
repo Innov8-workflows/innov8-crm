@@ -42,12 +42,34 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
 
   useEffect(() => { fetchTasks(); fetchFiles(); }, [fetchTasks, fetchFiles]);
 
+  const stageOrder: string[] = PROJECT_STAGES.map((s) => s.value).filter((s) => s !== "completed");
+
   const toggleTask = async (taskId: number, completed: boolean) => {
-    setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, completed: completed ? 1 : 0 } : t)));
+    const updatedTasks = tasks.map((t) => (t.id === taskId ? { ...t, completed: completed ? 1 : 0 } : t));
+    setTasks(updatedTasks);
     await fetch("/api/project-tasks", {
       method: "PUT", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: taskId, completed }),
     });
+
+    // Auto-advance stage when all tasks in current stage are completed
+    if (completed && details.stage !== "completed") {
+      const currentStage = details.stage;
+      const stageTasks = updatedTasks.filter((t) => t.stage === currentStage);
+      const allDone = stageTasks.length > 0 && stageTasks.every((t) => t.completed);
+      if (allDone) {
+        const currentIdx = stageOrder.indexOf(currentStage);
+        if (currentIdx !== -1 && currentIdx < stageOrder.length - 1) {
+          const nextStage = stageOrder[currentIdx + 1];
+          setDetails((prev) => ({ ...prev, stage: nextStage }));
+          await fetch(`/api/projects/${project.id}`, {
+            method: "PUT", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ stage: nextStage }),
+          });
+          onUpdate();
+        }
+      }
+    }
   };
 
   const addTask = async () => {
