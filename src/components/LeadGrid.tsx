@@ -56,22 +56,27 @@ function DraggableColumnHeader({ header }: { header: Header<Lead, unknown> }) {
     opacity: isDragging ? 0.6 : 1,
     position: "relative",
     zIndex: isDragging ? 20 : undefined,
-    cursor: isDragging ? "grabbing" : undefined,
   };
 
-  const pinnedIds = ["select", "add_column", "actions"];
+  const pinnedIds = ["select", "add_column", "actions", "drag_handle", "row_num"];
   const isPinned = pinnedIds.includes(header.id);
 
   return (
-    <th ref={setNodeRef} className="px-1 py-2 text-left select-none relative group" style={style}
-      {...(isPinned ? {} : { ...attributes, ...listeners })}>
-      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+    <th ref={setNodeRef} className="px-1 py-2 text-left select-none relative group" style={style}>
+      {/* Drag handle wraps the content but NOT the resize handle */}
+      <div {...(isPinned ? {} : { ...attributes, ...listeners })} style={{ cursor: isPinned ? undefined : "grab" }}>
+        {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+      </div>
+      {/* Resize handle — separate from drag, stops propagation */}
       {header.column.getCanResize() && (
-        <div onMouseDown={header.getResizeHandler()} onTouchStart={header.getResizeHandler()}
-          className="absolute right-0 top-0 h-full w-1 cursor-col-resize select-none touch-none transition-opacity"
+        <div
+          onMouseDown={(e) => { e.stopPropagation(); header.getResizeHandler()(e); }}
+          onTouchStart={(e) => { e.stopPropagation(); header.getResizeHandler()(e); }}
+          className="absolute right-0 top-0 h-full w-2 cursor-col-resize select-none touch-none transition-opacity"
           style={{
             background: header.column.getIsResizing() ? "#ea580c" : "#444",
             opacity: header.column.getIsResizing() ? 1 : 0,
+            zIndex: 10,
           }}
           onMouseEnter={(e) => e.currentTarget.style.opacity = "1"}
           onMouseLeave={(e) => { if (!header.column.getIsResizing()) e.currentTarget.style.opacity = "0"; }}
@@ -148,6 +153,7 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
   }, []);
 
   // Restore column order from localStorage AFTER custom columns have loaded
+  // Also ensures any new columns (custom or built-in) are added to the saved order
   const columnOrderRestored = useRef(false);
   useEffect(() => {
     if (columnOrderRestored.current) return;
@@ -156,13 +162,40 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
       if (savedOrder) {
         const parsed = JSON.parse(savedOrder) as string[];
         if (Array.isArray(parsed) && parsed.length > 0) {
-          // Ensure "owner" is present and positioned early (after row_num, before status)
+          // Ensure "owner" is positioned before "status"
           if (!parsed.includes("owner")) {
             const statusIdx = parsed.indexOf("status");
             if (statusIdx !== -1) parsed.splice(statusIdx, 0, "owner");
             else parsed.push("owner");
-            localStorage.setItem("crm_columnOrder", JSON.stringify(parsed));
           }
+
+          // Add any custom columns that aren't in the saved order
+          // (e.g. columns created after the order was last saved)
+          const allBuiltIn = ["select", "drag_handle", "row_num", "owner", "status",
+            "business_name", "contact_name", "business_type", "location",
+            "follow_up_date", "website_status", "email", "phone", "demo_site_url",
+            "emailed", "messaged", "responded", "followed_up", "capex", "notes",
+            "add_column", "actions"];
+          const customIds = customColumns.map((c) => c.id);
+          let changed = false;
+          for (const cid of customIds) {
+            if (!parsed.includes(cid)) {
+              // Insert before "add_column" if it exists, otherwise at end
+              const addIdx = parsed.indexOf("add_column");
+              if (addIdx !== -1) parsed.splice(addIdx, 0, cid);
+              else parsed.push(cid);
+              changed = true;
+            }
+          }
+          // Also add any built-in columns that might be missing
+          for (const bid of allBuiltIn) {
+            if (!parsed.includes(bid)) {
+              parsed.push(bid);
+              changed = true;
+            }
+          }
+
+          if (changed) localStorage.setItem("crm_columnOrder", JSON.stringify(parsed));
           setColumnOrder(parsed);
           columnOrderRestored.current = true;
         }
