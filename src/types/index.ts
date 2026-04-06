@@ -18,6 +18,7 @@ export interface Lead {
   follow_up_date: string;
   demo_site_url: string;
   owner: string;
+  stripe_customer_id: string;
   created_at: string;
   updated_at: string;
 }

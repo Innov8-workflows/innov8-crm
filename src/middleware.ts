@@ -5,7 +5,7 @@ const SECRET = new TextEncoder().encode(
   process.env.SESSION_SECRET || "innov8-crm-default-secret-change-me"
 );
 
-const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/auth/setup", "/api/webhook/gmail", "/api/webhook/prospects"];
+const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/auth/setup", "/api/webhook/gmail", "/api/webhook/prospects", "/api/invoices/auto"];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;

@@ -30,6 +30,8 @@ export default function LiveClients({ ownerFilter = "" }: { ownerFilter?: string
   const [editValue, setEditValue] = useState("");
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
+  const [invoicing, setInvoicing] = useState<number | null>(null);
+  const [invoiceResult, setInvoiceResult] = useState<{ id: number; msg: string; ok: boolean } | null>(null);
 
   const fetchClients = useCallback(async () => {
     const ownerParam = ownerFilter ? `&owner=${encodeURIComponent(ownerFilter)}` : "";
@@ -85,6 +87,27 @@ export default function LiveClients({ ownerFilter = "" }: { ownerFilter?: string
       method: "PUT", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ client_status: nextStatus }),
     });
+  }, []);
+
+  const sendInvoice = useCallback(async (projectId: number, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setInvoicing(projectId);
+    setInvoiceResult(null);
+    try {
+      const res = await fetch("/api/invoices/send", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ project_id: projectId }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setInvoiceResult({ id: projectId, msg: `Invoice sent to ${data.customer} for £${data.amount}`, ok: true });
+      } else {
+        setInvoiceResult({ id: projectId, msg: data.error || "Failed to send invoice", ok: false });
+      }
+    } catch {
+      setInvoiceResult({ id: projectId, msg: "Network error", ok: false });
+    }
+    setInvoicing(null);
   }, []);
 
   const deleteClient = useCallback(async (id: number) => {
@@ -275,6 +298,8 @@ export default function LiveClients({ ownerFilter = "" }: { ownerFilter?: string
             onReactivate={reactivateClient}
             onDelete={setConfirmDelete}
             onCycleStatus={cycleStatus}
+            onSendInvoice={sendInvoice}
+            invoicing={invoicing}
           />
         ) : (
           <CardView
@@ -287,6 +312,8 @@ export default function LiveClients({ ownerFilter = "" }: { ownerFilter?: string
             onReactivate={reactivateClient}
             onDelete={setConfirmDelete}
             onCycleStatus={cycleStatus}
+            onSendInvoice={sendInvoice}
+            invoicing={invoicing}
           />
         )}
       </div>
@@ -335,6 +362,16 @@ export default function LiveClients({ ownerFilter = "" }: { ownerFilter?: string
           </div>
         </div>
       )}
+
+      {/* Invoice result toast */}
+      {invoiceResult && (
+        <div className="fixed bottom-4 right-4 z-50 px-4 py-3 rounded-lg shadow-xl flex items-center gap-3 max-w-sm"
+          style={{ background: invoiceResult.ok ? "#052e16" : "#450a0a", border: `1px solid ${invoiceResult.ok ? "#22c55e40" : "#ef444440"}` }}>
+          <span className="text-sm" style={{ color: invoiceResult.ok ? "#22c55e" : "#ef4444" }}>{invoiceResult.msg}</span>
+          <button className="text-xs px-2 py-0.5 rounded" style={{ color: "#888" }}
+            onClick={() => setInvoiceResult(null)}>Dismiss</button>
+        </div>
+      )}
     </div>
   );
 }
@@ -360,6 +397,8 @@ interface GridProps {
   onReactivate: (id: number, e?: React.MouseEvent) => void;
   onDelete: (id: number) => void;
   onCycleStatus: (id: number, currentStatus: string, e?: React.MouseEvent) => void;
+  onSendInvoice: (id: number, e?: React.MouseEvent) => void;
+  invoicing: number | null;
 }
 
 const STATUS_BADGE: Record<string, { label: string; color: string; bg: string }> = {
@@ -379,7 +418,7 @@ const GRID_COLUMNS: { key: SortKey; label: string; width: string; editable?: boo
   { key: "completed_at", label: "Completed", width: "minmax(110px, 0.7fr)" },
 ];
 
-function GridView({ clients, sortKey, sortDir, onSort, editingCell, editValue, onStartEdit, onEditChange, onCommitEdit, onCancelEdit, formatDate, isOverdue, onOpenProject, isLostView, onMarkLost, onReactivate, onDelete, onCycleStatus }: GridProps) {
+function GridView({ clients, sortKey, sortDir, onSort, editingCell, editValue, onStartEdit, onEditChange, onCommitEdit, onCancelEdit, formatDate, isOverdue, onOpenProject, isLostView, onMarkLost, onReactivate, onDelete, onCycleStatus, onSendInvoice, invoicing }: GridProps) {
   const gridTemplate = `40px 70px ${GRID_COLUMNS.map((c) => c.width).join(" ")} 100px`;
 
   return (
@@ -558,9 +597,11 @@ interface CardProps {
   onReactivate: (id: number, e?: React.MouseEvent) => void;
   onDelete: (id: number) => void;
   onCycleStatus: (id: number, currentStatus: string, e?: React.MouseEvent) => void;
+  onSendInvoice: (id: number, e?: React.MouseEvent) => void;
+  invoicing: number | null;
 }
 
-function CardView({ clients, formatDate, isOverdue, onOpenProject, isLostView, onMarkLost, onReactivate, onDelete, onCycleStatus }: CardProps) {
+function CardView({ clients, formatDate, isOverdue, onOpenProject, isLostView, onMarkLost, onReactivate, onDelete, onCycleStatus, onSendInvoice, invoicing }: CardProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4">
       {clients.map((client) => {
@@ -679,6 +720,19 @@ function CardView({ clients, formatDate, isOverdue, onOpenProject, isLostView, o
                       onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                       onClick={(e) => onMarkLost(client.id, e)}>
                       Lost
+                    </button>
+                  )}
+                  {!isLostView && client.monthly_fee > 0 && (
+                    <button className="p-1 rounded transition-colors"
+                      style={{ color: invoicing === client.id ? "#eab308" : "#555" }}
+                      onMouseEnter={(e) => { if (invoicing !== client.id) { e.currentTarget.style.color = "#3b82f6"; e.currentTarget.style.background = "#3b82f615"; } }}
+                      onMouseLeave={(e) => { if (invoicing !== client.id) { e.currentTarget.style.color = "#555"; e.currentTarget.style.background = "transparent"; } }}
+                      onClick={(e) => onSendInvoice(client.id, e)}
+                      disabled={invoicing === client.id}
+                      title="Send Stripe invoice">
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
+                      </svg>
                     </button>
                   )}
                   <button className="p-1 rounded transition-colors"

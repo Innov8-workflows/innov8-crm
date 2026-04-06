@@ -495,21 +495,44 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
                     All changes saved
                   </span>
                 )}
-                <button
-                  onClick={saveAllDetails}
-                  disabled={!hasUnsavedChanges || saving}
-                  className="px-5 py-2 text-sm font-semibold rounded-lg transition-all"
-                  style={{
-                    background: hasUnsavedChanges ? "#ea580c" : "#252525",
-                    color: hasUnsavedChanges ? "#fff" : "#555",
-                    opacity: saving ? 0.6 : 1,
-                    cursor: hasUnsavedChanges ? "pointer" : "default",
-                  }}
-                  onMouseEnter={(e) => { if (hasUnsavedChanges) e.currentTarget.style.background = "#f97316"; }}
-                  onMouseLeave={(e) => { if (hasUnsavedChanges) e.currentTarget.style.background = "#ea580c"; }}
-                >
-                  {saving ? "Saving..." : "Save Changes"}
-                </button>
+                <div className="flex items-center gap-2">
+                  {details.monthly_fee > 0 && details.email && (
+                    <button
+                      onClick={async () => {
+                        const res = await fetch("/api/invoices/send", {
+                          method: "POST", headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ project_id: project.id }),
+                        });
+                        const data = await res.json();
+                        alert(data.ok ? `Invoice sent for £${data.amount}` : `Error: ${data.error}`);
+                      }}
+                      className="px-4 py-2 text-sm font-semibold rounded-lg transition-all flex items-center gap-1.5"
+                      style={{ background: "#3b82f6", color: "#fff" }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = "#2563eb"}
+                      onMouseLeave={(e) => e.currentTarget.style.background = "#3b82f6"}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
+                      </svg>
+                      Send Invoice
+                    </button>
+                  )}
+                  <button
+                    onClick={saveAllDetails}
+                    disabled={!hasUnsavedChanges || saving}
+                    className="px-5 py-2 text-sm font-semibold rounded-lg transition-all"
+                    style={{
+                      background: hasUnsavedChanges ? "#ea580c" : "#252525",
+                      color: hasUnsavedChanges ? "#fff" : "#555",
+                      opacity: saving ? 0.6 : 1,
+                      cursor: hasUnsavedChanges ? "pointer" : "default",
+                    }}
+                    onMouseEnter={(e) => { if (hasUnsavedChanges) e.currentTarget.style.background = "#f97316"; }}
+                    onMouseLeave={(e) => { if (hasUnsavedChanges) e.currentTarget.style.background = "#ea580c"; }}
+                  >
+                    {saving ? "Saving..." : "Save Changes"}
+                  </button>
+                </div>
               </div>
             </div>
           )}
