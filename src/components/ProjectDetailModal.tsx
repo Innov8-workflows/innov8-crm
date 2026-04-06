@@ -448,20 +448,37 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
                 const selectedProducts = currentIds.map((id) => stripeProducts.find((p) => p.price_id === id)).filter(Boolean);
                 const availableProducts = stripeProducts.filter((p) => !currentIds.includes(p.price_id));
                 const totalRecurring = selectedProducts.reduce((sum, p) => sum + (p && p.recurring ? p.amount : 0), 0);
+                const totalOneTime = selectedProducts.reduce((sum, p) => sum + (p && !p.recurring ? p.amount : 0), 0);
+
+                const recalcFees = (products: typeof selectedProducts) => {
+                  const recurring = products.reduce((sum, p) => sum + (p && p.recurring ? p.amount : 0), 0);
+                  const oneTime = products.reduce((sum, p) => sum + (p && !p.recurring ? p.amount : 0), 0);
+                  const updates: Record<string, unknown> = {};
+                  if (recurring > 0) updates.monthly_fee = recurring;
+                  if (oneTime > 0) updates.capex = oneTime;
+                  return updates;
+                };
 
                 const addProduct = (priceId: string) => {
                   const newIds = [...currentIds, priceId].join(",");
                   const product = stripeProducts.find((p) => p.price_id === priceId);
-                  const newRecurring = totalRecurring + (product?.recurring ? product.amount : 0);
-                  setDetails((prev) => ({ ...prev, stripe_price_id: newIds, monthly_fee: newRecurring > 0 ? newRecurring : prev.monthly_fee } as typeof prev));
+                  const newProducts = [...selectedProducts, product];
+                  const fees = recalcFees(newProducts);
+                  setDetails((prev) => ({ ...prev, stripe_price_id: newIds, ...fees } as typeof prev));
                   setHasUnsavedChanges(true);
                 };
 
                 const removeProduct = (priceId: string) => {
                   const newIds = currentIds.filter((id) => id !== priceId).join(",");
-                  const removed = stripeProducts.find((p) => p.price_id === priceId);
-                  const newRecurring = totalRecurring - (removed?.recurring ? removed.amount : 0);
-                  setDetails((prev) => ({ ...prev, stripe_price_id: newIds, monthly_fee: newRecurring > 0 ? newRecurring : prev.monthly_fee } as typeof prev));
+                  const newProducts = selectedProducts.filter((p) => p?.price_id !== priceId);
+                  const fees = recalcFees(newProducts);
+                  // If no recurring left, keep current monthly_fee. Same for capex.
+                  const updates: Record<string, unknown> = {};
+                  if (fees.monthly_fee !== undefined) updates.monthly_fee = fees.monthly_fee;
+                  else if (totalRecurring > 0) updates.monthly_fee = 0; // had recurring, now removed
+                  if (fees.capex !== undefined) updates.capex = fees.capex;
+                  else if (totalOneTime > 0) updates.capex = 0;
+                  setDetails((prev) => ({ ...prev, stripe_price_id: newIds, ...updates } as typeof prev));
                   setHasUnsavedChanges(true);
                 };
 
@@ -479,6 +496,13 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
                               className="ml-0.5 hover:text-red-400 transition-colors" style={{ color: "#3b82f6" }}>×</button>
                           </span>
                         ))}
+                      </div>
+                    )}
+                    {/* Product fee summary */}
+                    {(totalRecurring > 0 || totalOneTime > 0) && (
+                      <div className="flex gap-3 mb-2 text-xs" style={{ color: "#666" }}>
+                        {totalRecurring > 0 && <span>Recurring: <span style={{ color: "#22c55e" }}>£{totalRecurring.toFixed(2)}/mo</span></span>}
+                        {totalOneTime > 0 && <span>One-time: <span style={{ color: "#ea580c" }}>£{totalOneTime.toFixed(2)}</span></span>}
                       </div>
                     )}
                     {/* Add product dropdown */}
