@@ -152,54 +152,68 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
     } catch {}
   }, []);
 
-  // Restore column order from localStorage AFTER custom columns have loaded
-  // Also ensures any new columns (custom or built-in) are added to the saved order
-  const columnOrderRestored = useRef(false);
+  // Restore and reconcile column order from localStorage
+  // Runs whenever customColumns changes (initial load + when columns added/removed)
+  const columnOrderInitialised = useRef(false);
   useEffect(() => {
-    if (columnOrderRestored.current) return;
+    // Wait for custom columns to load before reconciling
+    // (colConfigs is set at the same time, so if we have configs but no custom cols, that's fine)
     try {
       const savedOrder = localStorage.getItem("crm_columnOrder");
-      if (savedOrder) {
-        const parsed = JSON.parse(savedOrder) as string[];
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          // Ensure "owner" is positioned before "status"
-          if (!parsed.includes("owner")) {
-            const statusIdx = parsed.indexOf("status");
-            if (statusIdx !== -1) parsed.splice(statusIdx, 0, "owner");
-            else parsed.push("owner");
-          }
+      const parsed = savedOrder ? JSON.parse(savedOrder) as string[] : [];
 
-          // Add any custom columns that aren't in the saved order
-          // (e.g. columns created after the order was last saved)
-          const allBuiltIn = ["select", "drag_handle", "row_num", "owner", "status",
-            "business_name", "contact_name", "business_type", "location",
-            "follow_up_date", "website_status", "email", "phone", "demo_site_url",
-            "emailed", "messaged", "responded", "followed_up", "capex", "notes",
-            "add_column", "actions"];
-          const customIds = customColumns.map((c) => c.id);
-          let changed = false;
-          for (const cid of customIds) {
-            if (!parsed.includes(cid)) {
-              // Insert before "add_column" if it exists, otherwise at end
-              const addIdx = parsed.indexOf("add_column");
-              if (addIdx !== -1) parsed.splice(addIdx, 0, cid);
-              else parsed.push(cid);
-              changed = true;
-            }
-          }
-          // Also add any built-in columns that might be missing
-          for (const bid of allBuiltIn) {
-            if (!parsed.includes(bid)) {
-              parsed.push(bid);
-              changed = true;
-            }
-          }
+      if (!Array.isArray(parsed)) return;
 
-          if (changed) localStorage.setItem("crm_columnOrder", JSON.stringify(parsed));
-          setColumnOrder(parsed);
-          columnOrderRestored.current = true;
+      // If no saved order at all, skip — let the table use default order
+      if (parsed.length === 0 && !columnOrderInitialised.current) return;
+
+      // Ensure "owner" is positioned before "status"
+      if (!parsed.includes("owner")) {
+        const statusIdx = parsed.indexOf("status");
+        if (statusIdx !== -1) parsed.splice(statusIdx, 0, "owner");
+        else parsed.push("owner");
+      }
+
+      // All known built-in column IDs
+      const allBuiltIn = ["select", "drag_handle", "row_num", "owner", "status",
+        "business_name", "contact_name", "business_type", "location",
+        "follow_up_date", "website_status", "email", "phone", "demo_site_url",
+        "emailed", "messaged", "responded", "followed_up", "capex", "notes",
+        "add_column", "actions"];
+
+      let changed = false;
+
+      // Add any custom columns not in the saved order
+      for (const cc of customColumns) {
+        if (!parsed.includes(cc.id)) {
+          const addIdx = parsed.indexOf("add_column");
+          if (addIdx !== -1) parsed.splice(addIdx, 0, cc.id);
+          else parsed.push(cc.id);
+          changed = true;
         }
       }
+
+      // Add any built-in columns not in the saved order
+      for (const bid of allBuiltIn) {
+        if (!parsed.includes(bid)) {
+          parsed.push(bid);
+          changed = true;
+        }
+      }
+
+      // Remove any columns from saved order that no longer exist
+      const validIds = new Set([...allBuiltIn, ...customColumns.map((c) => c.id)]);
+      const cleaned = parsed.filter((id) => validIds.has(id));
+      if (cleaned.length !== parsed.length) changed = true;
+
+      if (changed || !columnOrderInitialised.current) {
+        localStorage.setItem("crm_columnOrder", JSON.stringify(cleaned));
+        setColumnOrder(cleaned);
+      } else if (parsed.length > 0) {
+        setColumnOrder(parsed);
+      }
+
+      columnOrderInitialised.current = true;
     } catch {}
   }, [customColumns]);
 
