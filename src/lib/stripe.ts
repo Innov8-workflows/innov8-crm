@@ -32,7 +32,7 @@ export async function createAndSendInvoice(
   customerId: string,
   amountPounds: number,
   description: string,
-  stripePriceId?: string
+  stripePriceIds?: string
 ): Promise<{ invoiceId: string; invoiceUrl: string; status: string }> {
   const stripe = getStripe();
 
@@ -44,21 +44,32 @@ export async function createAndSendInvoice(
     auto_advance: true,
   });
 
-  // Step 2: Add line item TO this specific invoice
-  const amountPence = stripePriceId
-    ? await (async () => {
-        const price = await stripe.prices.retrieve(stripePriceId);
-        return price.unit_amount || Math.round(amountPounds * 100);
-      })()
-    : Math.round(amountPounds * 100);
+  // Step 2: Add line items TO this specific invoice
+  const priceIds = (stripePriceIds || "").split(",").filter(Boolean);
 
-  await stripe.invoiceItems.create({
-    customer: customerId,
-    invoice: invoice.id,
-    amount: amountPence,
-    currency: "gbp",
-    description,
-  });
+  if (priceIds.length > 0) {
+    // Add each selected product as a separate line item
+    for (const priceId of priceIds) {
+      const price = await stripe.prices.retrieve(priceId, { expand: ["product"] });
+      const productName = typeof price.product === "object" && price.product !== null ? (price.product as { name?: string }).name || "" : "";
+      await stripe.invoiceItems.create({
+        customer: customerId,
+        invoice: invoice.id,
+        amount: price.unit_amount || 0,
+        currency: price.currency || "gbp",
+        description: productName || description,
+      });
+    }
+  } else {
+    // No products selected — use manual amount
+    await stripe.invoiceItems.create({
+      customer: customerId,
+      invoice: invoice.id,
+      amount: Math.round(amountPounds * 100),
+      currency: "gbp",
+      description,
+    });
+  }
 
   // Step 3: Finalize
   const finalized = await stripe.invoices.finalizeInvoice(invoice.id);

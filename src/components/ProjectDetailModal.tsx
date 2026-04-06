@@ -442,30 +442,66 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
 
           {activeTab === "details" && (
             <div className="space-y-4">
-              {/* Stripe Product / Tier selector */}
-              {stripeProducts.length > 0 && (
-                <div>
-                  <label className="block text-xs font-medium mb-1 uppercase" style={{ color: "#666" }}>Product / Tier</label>
-                  <select
-                    className="w-full px-3 py-2 text-sm rounded-md cursor-pointer"
-                    style={{ background: "#1e1e1e", border: "1px solid #2a2a2a", color: (details as unknown as Record<string, unknown>).stripe_price_id ? "#3b82f6" : "#888", outline: "none" }}
-                    value={((details as unknown as Record<string, unknown>).stripe_price_id as string) || ""}
-                    onChange={(e) => {
-                      const priceId = e.target.value;
-                      const product = stripeProducts.find((p) => p.price_id === priceId);
-                      setDetails((prev) => ({ ...prev, stripe_price_id: priceId, monthly_fee: product?.recurring ? product.amount : prev.monthly_fee } as typeof prev));
-                      setHasUnsavedChanges(true);
-                    }}
-                  >
-                    <option value="" style={{ background: "#1e1e1e", color: "#888" }}>No product selected</option>
-                    {stripeProducts.map((p) => (
-                      <option key={p.price_id} value={p.price_id} style={{ background: "#1e1e1e", color: "#f0f0f0" }}>
-                        {p.name} — £{p.amount.toFixed(2)}{p.recurring ? `/${p.interval === "month" ? "mo" : p.interval}` : " one-time"}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
+              {/* Stripe Products selector (multiple) */}
+              {stripeProducts.length > 0 && (() => {
+                const currentIds = ((details as unknown as Record<string, unknown>).stripe_price_id as string || "").split(",").filter(Boolean);
+                const selectedProducts = currentIds.map((id) => stripeProducts.find((p) => p.price_id === id)).filter(Boolean);
+                const availableProducts = stripeProducts.filter((p) => !currentIds.includes(p.price_id));
+                const totalRecurring = selectedProducts.reduce((sum, p) => sum + (p && p.recurring ? p.amount : 0), 0);
+
+                const addProduct = (priceId: string) => {
+                  const newIds = [...currentIds, priceId].join(",");
+                  const product = stripeProducts.find((p) => p.price_id === priceId);
+                  const newRecurring = totalRecurring + (product?.recurring ? product.amount : 0);
+                  setDetails((prev) => ({ ...prev, stripe_price_id: newIds, monthly_fee: newRecurring > 0 ? newRecurring : prev.monthly_fee } as typeof prev));
+                  setHasUnsavedChanges(true);
+                };
+
+                const removeProduct = (priceId: string) => {
+                  const newIds = currentIds.filter((id) => id !== priceId).join(",");
+                  const removed = stripeProducts.find((p) => p.price_id === priceId);
+                  const newRecurring = totalRecurring - (removed?.recurring ? removed.amount : 0);
+                  setDetails((prev) => ({ ...prev, stripe_price_id: newIds, monthly_fee: newRecurring > 0 ? newRecurring : prev.monthly_fee } as typeof prev));
+                  setHasUnsavedChanges(true);
+                };
+
+                return (
+                  <div>
+                    <label className="block text-xs font-medium mb-1 uppercase" style={{ color: "#666" }}>Products / Tiers</label>
+                    {/* Selected products as tags */}
+                    {selectedProducts.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mb-2">
+                        {selectedProducts.map((p) => p && (
+                          <span key={p.price_id} className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium"
+                            style={{ background: "#3b82f620", border: "1px solid #3b82f640", color: "#3b82f6" }}>
+                            {p.name} — £{p.amount.toFixed(2)}{p.recurring ? `/${p.interval === "month" ? "mo" : p.interval}` : ""}
+                            <button onClick={() => removeProduct(p.price_id)}
+                              className="ml-0.5 hover:text-red-400 transition-colors" style={{ color: "#3b82f6" }}>×</button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {/* Add product dropdown */}
+                    {availableProducts.length > 0 && (
+                      <select
+                        className="w-full px-3 py-2 text-sm rounded-md cursor-pointer"
+                        style={{ background: "#1e1e1e", border: "1px solid #2a2a2a", color: "#888", outline: "none" }}
+                        value=""
+                        onChange={(e) => { if (e.target.value) addProduct(e.target.value); }}
+                      >
+                        <option value="" style={{ background: "#1e1e1e", color: "#888" }}>
+                          {selectedProducts.length > 0 ? "+ Add another product..." : "Select a product..."}
+                        </option>
+                        {availableProducts.map((p) => (
+                          <option key={p.price_id} value={p.price_id} style={{ background: "#1e1e1e", color: "#f0f0f0" }}>
+                            {p.name} — £{p.amount.toFixed(2)}{p.recurring ? `/${p.interval === "month" ? "mo" : p.interval}` : " one-time"}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                );
+              })()}
               {[
                 { key: "domain", label: "Domain", placeholder: "e.g. smithplumbing.co.uk" },
                 { key: "hosting_info", label: "Hosting", placeholder: "e.g. GitHub Pages, Vercel" },
