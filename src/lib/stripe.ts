@@ -36,37 +36,7 @@ export async function createAndSendInvoice(
 ): Promise<{ invoiceId: string; invoiceUrl: string; status: string }> {
   const stripe = getStripe();
 
-  if (stripePriceId) {
-    // Check if the price is recurring or one-time
-    const price = await stripe.prices.retrieve(stripePriceId);
-    if (price.recurring) {
-      // Recurring prices can't be used on invoice items directly
-      // Use the amount from the price instead
-      const productName = typeof price.product === "string" ? "" : "";
-      await stripe.invoiceItems.create({
-        customer: customerId,
-        amount: price.unit_amount || Math.round(amountPounds * 100),
-        currency: price.currency || "gbp",
-        description: description + (productName ? ` (${productName})` : ""),
-      });
-    } else {
-      // One-time price — use directly
-      await stripe.invoiceItems.create({
-        customer: customerId,
-        pricing: { price: stripePriceId },
-      });
-    }
-  } else {
-    // Manual amount fallback
-    await stripe.invoiceItems.create({
-      customer: customerId,
-      amount: Math.round(amountPounds * 100),
-      currency: "gbp",
-      description,
-    });
-  }
-
-  // Create the invoice
+  // Step 1: Create draft invoice first
   const invoice = await stripe.invoices.create({
     customer: customerId,
     collection_method: "send_invoice",
@@ -74,14 +44,30 @@ export async function createAndSendInvoice(
     auto_advance: true,
   });
 
-  // Finalize the invoice
+  // Step 2: Add line item TO this specific invoice
+  const amountPence = stripePriceId
+    ? await (async () => {
+        const price = await stripe.prices.retrieve(stripePriceId);
+        return price.unit_amount || Math.round(amountPounds * 100);
+      })()
+    : Math.round(amountPounds * 100);
+
+  await stripe.invoiceItems.create({
+    customer: customerId,
+    invoice: invoice.id,
+    amount: amountPence,
+    currency: "gbp",
+    description,
+  });
+
+  // Step 3: Finalize
   const finalized = await stripe.invoices.finalizeInvoice(invoice.id);
 
-  // Try to send via email, but don't fail if it can't be delivered
+  // Step 4: Try to send via email (non-blocking)
   try {
     await stripe.invoices.sendInvoice(invoice.id);
   } catch {
-    // Email send failed (e.g. test mode, invalid email) — invoice is still created and accessible via URL
+    // Email send failed — invoice still accessible via hosted URL
   }
 
   return {
