@@ -134,6 +134,7 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, Record<string, string>>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [currentUser, setCurrentUser] = useState("");
+  const [usersList, setUsersList] = useState<string[]>([]);
   const [showUserMenu, setShowUserMenu] = useState(false);
   // Ref to prevent re-fetch on inline edit
   const skipNextFetch = useRef(false);
@@ -162,10 +163,13 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
     } catch {}
   }, [customColumns]);
 
-  // Get current user
+  // Get current user and users list
   useEffect(() => {
     fetch("/api/auth/me").then((r) => r.json()).then((data) => {
       if (data.username) setCurrentUser(data.username);
+    });
+    fetch("/api/users").then((r) => r.json()).then((data) => {
+      setUsersList(data.users || []);
     });
   }, []);
 
@@ -381,13 +385,29 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
 
   // Built-in fields
   const editableFields = useMemo(() => [
-    "status", "business_name", "contact_name", "business_type", "location",
+    "owner", "status", "business_name", "contact_name", "business_type", "location",
     "follow_up_date", "website_status", "email", "phone", "demo_site_url",
-    "emailed", "messaged", "responded", "followed_up", "capex", "notes", "owner",
+    "emailed", "messaged", "responded", "followed_up", "capex", "notes",
   ], []);
 
   const renderCell = useCallback(
     (id: number, field: string, value: unknown, colType: string) => {
+      if (field === "owner") {
+        const current = (value as string) || "";
+        return (
+          <select
+            className="text-xs rounded px-1 py-0.5 w-full cursor-pointer"
+            style={{ background: "transparent", color: current ? "#ea580c" : "#555", border: "none", outline: "none" }}
+            value={current}
+            onChange={(e) => updateLead(id, field, e.target.value)}
+          >
+            <option value="" style={{ background: "#1e1e1e", color: "#555" }}>—</option>
+            {usersList.map((u) => (
+              <option key={u} value={u} style={{ background: "#1e1e1e", color: "#f0f0f0" }}>{u}</option>
+            ))}
+          </select>
+        );
+      }
       if (field === "status") return <PipelineBadge value={(value as string) || "new"} onChange={(v) => updateLead(id, field, v)} />;
       if (field === "follow_up_date") return <FollowUpDate value={(value as string) || ""} onChange={(v) => updateLead(id, field, v)} />;
       if (field === "demo_site_url") {
@@ -403,7 +423,7 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
       return <EditableCell value={(value as string | number) ?? ""} type={colType === "number" ? "number" : "text"}
         onSave={(v) => updateLead(id, field, colType === "number" && v === "" ? null : v)} />;
     },
-    [updateLead]
+    [updateLead, usersList]
   );
 
   const columns = useMemo<ColumnDef<Lead, unknown>[]>(
@@ -433,7 +453,7 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
           ),
           size: field === "business_name" ? 200 : field === "notes" ? 180 : field === "email" ? 180 :
             field === "phone" ? 120 : field === "status" ? 110 : field === "follow_up_date" ? 90 :
-            field === "demo_site_url" ? 80 :
+            field === "demo_site_url" ? 80 : field === "owner" ? 90 :
             ["emailed", "messaged", "responded", "followed_up", "website_status"].includes(field) ? 70 :
             field === "capex" ? 70 : 100,
           minSize: 40,
