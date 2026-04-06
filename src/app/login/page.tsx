@@ -33,10 +33,17 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center" style={{ background: "#0f0f0f" }}>
-      {/* Subtle radial glow */}
-      <div className="absolute inset-0 pointer-events-none" style={{
-        background: "radial-gradient(circle at 50% 40%, rgba(234,88,12,0.08) 0%, transparent 60%)"
+    <div className="min-h-screen flex items-center justify-center relative" style={{ background: "#0f0f0f" }}>
+      {/* Background image */}
+      <div className="absolute inset-0" style={{
+        backgroundImage: "url(/login-bg.jpg)",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        opacity: 0.4,
+      }} />
+      {/* Dark overlay */}
+      <div className="absolute inset-0" style={{
+        background: "radial-gradient(circle at 50% 40%, rgba(234,88,12,0.1) 0%, rgba(0,0,0,0.7) 100%)"
       }} />
 
       <div className="w-full max-w-sm relative z-10">
