@@ -746,7 +746,9 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
             )}
           </div>
           <button onClick={() => setShowAddModal(true)}
-            className="px-3 py-1.5 text-sm font-semibold rounded-md" style={{ background: "#ea580c", color: "#fff" }}>+ New Lead</button>
+            className="px-3 py-1.5 text-sm font-semibold rounded-md transition-colors" style={{ background: "#ea580c", color: "#fff" }}
+            onMouseEnter={(e) => e.currentTarget.style.background = "#f97316"}
+            onMouseLeave={(e) => e.currentTarget.style.background = "#ea580c"}>+ New Lead</button>
 
           {/* User menu */}
           <div className="relative ml-1">
