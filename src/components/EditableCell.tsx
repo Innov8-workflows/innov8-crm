@@ -8,12 +8,40 @@ interface EditableCellProps {
   type?: "text" | "number";
 }
 
+function copyText(text: string): Promise<void> {
+  // Try clipboard API first, fall back to execCommand
+  if (navigator.clipboard?.writeText) {
+    return navigator.clipboard.writeText(text).catch(() => {
+      fallbackCopy(text);
+    });
+  }
+  fallbackCopy(text);
+  return Promise.resolve();
+}
+
+function fallbackCopy(text: string) {
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.style.position = "fixed";
+  ta.style.left = "-9999px";
+  document.body.appendChild(ta);
+  ta.select();
+  document.execCommand("copy");
+  document.body.removeChild(ta);
+}
+
+function pasteText(): Promise<string> {
+  if (navigator.clipboard?.readText) {
+    return navigator.clipboard.readText();
+  }
+  return Promise.resolve("");
+}
+
 export default function EditableCell({ value, onSave, type = "text" }: EditableCellProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(String(value ?? ""));
   const [copied, setCopied] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const cellRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { if (editing) inputRef.current?.focus(); }, [editing]);
   useEffect(() => { setDraft(String(value ?? "")); }, [value]);
@@ -24,60 +52,75 @@ export default function EditableCell({ value, onSave, type = "text" }: EditableC
     if (newVal !== value) onSave(newVal);
   };
 
-  const copyToClipboard = useCallback(() => {
+  const doCopy = useCallback(() => {
     const text = String(value ?? "");
     if (!text) return;
-    navigator.clipboard.writeText(text).then(() => {
+    copyText(text).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1200);
     });
   }, [value]);
 
-  // Handle paste when cell is focused (not editing)
+  const doPaste = useCallback(() => {
+    pasteText().then((text) => {
+      if (text) {
+        const newVal = type === "number" ? (text === "" ? 0 : Number(text)) : text;
+        onSave(newVal);
+      }
+    });
+  }, [onSave, type]);
+
+  // Handle keyboard shortcuts when cell is focused (not editing)
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if ((e.ctrlKey || e.metaKey) && e.key === "c") {
       e.preventDefault();
-      copyToClipboard();
+      doCopy();
     }
     if ((e.ctrlKey || e.metaKey) && e.key === "v") {
       e.preventDefault();
-      navigator.clipboard.readText().then((text) => {
-        if (text !== undefined) {
-          const newVal = type === "number" ? (text === "" ? 0 : Number(text)) : text;
-          onSave(newVal);
-        }
-      });
+      doPaste();
     }
-    // Enter or typing starts editing
     if (e.key === "Enter" || (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey)) {
       setEditing(true);
       if (e.key.length === 1) setDraft(e.key);
     }
-  }, [copyToClipboard, onSave, type]);
+  }, [doCopy, doPaste]);
 
   if (!editing) {
     return (
       <div
-        ref={cellRef}
         tabIndex={0}
-        className="px-2 py-1 cursor-pointer min-h-[28px] rounded truncate transition-colors relative focus:outline-none"
-        style={{ color: value ? "#f0f0f0" : "#555" }}
+        className="px-2 py-1 cursor-pointer min-h-[28px] rounded truncate transition-colors focus:outline-none"
+        style={{ color: value ? "#f0f0f0" : "#555", position: "relative" }}
         onMouseEnter={(e) => e.currentTarget.style.background = "rgba(234,88,12,0.06)"}
         onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
         onDoubleClick={() => setEditing(true)}
         onClick={(e) => e.currentTarget.focus()}
         onKeyDown={handleKeyDown}
         onContextMenu={(e) => {
-          // Right-click copies the cell value
           e.preventDefault();
-          copyToClipboard();
+          e.stopPropagation();
+          doCopy();
         }}
-        title={`${String(value ?? "")}\nRight-click or Ctrl+C to copy · Ctrl+V to paste`}
+        title={String(value ?? "")}
       >
         {value ?? ""}
         {copied && (
-          <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-xs px-1.5 py-0.5 rounded whitespace-nowrap pointer-events-none"
-            style={{ background: "#ea580c", color: "#fff", fontSize: 10, zIndex: 20 }}>
+          <span style={{
+            position: "fixed",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            background: "#ea580c",
+            color: "#fff",
+            fontSize: 13,
+            fontWeight: 600,
+            padding: "8px 16px",
+            borderRadius: 8,
+            zIndex: 9999,
+            pointerEvents: "none",
+            boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
+          }}>
             Copied!
           </span>
         )}
