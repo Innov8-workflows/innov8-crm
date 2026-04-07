@@ -47,18 +47,28 @@ export async function GET(request: NextRequest) {
   const result = await db.execute({ sql, args: args as never[] });
   const projects = all(result);
 
-  // For completed projects, enrich with cover images and task stats
-  if (completed === "true" && projects.length > 0) {
+  // Enrich ALL projects with cover images (single batch query instead of N+1)
+  if (projects.length > 0) {
     const ids = projects.map((p: Record<string, unknown>) => p.id);
     const placeholders = ids.map(() => "?").join(",");
 
-    const [coverResult, allImagesResult, taskResult] = await Promise.all([
+    const batchQueries: Promise<unknown>[] = [
       // Explicitly set covers
       db.execute({ sql: `SELECT project_id, url FROM project_files WHERE project_id IN (${placeholders}) AND is_cover = 1`, args: ids as never[] }),
       // Fallback: first image file per project (for when no cover is set)
       db.execute({ sql: `SELECT project_id, url FROM project_files WHERE project_id IN (${placeholders}) AND (file_type LIKE 'image/%' OR url LIKE 'data:image/%') ORDER BY created_at ASC`, args: ids as never[] }),
-      db.execute({ sql: `SELECT project_id, COUNT(*) as total, SUM(CASE WHEN completed = 1 THEN 1 ELSE 0 END) as done FROM project_tasks WHERE project_id IN (${placeholders}) GROUP BY project_id`, args: ids as never[] }),
-    ]);
+    ];
+
+    // Task stats only needed for completed projects view
+    if (completed === "true") {
+      batchQueries.push(
+        db.execute({ sql: `SELECT project_id, COUNT(*) as total, SUM(CASE WHEN completed = 1 THEN 1 ELSE 0 END) as done FROM project_tasks WHERE project_id IN (${placeholders}) GROUP BY project_id`, args: ids as never[] }),
+      );
+    }
+
+    const results = await Promise.all(batchQueries);
+    const coverResult = results[0] as import("@libsql/client").ResultSet;
+    const allImagesResult = results[1] as import("@libsql/client").ResultSet;
 
     const covers: Record<number, string> = {};
     for (const row of all(coverResult)) {
@@ -70,16 +80,22 @@ export async function GET(request: NextRequest) {
       if (!covers[pid]) covers[pid] = row.url as string;
     }
 
-    const taskStats: Record<number, { total: number; done: number }> = {};
-    for (const row of all(taskResult)) {
-      taskStats[row.project_id as number] = { total: row.total as number, done: row.done as number };
-    }
-
     for (const p of projects) {
       const pid = p.id as number;
       (p as Record<string, unknown>).cover_image = covers[pid] || null;
-      (p as Record<string, unknown>).tasks_total = taskStats[pid]?.total || 0;
-      (p as Record<string, unknown>).tasks_done = taskStats[pid]?.done || 0;
+    }
+
+    if (completed === "true") {
+      const taskResult = results[2] as import("@libsql/client").ResultSet;
+      const taskStats: Record<number, { total: number; done: number }> = {};
+      for (const row of all(taskResult)) {
+        taskStats[row.project_id as number] = { total: row.total as number, done: row.done as number };
+      }
+      for (const p of projects) {
+        const pid = p.id as number;
+        (p as Record<string, unknown>).tasks_total = taskStats[pid]?.total || 0;
+        (p as Record<string, unknown>).tasks_done = taskStats[pid]?.done || 0;
+      }
     }
   }
 
