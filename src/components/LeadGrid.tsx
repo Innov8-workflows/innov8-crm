@@ -843,7 +843,7 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={columns.length}><LoadingAI message="Loading prospects" /></td></tr>
+                <tr><td colSpan={columns.length} className="text-center py-8"><div className="flex justify-center"><LoadingAI message="Loading prospects" /></div></td></tr>
               ) : leads.length === 0 ? (
                 <tr><td colSpan={columns.length} className="text-center py-8" style={{ color: "#555" }}>No leads found</td></tr>
               ) : (
