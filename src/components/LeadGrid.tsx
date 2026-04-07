@@ -75,25 +75,24 @@ function DraggableColumnHeader({ header }: { header: Header<Lead, unknown> }) {
           onTouchStart={(e) => { e.stopPropagation(); header.getResizeHandler()(e); }}
           onDoubleClick={() => header.column.resetSize()}
           className="absolute top-0 h-full cursor-col-resize select-none touch-none"
-          style={{ right: -5, width: 11, zIndex: 10 }}
+          style={{ right: -6, width: 13, zIndex: 10 }}
           onMouseEnter={(e) => {
             const line = e.currentTarget.firstElementChild as HTMLElement;
-            if (line && !header.column.getIsResizing()) { line.style.background = "#ea580c"; line.style.opacity = "1"; line.style.width = "3px"; }
+            if (line && !header.column.getIsResizing()) { line.style.background = "#ea580c"; line.style.width = "3px"; line.style.boxShadow = "0 0 8px #ea580c80"; }
           }}
           onMouseLeave={(e) => {
             const line = e.currentTarget.firstElementChild as HTMLElement;
-            if (line && !header.column.getIsResizing()) { line.style.background = "#444"; line.style.opacity = "0.4"; line.style.width = "2px"; }
+            if (line && !header.column.getIsResizing()) { line.style.background = "#555"; line.style.width = "2px"; line.style.boxShadow = "none"; }
           }}
         >
-          {/* Visible drag line */}
+          {/* Visible drag line — always visible between columns */}
           <div
-            className="absolute top-1 bottom-1 left-1/2 -translate-x-1/2 rounded-full"
+            className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2"
             style={{
               width: header.column.getIsResizing() ? 3 : 2,
-              background: header.column.getIsResizing() ? "#ea580c" : "#444",
-              opacity: header.column.getIsResizing() ? 1 : 0.4,
-              boxShadow: header.column.getIsResizing() ? "0 0 6px #ea580c80" : "none",
-              transition: "background 0.15s, opacity 0.15s, width 0.15s, box-shadow 0.15s",
+              background: header.column.getIsResizing() ? "#ea580c" : "#555",
+              boxShadow: header.column.getIsResizing() ? "0 0 8px #ea580c80" : "none",
+              transition: "background 0.15s, width 0.15s, box-shadow 0.15s",
             }}
           />
         </div>
