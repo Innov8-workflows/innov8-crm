@@ -161,11 +161,15 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
   // Ref to prevent re-fetch on inline edit
   const skipNextFetch = useRef(false);
 
-  // Restore column sizing from localStorage on mount
+  // Restore column sizing and visibility from localStorage on mount
   useEffect(() => {
     try {
       const savedSizing = localStorage.getItem("crm_columnSizing");
       if (savedSizing) { const parsed = JSON.parse(savedSizing); if (parsed && Object.keys(parsed).length > 0) setColumnSizing(parsed); }
+    } catch {}
+    try {
+      const savedVis = localStorage.getItem("crm_columnVisibility");
+      if (savedVis) { const parsed = JSON.parse(savedVis); if (parsed && typeof parsed === "object") setColumnVisibility(parsed); }
     } catch {}
   }, []);
 
@@ -603,7 +607,13 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
     columns,
     state: { sorting, columnVisibility, rowSelection, columnSizing, columnOrder },
     onSortingChange: setSorting,
-    onColumnVisibilityChange: setColumnVisibility,
+    onColumnVisibilityChange: (updater) => {
+      setColumnVisibility((prev) => {
+        const next = typeof updater === "function" ? updater(prev) : updater;
+        try { localStorage.setItem("crm_columnVisibility", JSON.stringify(next)); } catch {}
+        return next;
+      });
+    },
     onRowSelectionChange: setRowSelection,
     onColumnSizingChange: (updater) => {
       setColumnSizing((prev) => {
@@ -612,7 +622,17 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
         return next;
       });
     },
-    onColumnOrderChange: setColumnOrder,
+    onColumnOrderChange: (updater) => {
+      setColumnOrder((prev) => {
+        const next = typeof updater === "function" ? updater(prev) : updater;
+        // Only persist once column order has been initialised from localStorage
+        // to avoid overwriting saved order with default order on first render
+        if (next.length > 0 && columnOrderInitialised.current) {
+          try { localStorage.setItem("crm_columnOrder", JSON.stringify(next)); } catch {}
+        }
+        return next;
+      });
+    },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
