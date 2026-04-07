@@ -431,9 +431,14 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
   }, [fetchLeads]);
 
   // DnD
-  const sensors = useSensors(
+  // Row drag sensors (vertical)
+  const rowSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor)
+  );
+  // Column drag sensors (horizontal) — separate to avoid conflict with row DndContext
+  const colSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
   );
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
@@ -864,10 +869,10 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
 
       {/* Table */}
       <div className="flex-1 overflow-auto">
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} modifiers={[restrictToVerticalAxis]}>
+        <DndContext sensors={rowSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} modifiers={[restrictToVerticalAxis]}>
           <table className="text-sm border-collapse" style={{ width: table.getTotalSize(), tableLayout: "fixed" }}>
             <thead className="sticky top-0 z-10" style={{ background: "#161616" }}>
-              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleColumnDragEnd} modifiers={[restrictToHorizontalAxis]}>
+              <DndContext sensors={colSensors} collisionDetection={closestCenter} onDragEnd={handleColumnDragEnd} modifiers={[restrictToHorizontalAxis]}>
                 {table.getHeaderGroups().map((headerGroup) => (
                   <tr key={headerGroup.id}>
                     <SortableContext items={headerGroup.headers.map((h) => h.id)} strategy={horizontalListSortingStrategy}>
