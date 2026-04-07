@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import type { Project } from "@/types";
 import { PROJECT_STAGES } from "@/types";
 import ProjectDetailModal from "./ProjectDetailModal";
+import LoadingAI from "./LoadingAI";
 
 export default function KanbanBoard({ ownerFilter = "" }: { ownerFilter?: string }) {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -66,7 +67,7 @@ export default function KanbanBoard({ ownerFilter = "" }: { ownerFilter?: string
   const getProjectsByStage = (stage: string) => projects.filter((p) => p.stage === stage);
 
   if (loading) {
-    return <div className="flex-1 flex items-center justify-center" style={{ color: "#555" }}>Loading projects...</div>;
+    return <LoadingAI message="Loading projects" />;
   }
 
   return (

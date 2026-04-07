@@ -45,6 +45,7 @@ import ColumnHeaderEditor from "./ColumnHeaderEditor";
 import StatsBar from "./StatsBar";
 import PipelineBadge from "./PipelineBadge";
 import FollowUpDate from "./FollowUpDate";
+import LoadingAI from "./LoadingAI";
 
 function DraggableColumnHeader({ header }: { header: Header<Lead, unknown> }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: header.id });
@@ -842,7 +843,7 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={columns.length} className="text-center py-8" style={{ color: "#555" }}>Loading...</td></tr>
+                <tr><td colSpan={columns.length}><LoadingAI message="Loading prospects" /></td></tr>
               ) : leads.length === 0 ? (
                 <tr><td colSpan={columns.length} className="text-center py-8" style={{ color: "#555" }}>No leads found</td></tr>
               ) : (

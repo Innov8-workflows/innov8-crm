@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import type { Project } from "@/types";
 import ProjectDetailModal from "./ProjectDetailModal";
+import LoadingAI from "./LoadingAI";
 
 interface ClientStats {
   mrr: number;
@@ -178,7 +179,7 @@ export default function LiveClients({ ownerFilter = "" }: { ownerFilter?: string
   const isLostView = clientFilter === "lost";
 
   if (loading) {
-    return <div className="flex-1 flex items-center justify-center" style={{ color: "#555" }}>Loading clients...</div>;
+    return <LoadingAI message="Loading clients" />;
   }
 
   return (
