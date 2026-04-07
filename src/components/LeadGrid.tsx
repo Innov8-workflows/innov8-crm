@@ -68,20 +68,35 @@ function DraggableColumnHeader({ header }: { header: Header<Lead, unknown> }) {
       <div {...(isPinned ? {} : { ...attributes, ...listeners })} style={{ cursor: isPinned ? undefined : "grab" }}>
         {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
       </div>
-      {/* Resize handle — separate from drag, stops propagation */}
+      {/* Resize handle — wide hit area with visible drag line */}
       {header.column.getCanResize() && (
         <div
           onMouseDown={(e) => { e.stopPropagation(); header.getResizeHandler()(e); }}
           onTouchStart={(e) => { e.stopPropagation(); header.getResizeHandler()(e); }}
-          className="absolute right-0 top-0 h-full w-2 cursor-col-resize select-none touch-none transition-opacity"
-          style={{
-            background: header.column.getIsResizing() ? "#ea580c" : "#444",
-            opacity: header.column.getIsResizing() ? 1 : 0,
-            zIndex: 10,
+          onDoubleClick={() => header.column.resetSize()}
+          className="absolute top-0 h-full cursor-col-resize select-none touch-none"
+          style={{ right: -5, width: 11, zIndex: 10 }}
+          onMouseEnter={(e) => {
+            const line = e.currentTarget.firstElementChild as HTMLElement;
+            if (line && !header.column.getIsResizing()) { line.style.background = "#ea580c"; line.style.opacity = "1"; line.style.width = "3px"; }
           }}
-          onMouseEnter={(e) => e.currentTarget.style.opacity = "1"}
-          onMouseLeave={(e) => { if (!header.column.getIsResizing()) e.currentTarget.style.opacity = "0"; }}
-        />
+          onMouseLeave={(e) => {
+            const line = e.currentTarget.firstElementChild as HTMLElement;
+            if (line && !header.column.getIsResizing()) { line.style.background = "#444"; line.style.opacity = "0.4"; line.style.width = "2px"; }
+          }}
+        >
+          {/* Visible drag line */}
+          <div
+            className="absolute top-1 bottom-1 left-1/2 -translate-x-1/2 rounded-full"
+            style={{
+              width: header.column.getIsResizing() ? 3 : 2,
+              background: header.column.getIsResizing() ? "#ea580c" : "#444",
+              opacity: header.column.getIsResizing() ? 1 : 0.4,
+              boxShadow: header.column.getIsResizing() ? "0 0 6px #ea580c80" : "none",
+              transition: "background 0.15s, opacity 0.15s, width 0.15s, box-shadow 0.15s",
+            }}
+          />
+        </div>
       )}
     </th>
   );
