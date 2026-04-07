@@ -869,21 +869,21 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
 
       {/* Table */}
       <div className="flex-1 overflow-auto">
-        <DndContext sensors={rowSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} modifiers={[restrictToVerticalAxis]}>
-          <table className="text-sm border-collapse" style={{ width: table.getTotalSize(), tableLayout: "fixed" }}>
+        <table className="text-sm border-collapse" style={{ width: table.getTotalSize(), tableLayout: "fixed" }}>
+          <DndContext sensors={colSensors} collisionDetection={closestCenter} onDragEnd={handleColumnDragEnd} modifiers={[restrictToHorizontalAxis]}>
             <thead className="sticky top-0 z-10" style={{ background: "#161616" }}>
-              <DndContext sensors={colSensors} collisionDetection={closestCenter} onDragEnd={handleColumnDragEnd} modifiers={[restrictToHorizontalAxis]}>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <tr key={headerGroup.id}>
-                    <SortableContext items={headerGroup.headers.map((h) => h.id)} strategy={horizontalListSortingStrategy}>
-                      {headerGroup.headers.map((header) => (
-                        <DraggableColumnHeader key={header.id} header={header} />
-                      ))}
-                    </SortableContext>
-                  </tr>
-                ))}
-              </DndContext>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <tr key={headerGroup.id}>
+                  <SortableContext items={headerGroup.headers.map((h) => h.id)} strategy={horizontalListSortingStrategy}>
+                    {headerGroup.headers.map((header) => (
+                      <DraggableColumnHeader key={header.id} header={header} />
+                    ))}
+                  </SortableContext>
+                </tr>
+              ))}
             </thead>
+          </DndContext>
+          <DndContext sensors={rowSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} modifiers={[restrictToVerticalAxis]}>
             <tbody>
               {loading ? (
                 <tr><td colSpan={columns.length} className="text-center py-8"><div className="flex justify-center"><LoadingAI message="Loading prospects" /></div></td></tr>
@@ -897,8 +897,8 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
                 </SortableContext>
               )}
             </tbody>
-          </table>
-        </DndContext>
+          </DndContext>
+        </table>
       </div>
 
       {selectedLead && <EmailLogPanel lead={selectedLead} onClose={() => setSelectedLead(null)} />}
