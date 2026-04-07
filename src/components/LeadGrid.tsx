@@ -71,10 +71,12 @@ function DraggableColumnHeader({ header }: { header: Header<Lead, unknown> }) {
       {/* Resize handle — wide hit area with visible drag line */}
       {header.column.getCanResize() && (
         <div
-          onMouseDown={(e) => { e.stopPropagation(); header.getResizeHandler()(e); }}
+          onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); header.getResizeHandler()(e); }}
           onTouchStart={(e) => { e.stopPropagation(); header.getResizeHandler()(e); }}
+          onPointerDown={(e) => { e.stopPropagation(); }}
           onDoubleClick={() => header.column.resetSize()}
           className="absolute top-0 h-full cursor-col-resize select-none touch-none"
+          data-no-dnd="true"
           style={{ right: -6, width: 13, zIndex: 10 }}
           onMouseEnter={(e) => {
             const line = e.currentTarget.firstElementChild as HTMLElement;
@@ -841,7 +843,7 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
       {/* Table */}
       <div className="flex-1 overflow-auto">
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} modifiers={[restrictToVerticalAxis]}>
-          <table className="text-sm border-collapse" style={{ width: table.getTotalSize() }}>
+          <table className="text-sm border-collapse" style={{ width: table.getTotalSize(), tableLayout: "fixed" }}>
             <thead className="sticky top-0 z-10" style={{ background: "#161616" }}>
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleColumnDragEnd} modifiers={[restrictToHorizontalAxis]}>
                 {table.getHeaderGroups().map((headerGroup) => (

@@ -41,8 +41,8 @@ export default function DraggableRow({ row }: DraggableRowProps) {
       onMouseEnter={(e) => { if (!bgColor) e.currentTarget.style.background = "rgba(255,255,255,0.02)"; }}
       onMouseLeave={(e) => { if (!bgColor) e.currentTarget.style.background = ""; else e.currentTarget.style.background = bgColor; }}>
       {row.getVisibleCells().map((cell) => (
-        <td key={cell.id} className="px-1 py-0.5"
-          style={{ width: cell.column.getSize(), borderBottom: "1px solid #1e1e1e" }}
+        <td key={cell.id} className="px-1 py-0.5 overflow-hidden text-ellipsis whitespace-nowrap"
+          style={{ width: cell.column.getSize(), maxWidth: cell.column.getSize(), borderBottom: "1px solid #1e1e1e" }}
           {...(cell.column.id === "drag_handle" ? { ...attributes, ...listeners } : {})}>
           {flexRender(cell.column.columnDef.cell, cell.getContext())}
         </td>
