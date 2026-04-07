@@ -28,12 +28,9 @@ import {
 import {
   SortableContext,
   verticalListSortingStrategy,
-  horizontalListSortingStrategy,
   arrayMove,
-  useSortable,
 } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import { restrictToVerticalAxis, restrictToHorizontalAxis } from "@dnd-kit/modifiers";
+import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import type { Lead } from "@/types";
 import { PIPELINE_STAGES, ROW_COLORS } from "@/types";
 import EditableCell from "./EditableCell";
@@ -47,27 +44,44 @@ import PipelineBadge from "./PipelineBadge";
 import FollowUpDate from "./FollowUpDate";
 import LoadingAI from "./LoadingAI";
 
-function DraggableColumnHeader({ header }: { header: Header<Lead, unknown> }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: header.id });
-  const style: React.CSSProperties = {
-    width: header.getSize(),
-    borderBottom: "1px solid #2a2a2a",
-    transform: CSS.Translate.toString(transform),
-    transition,
-    opacity: isDragging ? 0.6 : 1,
-    position: "relative",
-    zIndex: isDragging ? 20 : undefined,
-  };
+function DraggableColumnHeader({ header, onColumnDrop }: { header: Header<Lead, unknown>; onColumnDrop: (fromId: string, toId: string) => void }) {
+  const [dragOver, setDragOver] = useState(false);
 
   const pinnedIds = ["select", "add_column", "actions", "drag_handle", "row_num"];
   const isPinned = pinnedIds.includes(header.id);
 
   return (
-    <th ref={setNodeRef} className="px-1 py-2 text-left select-none relative group" style={style}>
-      {/* Drag handle wraps the content but NOT the resize handle */}
-      <div {...(isPinned ? {} : { ...attributes, ...listeners })} style={{ cursor: isPinned ? undefined : "grab" }}>
-        {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-      </div>
+    <th
+      className="px-1 py-2 text-left select-none relative group"
+      draggable={!isPinned}
+      onDragStart={(e) => {
+        e.dataTransfer.setData("text/plain", header.id);
+        e.dataTransfer.effectAllowed = "move";
+        (e.currentTarget as HTMLElement).style.opacity = "0.5";
+      }}
+      onDragEnd={(e) => { (e.currentTarget as HTMLElement).style.opacity = "1"; }}
+      onDragOver={(e) => {
+        if (isPinned) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        setDragOver(true);
+      }}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setDragOver(false);
+        const fromId = e.dataTransfer.getData("text/plain");
+        if (fromId && fromId !== header.id) onColumnDrop(fromId, header.id);
+      }}
+      style={{
+        width: header.getSize(),
+        borderBottom: "1px solid #2a2a2a",
+        position: "relative",
+        cursor: isPinned ? undefined : "grab",
+        borderLeft: dragOver ? "2px solid #ea580c" : undefined,
+      }}
+    >
+      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
       {/* Resize handle — wide hit area with visible drag line */}
       {header.column.getCanResize() && (
         <div
@@ -75,8 +89,8 @@ function DraggableColumnHeader({ header }: { header: Header<Lead, unknown> }) {
           onTouchStart={(e) => { e.stopPropagation(); header.getResizeHandler()(e); }}
           onPointerDown={(e) => { e.stopPropagation(); }}
           onDoubleClick={() => header.column.resetSize()}
+          draggable={false}
           className="absolute top-0 h-full cursor-col-resize select-none touch-none"
-          data-no-dnd="true"
           style={{ right: -6, width: 13, zIndex: 10 }}
           onMouseEnter={(e) => {
             const line = e.currentTarget.firstElementChild as HTMLElement;
@@ -87,7 +101,6 @@ function DraggableColumnHeader({ header }: { header: Header<Lead, unknown> }) {
             if (line && !header.column.getIsResizing()) { line.style.background = "#555"; line.style.width = "2px"; line.style.boxShadow = "none"; }
           }}
         >
-          {/* Visible drag line — always visible between columns */}
           <div
             className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2"
             style={{
@@ -431,14 +444,9 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
   }, [fetchLeads]);
 
   // DnD
-  // Row drag sensors (vertical)
-  const rowSensors = useSensors(
+  const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor)
-  );
-  // Column drag sensors (horizontal) — separate to avoid conflict with row DndContext
-  const colSensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
   );
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
@@ -647,13 +655,12 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
     columnResizeMode: "onChange",
   });
 
-  const handleColumnDragEnd = useCallback((event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
+  // Native HTML5 drag & drop for column reordering (dnd-kit doesn't work for columns in tables)
+  const handleColumnDrop = useCallback((fromId: string, toId: string) => {
     setColumnOrder((prev) => {
       const currentOrder = prev.length > 0 ? prev : table.getAllLeafColumns().map((c) => c.id);
-      const oldIndex = currentOrder.indexOf(String(active.id));
-      const newIndex = currentOrder.indexOf(String(over.id));
+      const oldIndex = currentOrder.indexOf(fromId);
+      const newIndex = currentOrder.indexOf(toId);
       if (oldIndex === -1 || newIndex === -1) return prev;
       const newOrder = arrayMove(currentOrder, oldIndex, newIndex);
       try { localStorage.setItem("crm_columnOrder", JSON.stringify(newOrder)); } catch {}
@@ -869,21 +876,17 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
 
       {/* Table */}
       <div className="flex-1 overflow-auto">
-        <table className="text-sm border-collapse" style={{ width: table.getTotalSize(), tableLayout: "fixed" }}>
-          <DndContext sensors={colSensors} collisionDetection={closestCenter} onDragEnd={handleColumnDragEnd} modifiers={[restrictToHorizontalAxis]}>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} modifiers={[restrictToVerticalAxis]}>
+          <table className="text-sm border-collapse" style={{ width: table.getTotalSize(), tableLayout: "fixed" }}>
             <thead className="sticky top-0 z-10" style={{ background: "#161616" }}>
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr key={headerGroup.id}>
-                  <SortableContext items={headerGroup.headers.map((h) => h.id)} strategy={horizontalListSortingStrategy}>
-                    {headerGroup.headers.map((header) => (
-                      <DraggableColumnHeader key={header.id} header={header} />
-                    ))}
-                  </SortableContext>
+                  {headerGroup.headers.map((header) => (
+                    <DraggableColumnHeader key={header.id} header={header} onColumnDrop={handleColumnDrop} />
+                  ))}
                 </tr>
               ))}
             </thead>
-          </DndContext>
-          <DndContext sensors={rowSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} modifiers={[restrictToVerticalAxis]}>
             <tbody>
               {loading ? (
                 <tr><td colSpan={columns.length} className="text-center py-8"><div className="flex justify-center"><LoadingAI message="Loading prospects" /></div></td></tr>
@@ -897,8 +900,8 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
                 </SortableContext>
               )}
             </tbody>
-          </DndContext>
-        </table>
+          </table>
+        </DndContext>
       </div>
 
       {selectedLead && <EmailLogPanel lead={selectedLead} onClose={() => setSelectedLead(null)} />}
