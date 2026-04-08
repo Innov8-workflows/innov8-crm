@@ -482,7 +482,7 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
     (id: number, field: string, value: unknown, colType: string) => {
       if (field === "owner") {
         const current = (value as string) || "";
-        const ownerColor = current === "Truthfu1" ? "#ea580c" : current === "LowKey" ? "#c084fc" : "#555";
+        const ownerColor = current === "Truthfu1" ? "#ea580c" : current === "LowKey" ? "#22d3ee" : "#555";
         return (
           <select
             className="text-xs rounded px-1 py-0.5 w-full cursor-pointer font-semibold"
