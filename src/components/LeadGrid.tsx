@@ -502,7 +502,12 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
       if (field === "demo_site_url") {
         const url = value as string;
         return url
-          ? <a href={url} target="_blank" rel="noreferrer" className="hover:underline text-xs truncate block px-2 py-1" style={{ color: "#ea580c" }} title={url}>View site</a>
+          ? <div className="flex items-center gap-1 px-2 py-1">
+              <a href={url} target="_blank" rel="noreferrer" className="hover:underline text-xs truncate" style={{ color: "#ea580c" }} title={url}>View site</a>
+              <button onClick={() => updateLead(id, field, "")} className="flex-shrink-0 rounded hover:bg-red-900/30 p-0.5" title="Clear link" style={{ color: "#666", lineHeight: 1 }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              </button>
+            </div>
           : <EditableCell value="" onSave={(v) => updateLead(id, field, v)} />;
       }
       if (colType === "checkbox") {
