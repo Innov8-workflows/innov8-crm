@@ -162,6 +162,11 @@ export async function initDb() {
     CREATE INDEX IF NOT EXISTS idx_projects_status ON projects(client_status);
     CREATE INDEX IF NOT EXISTS idx_project_files_project ON project_files(project_id);
     CREATE INDEX IF NOT EXISTS idx_project_tasks_project ON project_tasks(project_id);
+    CREATE INDEX IF NOT EXISTS idx_leads_owner ON leads(owner);
+    CREATE INDEX IF NOT EXISTS idx_leads_business_name ON leads(business_name COLLATE NOCASE);
+    CREATE INDEX IF NOT EXISTS idx_leads_business_type ON leads(business_type);
+    CREATE INDEX IF NOT EXISTS idx_email_logs_gmail_msg ON email_logs(gmail_msg_id);
+    CREATE INDEX IF NOT EXISTS idx_custom_field_values ON custom_field_values(lead_id, column_id);
   `);
 }
 

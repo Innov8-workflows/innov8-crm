@@ -406,6 +406,7 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
   }, [newLead, activeTab]);
 
   const deleteLead = useCallback(async (id: number) => {
+    if (!window.confirm("Are you sure you want to delete this lead? This cannot be undone.")) return;
     setLeads((prev) => prev.filter((l) => l.id !== id));
     skipNextFetch.current = true;
     await fetch(`/api/leads/${id}`, { method: "DELETE" });

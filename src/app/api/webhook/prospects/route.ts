@@ -1,10 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getClient, initDb, all, first } from "@/lib/db";
 
-// Public webhook endpoint for importing scraped prospects
+// Webhook endpoint for importing scraped prospects
 // Accepts single prospect or array of prospects
 // Checks for duplicates by business_name (case-insensitive)
 export async function POST(request: NextRequest) {
+  // Verify webhook secret if configured
+  const webhookSecret = process.env.WEBHOOK_SECRET;
+  if (webhookSecret) {
+    const headerSecret = request.headers.get("x-webhook-secret");
+    if (headerSecret !== webhookSecret) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+  }
+
   await initDb();
   const db = getClient();
   const body = await request.json();

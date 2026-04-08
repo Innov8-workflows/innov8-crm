@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
 
 const SECRET = new TextEncoder().encode(
-  process.env.SESSION_SECRET || "innov8-crm-default-secret-change-me"
+  process.env.SESSION_SECRET || ""
 );
 
 const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/auth/setup", "/api/webhook/gmail", "/api/webhook/prospects", "/api/invoices/auto"];

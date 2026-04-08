@@ -4,7 +4,13 @@ import { getOrCreateCustomer, createAndSendInvoice } from "@/lib/stripe";
 
 // Auto-invoice endpoint — called by Vercel Cron daily
 // Finds active clients with renewal_date = today and sends Stripe invoices
-export async function POST() {
+export async function POST(request: Request) {
+  // Verify cron secret — prevents anyone from triggering invoices publicly
+  const authHeader = request.headers.get("authorization");
+  const cronSecret = process.env.CRON_SECRET;
+  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   await initDb();
   const db = getClient();
   const today = new Date().toISOString().split("T")[0];

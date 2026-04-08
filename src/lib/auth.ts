@@ -1,9 +1,11 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 
-const SECRET = new TextEncoder().encode(
-  process.env.SESSION_SECRET || "innov8-crm-default-secret-change-me"
-);
+function getSecret() {
+  const s = process.env.SESSION_SECRET;
+  if (!s) throw new Error("SESSION_SECRET env var is required");
+  return new TextEncoder().encode(s);
+}
 
 const COOKIE_NAME = "innov8_session";
 
@@ -11,7 +13,7 @@ export async function createSession(userId: number, username: string) {
   const token = await new SignJWT({ userId, username })
     .setProtectedHeader({ alg: "HS256" })
     .setExpirationTime("30d")
-    .sign(SECRET);
+    .sign(getSecret());
 
   const cookieStore = await cookies();
   cookieStore.set(COOKIE_NAME, token, {
@@ -31,7 +33,7 @@ export async function getSession(): Promise<{ userId: number; username: string }
   if (!token) return null;
 
   try {
-    const { payload } = await jwtVerify(token, SECRET);
+    const { payload } = await jwtVerify(token, getSecret());
     return { userId: payload.userId as number, username: payload.username as string };
   } catch {
     return null;

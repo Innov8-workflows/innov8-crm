@@ -54,7 +54,7 @@ export default function StatsBar({ ownerFilter = "" }: { ownerFilter?: string })
         </svg>
       </button>
       {expanded && (
-        <div className="grid grid-cols-7 gap-2 px-4 pb-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 px-4 pb-3">
           {cards.map((card) => (
             <div key={card.label} className="text-center p-2.5 rounded-lg" style={{ background: "#1e1e1e", border: "1px solid #2a2a2a" }}>
               <div className="text-2xl font-bold" style={{ color: card.color }}>{card.value}</div>
