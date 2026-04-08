@@ -2,7 +2,7 @@ import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 
 const SECRET = new TextEncoder().encode(
-  process.env.SESSION_SECRET || "innov8-crm-session-key"
+  process.env.SESSION_SECRET || "innov8-crm-default-secret-change-me"
 );
 
 const COOKIE_NAME = "innov8_session";
