@@ -43,6 +43,7 @@ import StatsBar from "./StatsBar";
 import PipelineBadge from "./PipelineBadge";
 import FollowUpDate from "./FollowUpDate";
 import LoadingAI from "./LoadingAI";
+import { useToast } from "./Toast";
 
 function DraggableColumnHeader({ header, onColumnDrop }: { header: Header<Lead, unknown>; onColumnDrop: (fromId: string, toId: string) => void }) {
   const [dragOver, setDragOver] = useState(false);
@@ -144,6 +145,7 @@ const DEFAULT_TYPES: Record<string, string> = {
 };
 
 export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string }) {
+  const { toast } = useToast();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("All");
@@ -348,8 +350,9 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ lead_id: id }),
       });
+      toast("Lead won — project created!");
     }
-  }, []);
+  }, [toast]);
 
   // Update custom field value
   const updateCustomField = useCallback(async (leadId: number, fieldId: string, value: string) => {
@@ -403,14 +406,16 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
     setNewLead({ business_name: "", email: "", contact_name: "" });
     setShowAddModal(false);
     setDuplicateWarning("");
-  }, [newLead, activeTab]);
+    toast("Lead added");
+  }, [newLead, activeTab, toast]);
 
   const deleteLead = useCallback(async (id: number) => {
     if (!window.confirm("Are you sure you want to delete this lead? This cannot be undone.")) return;
     setLeads((prev) => prev.filter((l) => l.id !== id));
     skipNextFetch.current = true;
     await fetch(`/api/leads/${id}`, { method: "DELETE" });
-  }, []);
+    toast("Lead deleted", "info");
+  }, [toast]);
 
   // Bulk actions
   const selectedIds = useMemo(() => {

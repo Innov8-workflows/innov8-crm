@@ -37,7 +37,19 @@ export async function POST(request: NextRequest) {
     file_type = file.type;
     size = file.size;
 
-    // Convert to base64 data URL for storage (works for images up to ~5MB)
+    // Reject files over 5MB
+    const MAX_SIZE = 5 * 1024 * 1024;
+    if (size > MAX_SIZE) {
+      return NextResponse.json({ error: `File too large (${(size / 1024 / 1024).toFixed(1)}MB). Maximum is 5MB.` }, { status: 400 });
+    }
+
+    // Validate file type
+    const allowedTypes = ["image/", "application/pdf", "text/"];
+    if (!allowedTypes.some((t) => file_type.startsWith(t))) {
+      return NextResponse.json({ error: `File type "${file_type}" not allowed. Use images, PDFs, or text files.` }, { status: 400 });
+    }
+
+    // Convert to base64 data URL for storage
     const buffer = Buffer.from(await file.arrayBuffer());
     url = `data:${file.type};base64,${buffer.toString("base64")}`;
     name = name || file.name;

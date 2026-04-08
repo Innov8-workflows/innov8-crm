@@ -63,7 +63,7 @@ export default function EmailLogPanel({ lead, onClose }: EmailLogPanelProps) {
   const fmt = (d: string) => new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 
   return (
-    <div className="fixed inset-y-0 right-0 w-[420px] shadow-2xl z-50 flex flex-col"
+    <div className="fixed inset-y-0 right-0 w-full sm:w-[420px] shadow-2xl z-50 flex flex-col"
       style={{ background: "#161616", borderLeft: "1px solid #2a2a2a" }}>
       <div className="flex items-center justify-between p-4" style={{ borderBottom: "1px solid #2a2a2a" }}>
         <h2 className="text-lg font-semibold truncate" style={{ color: "#f0f0f0" }}>{lead.business_name}</h2>
