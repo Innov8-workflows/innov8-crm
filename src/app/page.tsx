@@ -4,12 +4,13 @@ import { useState, useEffect } from "react";
 import LeadGrid from "@/components/LeadGrid";
 import KanbanBoard from "@/components/KanbanBoard";
 import LiveClients from "@/components/LiveClients";
+import Dashboard from "@/components/Dashboard";
 import ViewNav from "@/components/ViewNav";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { ToastProvider } from "@/components/Toast";
 
 export default function Home() {
-  const [view, setView] = useState<"prospects" | "projects" | "clients">("prospects");
+  const [view, setView] = useState<"prospects" | "projects" | "clients" | "dashboard">("prospects");
   const [projectCount, setProjectCount] = useState(0);
   const [clientCount, setClientCount] = useState(0);
   const [ownerFilter, setOwnerFilter] = useState(() => {
@@ -42,6 +43,9 @@ export default function Home() {
         </ErrorBoundary>
         <ErrorBoundary fallbackMessage="Clients failed to load">
           {view === "clients" && <LiveClients ownerFilter={ownerFilter} />}
+        </ErrorBoundary>
+        <ErrorBoundary fallbackMessage="Dashboard failed to load">
+          {view === "dashboard" && <Dashboard ownerFilter={ownerFilter} />}
         </ErrorBoundary>
       </div>
     </ToastProvider>
