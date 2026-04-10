@@ -646,17 +646,7 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
         return next;
       });
     },
-    onColumnOrderChange: (updater) => {
-      setColumnOrder((prev) => {
-        const next = typeof updater === "function" ? updater(prev) : updater;
-        // Only persist once column order has been initialised from localStorage
-        // to avoid overwriting saved order with default order on first render
-        if (next.length > 0 && columnOrderInitialised.current) {
-          try { localStorage.setItem("crm_columnOrder", JSON.stringify(next)); } catch {}
-        }
-        return next;
-      });
-    },
+    onColumnOrderChange: setColumnOrder,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
