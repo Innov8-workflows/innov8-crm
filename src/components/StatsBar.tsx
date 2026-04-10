@@ -57,22 +57,16 @@ export default function StatsBar({ ownerFilter = "" }: { ownerFilter?: string })
         </svg>
       </button>
       {expanded && (<>
-        {(stats.totalCapex > 0 || stats.totalMonthly > 0) && (
-          <div className="flex gap-3 px-4 pb-2">
-            {stats.totalCapex > 0 && (
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg" style={{ background: "#1e1e1e", border: "1px solid #2a2a2a" }}>
-                <span className="text-xs" style={{ color: "#666" }}>Prospect CAPEX</span>
-                <span className="text-sm font-bold" style={{ color: "#3b82f6" }}>{"\u00A3"}{stats.totalCapex.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-              </div>
-            )}
-            {stats.totalMonthly > 0 && (
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg" style={{ background: "#1e1e1e", border: "1px solid #2a2a2a" }}>
-                <span className="text-xs" style={{ color: "#666" }}>Prospect Monthly</span>
-                <span className="text-sm font-bold" style={{ color: "#22c55e" }}>{"\u00A3"}{stats.totalMonthly.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo</span>
-              </div>
-            )}
+        <div className="flex gap-3 px-4 pb-2">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg" style={{ background: "#1e1e1e", border: "1px solid #2a2a2a" }}>
+            <span className="text-xs" style={{ color: "#666" }}>Prospect CAPEX</span>
+            <span className="text-sm font-bold" style={{ color: "#3b82f6" }}>{"\u00A3"}{(stats.totalCapex || 0).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
           </div>
-        )}
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg" style={{ background: "#1e1e1e", border: "1px solid #2a2a2a" }}>
+            <span className="text-xs" style={{ color: "#666" }}>Prospect Monthly</span>
+            <span className="text-sm font-bold" style={{ color: "#22c55e" }}>{"\u00A3"}{(stats.totalMonthly || 0).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo</span>
+          </div>
+        </div>
         <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 gap-2 px-4 pb-3">
           {cards.map((card) => (
             <div key={card.label} className="text-center p-2.5 rounded-lg" style={{ background: "#1e1e1e", border: "1px solid #2a2a2a" }}>
