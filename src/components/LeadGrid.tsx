@@ -189,28 +189,31 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
   }, []);
 
   // Restore and reconcile column order from localStorage
-  // Runs whenever customColumns changes (initial load + when columns added/removed)
+  // Only runs ONCE after custom columns have loaded from API
   const columnOrderInitialised = useRef(false);
+  const customColumnsLoaded = useRef(false);
+
+  // Track when custom columns finish loading (colConfigs set at same time)
   useEffect(() => {
-    // Wait for custom columns to load before reconciling
-    // (colConfigs is set at the same time, so if we have configs but no custom cols, that's fine)
+    // customColumns starts as [] and gets set after API fetch
+    // We detect "loaded" when the columns API has returned (even if there are no custom columns)
+    // by checking if colConfigs has been populated
+    if (Object.keys(colConfigs).length > 0 || customColumns.length > 0) {
+      customColumnsLoaded.current = true;
+    }
+  }, [colConfigs, customColumns]);
+
+  useEffect(() => {
+    // Don't reconcile until custom columns have loaded — otherwise we'd strip them from saved order
+    if (!customColumnsLoaded.current && !columnOrderInitialised.current) return;
+
     try {
       const savedOrder = localStorage.getItem("crm_columnOrder");
       const parsed = savedOrder ? JSON.parse(savedOrder) as string[] : [];
 
       if (!Array.isArray(parsed)) return;
-
-      // If no saved order at all, skip — let the table use default order
       if (parsed.length === 0 && !columnOrderInitialised.current) return;
 
-      // Ensure "owner" is positioned before "status"
-      if (!parsed.includes("owner")) {
-        const statusIdx = parsed.indexOf("status");
-        if (statusIdx !== -1) parsed.splice(statusIdx, 0, "owner");
-        else parsed.push("owner");
-      }
-
-      // All known built-in column IDs
       const allBuiltIn = ["select", "drag_handle", "row_num", "owner", "status",
         "business_name", "contact_name", "business_type", "location",
         "follow_up_date", "website_status", "email", "phone", "demo_site_url",
@@ -219,7 +222,15 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
 
       let changed = false;
 
-      // Add any custom columns not in the saved order
+      // Ensure "owner" is in the list
+      if (!parsed.includes("owner")) {
+        const statusIdx = parsed.indexOf("status");
+        if (statusIdx !== -1) parsed.splice(statusIdx, 0, "owner");
+        else parsed.push("owner");
+        changed = true;
+      }
+
+      // Add any custom columns not already in saved order (new columns only)
       for (const cc of customColumns) {
         if (!parsed.includes(cc.id)) {
           const addIdx = parsed.indexOf("add_column");
@@ -229,7 +240,7 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
         }
       }
 
-      // Add any built-in columns not in the saved order
+      // Add any built-in columns not in saved order (new columns only)
       for (const bid of allBuiltIn) {
         if (!parsed.includes(bid)) {
           parsed.push(bid);
@@ -237,21 +248,20 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
         }
       }
 
-      // Remove any columns from saved order that no longer exist
+      // Remove columns that no longer exist
       const validIds = new Set([...allBuiltIn, ...customColumns.map((c) => c.id)]);
       const cleaned = parsed.filter((id) => validIds.has(id));
       if (cleaned.length !== parsed.length) changed = true;
 
-      if (changed || !columnOrderInitialised.current) {
+      // Only write to localStorage if we actually added/removed columns
+      // NEVER overwrite if we're just restoring on load
+      if (changed) {
         localStorage.setItem("crm_columnOrder", JSON.stringify(cleaned));
-        setColumnOrder(cleaned);
-      } else if (parsed.length > 0) {
-        setColumnOrder(parsed);
       }
-
+      setColumnOrder(cleaned);
       columnOrderInitialised.current = true;
     } catch {}
-  }, [customColumns]);
+  }, [customColumns, colConfigs]);
 
   // Get current user and users list
   useEffect(() => {
