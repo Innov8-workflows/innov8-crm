@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
 
   const today = new Date().toISOString().split("T")[0];
 
-  const [total, emailed, messaged, called, meetingsBooked, maybe, won, lost, rejected, overdue, dueToday] = await Promise.all([
+  const [total, emailed, messaged, called, meetingsBooked, maybe, won, lost, rejected, overdue, dueToday, totalCapex] = await Promise.all([
     get("SELECT COUNT(*) as v FROM leads"),
     get("SELECT COUNT(*) as v FROM leads WHERE status = 'emailed'"),
     get("SELECT COUNT(*) as v FROM leads WHERE status = 'messaged'"),
@@ -48,7 +48,19 @@ export async function GET(request: NextRequest) {
     get("SELECT COUNT(*) as v FROM leads WHERE status = 'rejected'"),
     get("SELECT COUNT(*) as v FROM leads WHERE follow_up_date != '' AND follow_up_date < ? AND status NOT IN ('won','lost','completed','rejected')", [today]),
     get("SELECT COUNT(*) as v FROM leads WHERE follow_up_date = ?", [today]),
+    get("SELECT COALESCE(SUM(capex), 0) as v FROM leads WHERE capex > 0"),
   ]);
 
-  return NextResponse.json({ total, emailed, messaged, called, meetingsBooked, maybe, won, lost, rejected, overdue, dueToday });
+  // Get monthly total from custom field values (custom_monthly is stored as text)
+  let totalMonthly = 0;
+  try {
+    let monthlySQL = "SELECT COALESCE(SUM(CAST(cfv.value AS REAL)), 0) as v FROM custom_field_values cfv JOIN leads l ON cfv.lead_id = l.id WHERE cfv.field_id = 'custom_monthly' AND cfv.value != ''";
+    if (ownerClause) {
+      monthlySQL += ownerClause.replace("owner", "l.owner");
+    }
+    const monthlyResult = first(await db.execute({ sql: monthlySQL, args: [...ownerArgs] }));
+    totalMonthly = (monthlyResult?.v as number) || 0;
+  } catch {}
+
+  return NextResponse.json({ total, emailed, messaged, called, meetingsBooked, maybe, won, lost, rejected, overdue, dueToday, totalCapex, totalMonthly });
 }
