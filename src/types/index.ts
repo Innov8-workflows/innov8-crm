@@ -110,6 +110,7 @@ export const PIPELINE_STAGES = [
   { value: "called", label: "Called", color: "#F59E0B" },
   { value: "meeting_booked", label: "Meeting Booked", color: "#10B981" },
   { value: "won", label: "Won", color: "#059669" },
+  { value: "maybe", label: "Maybe", color: "#ea580c" },
   { value: "lost", label: "Lost", color: "#EF4444" },
   { value: "rejected", label: "Rejected", color: "#9CA3AF" },
 ] as const;

@@ -352,7 +352,7 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
     if (!lead) return null;
     const s = lead.status || "new";
     // Don't touch manually-set advanced stages
-    if (["meeting_booked", "won", "lost", "rejected"].includes(s)) return null;
+    if (["meeting_booked", "maybe", "won", "lost", "rejected"].includes(s)) return null;
 
     // Gather current checkbox states, applying the override for the field being changed
     const get = (field: string, customId?: string) => {
