@@ -5,7 +5,8 @@ import LoadingAI from "./LoadingAI";
 
 interface ProspectStats {
   total: number; emailed: number; messaged: number; called: number;
-  meetingsBooked: number; won: number; lost: number; overdue: number; dueToday: number;
+  meetingsBooked: number; maybe: number; won: number; lost: number;
+  rejected: number; overdue: number; dueToday: number;
 }
 
 interface ClientStats {
@@ -59,14 +60,16 @@ export default function Dashboard({ ownerFilter = "" }: { ownerFilter?: string }
       {/* Section 2: Sales Pipeline */}
       <div>
         <h2 className="text-sm font-semibold uppercase tracking-wider mb-3" style={{ color: "#666" }}>Sales Pipeline</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+        <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 gap-3">
           <PipelineCard label="Total Leads" value={prospects?.total || 0} color="#f0f0f0" />
           <PipelineCard label="Emailed" value={prospects?.emailed || 0} color="#3b82f6" />
           <PipelineCard label="Messaged" value={prospects?.messaged || 0} color="#8b5cf6" />
           <PipelineCard label="Called" value={prospects?.called || 0} color="#f59e0b" />
           <PipelineCard label="Meetings" value={prospects?.meetingsBooked || 0} color="#10b981" />
+          <PipelineCard label="Maybe" value={prospects?.maybe || 0} color="#ea580c" />
           <PipelineCard label="Won" value={prospects?.won || 0} color="#059669" />
           <PipelineCard label="Lost" value={prospects?.lost || 0} color="#ef4444" />
+          <PipelineCard label="Rejected" value={prospects?.rejected || 0} color="#9CA3AF" />
         </div>
       </div>
 

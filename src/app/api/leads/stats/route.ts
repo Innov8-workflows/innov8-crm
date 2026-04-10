@@ -36,17 +36,19 @@ export async function GET(request: NextRequest) {
 
   const today = new Date().toISOString().split("T")[0];
 
-  const [total, emailed, messaged, called, meetingsBooked, won, lost, overdue, dueToday] = await Promise.all([
+  const [total, emailed, messaged, called, meetingsBooked, maybe, won, lost, rejected, overdue, dueToday] = await Promise.all([
     get("SELECT COUNT(*) as v FROM leads"),
     get("SELECT COUNT(*) as v FROM leads WHERE status = 'emailed'"),
     get("SELECT COUNT(*) as v FROM leads WHERE status = 'messaged'"),
     get("SELECT COUNT(*) as v FROM leads WHERE status = 'called'"),
     get("SELECT COUNT(*) as v FROM leads WHERE status = 'meeting_booked'"),
+    get("SELECT COUNT(*) as v FROM leads WHERE status = 'maybe'"),
     get("SELECT COUNT(*) as v FROM leads WHERE status IN ('won','completed')"),
     get("SELECT COUNT(*) as v FROM leads WHERE status = 'lost'"),
-    get("SELECT COUNT(*) as v FROM leads WHERE follow_up_date != '' AND follow_up_date < ? AND status NOT IN ('won','lost','completed')", [today]),
+    get("SELECT COUNT(*) as v FROM leads WHERE status = 'rejected'"),
+    get("SELECT COUNT(*) as v FROM leads WHERE follow_up_date != '' AND follow_up_date < ? AND status NOT IN ('won','lost','completed','rejected')", [today]),
     get("SELECT COUNT(*) as v FROM leads WHERE follow_up_date = ?", [today]),
   ]);
 
-  return NextResponse.json({ total, emailed, messaged, called, meetingsBooked, won, lost, overdue, dueToday });
+  return NextResponse.json({ total, emailed, messaged, called, meetingsBooked, maybe, won, lost, rejected, overdue, dueToday });
 }

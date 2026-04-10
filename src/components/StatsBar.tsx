@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 
 interface Stats {
   total: number; emailed: number; messaged: number; called: number;
-  meetingsBooked: number; won: number; lost: number; overdue: number;
-  dueToday: number;
+  meetingsBooked: number; maybe: number; won: number; lost: number;
+  rejected: number; overdue: number; dueToday: number;
 }
 
 export default function StatsBar({ ownerFilter = "" }: { ownerFilter?: string }) {
@@ -25,8 +25,10 @@ export default function StatsBar({ ownerFilter = "" }: { ownerFilter?: string })
     { label: "Messaged", value: stats.messaged, color: "#8b5cf6" },
     { label: "Called", value: stats.called, color: "#f59e0b" },
     { label: "Meetings", value: stats.meetingsBooked, color: "#10b981" },
+    { label: "Maybe", value: stats.maybe, color: "#ea580c" },
     { label: "Won", value: stats.won, color: "#059669" },
     { label: "Lost", value: stats.lost, color: "#ef4444" },
+    { label: "Rejected", value: stats.rejected, color: "#9CA3AF" },
   ];
 
   const alerts = [];
@@ -54,7 +56,7 @@ export default function StatsBar({ ownerFilter = "" }: { ownerFilter?: string })
         </svg>
       </button>
       {expanded && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 px-4 pb-3">
+        <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 gap-2 px-4 pb-3">
           {cards.map((card) => (
             <div key={card.label} className="text-center p-2.5 rounded-lg" style={{ background: "#1e1e1e", border: "1px solid #2a2a2a" }}>
               <div className="text-2xl font-bold" style={{ color: card.color }}>{card.value}</div>
