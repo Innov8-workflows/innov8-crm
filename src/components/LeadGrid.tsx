@@ -347,12 +347,35 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
 
   // Stable update: only update local state, no re-fetch
   const updateLead = useCallback(async (id: number, field: string, value: string | number | null) => {
-    setLeads((prev) => prev.map((l) => (l.id === id ? { ...l, [field]: value } : l)));
+    // Auto-advance stage when checkbox ticked (only moves forward, never back)
+    let autoStage: string | null = null;
+    if (value === 1) {
+      const lead = leads.find((l) => l.id === id);
+      if (lead) {
+        const s = lead.status || "new";
+        if (field === "emailed" && s === "new") autoStage = "emailed";
+        else if (field === "messaged" && ["new", "emailed"].includes(s)) autoStage = "messaged";
+      }
+    }
+
+    // Update local state (checkbox + stage if auto-advancing)
+    setLeads((prev) => prev.map((l) => {
+      if (l.id !== id) return l;
+      const updated = { ...l, [field]: value };
+      if (autoStage) updated.status = autoStage;
+      return updated;
+    }));
     skipNextFetch.current = true;
+
+    // Send both updates to backend in one call
+    const updates: Record<string, unknown> = { [field]: value };
+    if (autoStage) updates.status = autoStage;
     await fetch(`/api/leads/${id}`, {
       method: "PUT", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ [field]: value }),
+      body: JSON.stringify(updates),
     });
+
+    if (autoStage) toast(`Stage → ${autoStage}`);
 
     // Auto-create project when lead is marked as "won"
     if (field === "status" && value === "won") {
@@ -362,19 +385,40 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
       });
       toast("Lead won — project created!");
     }
-  }, [toast]);
+  }, [leads, toast]);
 
   // Update custom field value
   const updateCustomField = useCallback(async (leadId: number, fieldId: string, value: string) => {
+    // Auto-advance stage when custom_called ticked
+    let autoStage: string | null = null;
+    if (fieldId === "custom_called" && value === "1") {
+      const lead = leads.find((l) => l.id === leadId);
+      if (lead && ["new", "emailed", "messaged"].includes(lead.status || "new")) {
+        autoStage = "called";
+      }
+    }
+
     setCustomFieldValues((prev) => ({
       ...prev,
       [String(leadId)]: { ...(prev[String(leadId)] || {}), [fieldId]: value },
     }));
+
+    // If auto-advancing stage, update lead status too
+    if (autoStage) {
+      setLeads((prev) => prev.map((l) => l.id === leadId ? { ...l, status: autoStage! } : l));
+      skipNextFetch.current = true;
+      await fetch(`/api/leads/${leadId}`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: autoStage }),
+      });
+      toast("Stage → called");
+    }
+
     await fetch("/api/custom-fields", {
       method: "PUT", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ lead_id: leadId, field_id: fieldId, value }),
     });
-  }, []);
+  }, [leads, toast]);
 
   // Add custom column
   const addCustomColumn = useCallback(async () => {
