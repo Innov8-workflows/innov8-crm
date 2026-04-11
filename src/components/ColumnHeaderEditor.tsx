@@ -54,7 +54,7 @@ export default function ColumnHeaderEditor({ columnId, label, colType, onSave, o
         {editing ? (
           <input ref={inputRef}
             className="text-xs font-semibold uppercase tracking-wider rounded px-1 py-0.5 w-full"
-            style={{ background: "#1e1e1e", border: "1px solid #ea580c", color: "#f0f0f0", outline: "none" }}
+            style={{ background: "var(--surface2)", border: "1px solid var(--accent)", color: "var(--text)", outline: "none" }}
             value={draftLabel}
             onChange={(e) => setDraftLabel(e.target.value)}
             onClick={(e) => e.stopPropagation()}
@@ -65,42 +65,42 @@ export default function ColumnHeaderEditor({ columnId, label, colType, onSave, o
             }}
           />
         ) : (
-          <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#888" }}>
+          <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
             {label}
           </span>
         )}
-        {sortDir === "asc" && <span style={{ color: "#ea580c" }}> ↑</span>}
-        {sortDir === "desc" && <span style={{ color: "#ea580c" }}> ↓</span>}
+        {sortDir === "asc" && <span style={{ color: "var(--accent)" }}> ↑</span>}
+        {sortDir === "desc" && <span style={{ color: "var(--accent)" }}> ↓</span>}
       </div>
 
       {showMenu && (
         <div ref={menuRef}
           className="absolute top-full left-0 mt-1 w-52 rounded-lg shadow-xl z-50 py-1"
-          style={{ background: "#1e1e1e", border: "1px solid #333" }}
+          style={{ background: "var(--surface2)", border: "1px solid var(--border-light)" }}
           onClick={(e) => e.stopPropagation()}>
           <button className="w-full text-left px-3 py-1.5 text-sm transition-colors"
-            style={{ color: "#ccc" }}
-            onMouseEnter={(e) => e.currentTarget.style.background = "#252525"}
+            style={{ color: "var(--text-secondary)" }}
+            onMouseEnter={(e) => e.currentTarget.style.background = "var(--surface3)"}
             onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
             onClick={() => { setShowMenu(false); setEditing(true); }}>
             Rename column
           </button>
-          <div style={{ borderTop: "1px solid #2a2a2a", margin: "4px 0" }} />
-          <div className="px-3 py-1 text-xs uppercase" style={{ color: "#555" }}>Column type</div>
+          <div style={{ borderTop: "1px solid var(--border)", margin: "4px 0" }} />
+          <div className="px-3 py-1 text-xs uppercase" style={{ color: "var(--text-tertiary)" }}>Column type</div>
           {COL_TYPES.map((t) => (
             <button key={t.value}
               className="w-full text-left px-3 py-1.5 text-sm flex items-center justify-between transition-colors"
-              style={{ color: draftType === t.value ? "#ea580c" : "#ccc", fontWeight: draftType === t.value ? 600 : 400 }}
-              onMouseEnter={(e) => e.currentTarget.style.background = "#252525"}
+              style={{ color: draftType === t.value ? "var(--accent)" : "var(--text-secondary)", fontWeight: draftType === t.value ? 600 : 400 }}
+              onMouseEnter={(e) => e.currentTarget.style.background = "var(--surface3)"}
               onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
               onClick={() => { setDraftType(t.value); onSave(columnId, draftLabel, t.value); setShowMenu(false); }}>
               {t.label}
-              {draftType === t.value && <span style={{ color: "#ea580c" }}>✓</span>}
+              {draftType === t.value && <span style={{ color: "var(--accent)" }}>✓</span>}
             </button>
           ))}
           {onDelete && (
             <>
-              <div style={{ borderTop: "1px solid #2a2a2a", margin: "4px 0" }} />
+              <div style={{ borderTop: "1px solid var(--border)", margin: "4px 0" }} />
               <button className="w-full text-left px-3 py-1.5 text-sm flex items-center gap-2 transition-colors"
                 style={{ color: "#ef4444" }}
                 onMouseEnter={(e) => e.currentTarget.style.background = "#ef444415"}

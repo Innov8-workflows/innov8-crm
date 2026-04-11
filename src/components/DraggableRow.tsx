@@ -44,7 +44,7 @@ export default function DraggableRow({ row }: DraggableRowProps) {
         const hasDropdown = cell.column.id === "status" || cell.column.id === "owner";
         return (
           <td key={cell.id} className={`px-1 py-0.5 ${hasDropdown ? "overflow-visible" : "overflow-hidden text-ellipsis whitespace-nowrap"}`}
-            style={{ width: cell.column.getSize(), maxWidth: cell.column.getSize(), borderBottom: "1px solid #1e1e1e" }}
+            style={{ width: cell.column.getSize(), maxWidth: cell.column.getSize(), borderBottom: "1px solid var(--surface2)" }}
             {...(cell.column.id === "drag_handle" ? { ...attributes, ...listeners } : {})}>
             {flexRender(cell.column.columnDef.cell, cell.getContext())}
           </td>

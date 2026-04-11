@@ -21,12 +21,12 @@ export default function StatsBar({ ownerFilter = "" }: { ownerFilter?: string })
   if (!stats) return null;
 
   const cards = [
-    { label: "Total Leads", value: stats.total, color: "#f0f0f0" },
+    { label: "Total Leads", value: stats.total, color: "var(--text)" },
     { label: "Emailed", value: stats.emailed, color: "#3b82f6" },
     { label: "Messaged", value: stats.messaged, color: "#8b5cf6" },
     { label: "Called", value: stats.called, color: "#f59e0b" },
     { label: "Meetings", value: stats.meetingsBooked, color: "#10b981" },
-    { label: "Maybe", value: stats.maybe, color: "#ea580c" },
+    { label: "Maybe", value: stats.maybe, color: "var(--accent)" },
     { label: "Won", value: stats.won, color: "#059669" },
     { label: "Lost", value: stats.lost, color: "#ef4444" },
     { label: "Rejected", value: stats.rejected, color: "#9CA3AF" },
@@ -37,10 +37,10 @@ export default function StatsBar({ ownerFilter = "" }: { ownerFilter?: string })
   if (stats.dueToday > 0) alerts.push({ text: `${stats.dueToday} due today`, bg: "rgba(234,179,8,0.1)", border: "rgba(234,179,8,0.2)", color: "#eab308" });
 
   return (
-    <div style={{ borderBottom: "1px solid #2a2a2a", background: "#131313" }}>
+    <div style={{ borderBottom: "1px solid var(--border)", background: "var(--stats-bg)" }}>
       <button onClick={() => setExpanded(!expanded)}
         className="w-full flex items-center justify-between px-4 py-1.5 text-xs transition-colors"
-        style={{ color: "#666" }}
+        style={{ color: "var(--text-dim)" }}
         onMouseEnter={(e) => e.currentTarget.style.background = "#1a1a1a"}
         onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
         <span className="flex items-center gap-2">
@@ -58,20 +58,20 @@ export default function StatsBar({ ownerFilter = "" }: { ownerFilter?: string })
       </button>
       {expanded && (<>
         <div className="flex gap-3 px-4 pb-2">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg" style={{ background: "#1e1e1e", border: "1px solid #2a2a2a" }}>
-            <span className="text-xs" style={{ color: "#666" }}>Prospect CAPEX</span>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg" style={{ background: "var(--surface2)", border: "1px solid var(--border)" }}>
+            <span className="text-xs" style={{ color: "var(--text-dim)" }}>Prospect CAPEX</span>
             <span className="text-sm font-bold" style={{ color: "#3b82f6" }}>{"\u00A3"}{(stats.totalCapex || 0).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
           </div>
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg" style={{ background: "#1e1e1e", border: "1px solid #2a2a2a" }}>
-            <span className="text-xs" style={{ color: "#666" }}>Prospect Monthly</span>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg" style={{ background: "var(--surface2)", border: "1px solid var(--border)" }}>
+            <span className="text-xs" style={{ color: "var(--text-dim)" }}>Prospect Monthly</span>
             <span className="text-sm font-bold" style={{ color: "#22c55e" }}>{"\u00A3"}{(stats.totalMonthly || 0).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo</span>
           </div>
         </div>
         <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 gap-2 px-4 pb-3">
           {cards.map((card) => (
-            <div key={card.label} className="text-center p-2.5 rounded-lg" style={{ background: "#1e1e1e", border: "1px solid #2a2a2a" }}>
+            <div key={card.label} className="text-center p-2.5 rounded-lg" style={{ background: "var(--surface2)", border: "1px solid var(--border)" }}>
               <div className="text-2xl font-bold" style={{ color: card.color }}>{card.value}</div>
-              <div className="text-xs mt-0.5" style={{ color: "#666" }}>{card.label}</div>
+              <div className="text-xs mt-0.5" style={{ color: "var(--text-dim)" }}>{card.label}</div>
             </div>
           ))}
         </div>

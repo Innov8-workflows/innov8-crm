@@ -76,10 +76,10 @@ function DraggableColumnHeader({ header, onColumnDrop }: { header: Header<Lead, 
       }}
       style={{
         width: header.getSize(),
-        borderBottom: "1px solid #2a2a2a",
+        borderBottom: "1px solid var(--border)",
         position: "relative",
         cursor: isPinned ? undefined : "grab",
-        borderLeft: dragOver ? "2px solid #ea580c" : undefined,
+        borderLeft: dragOver ? "2px solid var(--accent)" : undefined,
       }}
     >
       {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
@@ -95,18 +95,18 @@ function DraggableColumnHeader({ header, onColumnDrop }: { header: Header<Lead, 
           style={{ right: -6, width: 13, zIndex: 10 }}
           onMouseEnter={(e) => {
             const line = e.currentTarget.firstElementChild as HTMLElement;
-            if (line && !header.column.getIsResizing()) { line.style.background = "#ea580c"; line.style.width = "3px"; line.style.boxShadow = "0 0 8px #ea580c80"; }
+            if (line && !header.column.getIsResizing()) { line.style.background = "var(--accent)"; line.style.width = "3px"; line.style.boxShadow = "0 0 8px #ea580c80"; }
           }}
           onMouseLeave={(e) => {
             const line = e.currentTarget.firstElementChild as HTMLElement;
-            if (line && !header.column.getIsResizing()) { line.style.background = "#555"; line.style.width = "2px"; line.style.boxShadow = "none"; }
+            if (line && !header.column.getIsResizing()) { line.style.background = "var(--text-tertiary)"; line.style.width = "2px"; line.style.boxShadow = "none"; }
           }}
         >
           <div
             className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2"
             style={{
               width: header.column.getIsResizing() ? 3 : 2,
-              background: header.column.getIsResizing() ? "#ea580c" : "#555",
+              background: header.column.getIsResizing() ? "var(--accent)" : "var(--text-tertiary)",
               boxShadow: header.column.getIsResizing() ? "0 0 8px #ea580c80" : "none",
               transition: "background 0.15s, width 0.15s, box-shadow 0.15s",
             }}
@@ -566,7 +566,7 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
     (id: number, field: string, value: unknown, colType: string) => {
       if (field === "owner") {
         const current = (value as string) || "";
-        const ownerColor = current === "Truthfu1" ? "#ea580c" : current.toLowerCase() === "lowkey" ? "#22d3ee" : "#555";
+        const ownerColor = current === "Truthfu1" ? "var(--accent)" : current.toLowerCase() === "lowkey" ? "#22d3ee" : "var(--text-tertiary)";
         return (
           <select
             className="text-xs rounded px-1 py-0.5 w-full cursor-pointer font-semibold"
@@ -574,9 +574,9 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
             value={current}
             onChange={(e) => updateLead(id, field, e.target.value)}
           >
-            <option value="" style={{ background: "#1e1e1e", color: "#555" }}>—</option>
+            <option value="" style={{ background: "var(--surface2)", color: "var(--text-tertiary)" }}>—</option>
             {usersList.map((u) => (
-              <option key={u} value={u} style={{ background: "#1e1e1e", color: u === "Truthfu1" ? "#ea580c" : u === "LowKey" ? "#c084fc" : "#f0f0f0" }}>{u}</option>
+              <option key={u} value={u} style={{ background: "var(--surface2)", color: u === "Truthfu1" ? "var(--accent)" : u === "LowKey" ? "#c084fc" : "var(--text)" }}>{u}</option>
             ))}
           </select>
         );
@@ -587,8 +587,8 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
         const url = value as string;
         return url
           ? <div className="flex items-center gap-1 px-2 py-1">
-              <a href={url} target="_blank" rel="noreferrer" className="hover:underline text-xs truncate" style={{ color: "#ea580c" }} title={url}>View site</a>
-              <button onClick={() => updateLead(id, field, "")} className="flex-shrink-0 rounded hover:bg-red-900/30 p-0.5" title="Clear link" style={{ color: "#666", lineHeight: 1 }}>
+              <a href={url} target="_blank" rel="noreferrer" className="hover:underline text-xs truncate" style={{ color: "var(--accent)" }} title={url}>View site</a>
+              <button onClick={() => updateLead(id, field, "")} className="flex-shrink-0 rounded hover:bg-red-900/30 p-0.5" title="Clear link" style={{ color: "var(--text-dim)", lineHeight: 1 }}>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
               </button>
             </div>
@@ -612,15 +612,15 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
         <input type="checkbox" className="rounded" checked={row.getIsSelected()} onChange={row.getToggleSelectedHandler()} />
       )}),
       columnHelper.display({ id: "drag_handle", header: "", size: 24, enableResizing: false, cell: () => (
-        <div className="cursor-grab active:cursor-grabbing flex justify-center" style={{ color: "#333" }}
-          onMouseEnter={(e) => e.currentTarget.style.color = "#666"} onMouseLeave={(e) => e.currentTarget.style.color = "#333"}>
+        <div className="cursor-grab active:cursor-grabbing flex justify-center" style={{ color: "var(--border-light)" }}
+          onMouseEnter={(e) => e.currentTarget.style.color = "var(--text-dim)"} onMouseLeave={(e) => e.currentTarget.style.color = "var(--border-light)"}>
           <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
             <path d="M7 2a2 2 0 10.001 4.001A2 2 0 007 2zm0 6a2 2 0 10.001 4.001A2 2 0 007 8zm0 6a2 2 0 10.001 4.001A2 2 0 007 14zm6-8a2 2 0 10-.001-4.001A2 2 0 0013 6zm0 2a2 2 0 10.001 4.001A2 2 0 0013 8zm0 6a2 2 0 10.001 4.001A2 2 0 0013 14z" />
           </svg>
         </div>
       )}),
       columnHelper.display({ id: "row_num", header: "#", size: 35, enableResizing: false,
-        cell: (info) => <span className="text-xs" style={{ color: "#444" }}>{info.row.index + 1}</span> }),
+        cell: (info) => <span className="text-xs" style={{ color: "var(--text-quaternary)" }}>{info.row.index + 1}</span> }),
       // Built-in editable columns
       ...(editableFields.map((field) =>
         columnHelper.accessor(field as keyof Lead, {
@@ -667,8 +667,8 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
         id: "add_column",
         header: () => (
           <button onClick={() => setShowAddColumnModal(true)}
-            className="w-full flex justify-center transition-colors" style={{ color: "#444" }}
-            onMouseEnter={(e) => e.currentTarget.style.color = "#ea580c"} onMouseLeave={(e) => e.currentTarget.style.color = "#444"}
+            className="w-full flex justify-center transition-colors" style={{ color: "var(--text-quaternary)" }}
+            onMouseEnter={(e) => e.currentTarget.style.color = "var(--accent)"} onMouseLeave={(e) => e.currentTarget.style.color = "var(--text-quaternary)"}
             title="Add column">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -683,15 +683,15 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
         id: "actions", header: "", size: 50, enableResizing: false,
         cell: (info) => (
           <div className="flex gap-0.5 justify-center">
-            <button className="p-1" style={{ color: "#444" }} title="View details"
-              onMouseEnter={(e) => e.currentTarget.style.color = "#ea580c"} onMouseLeave={(e) => e.currentTarget.style.color = "#444"}
+            <button className="p-1" style={{ color: "var(--text-quaternary)" }} title="View details"
+              onMouseEnter={(e) => e.currentTarget.style.color = "var(--accent)"} onMouseLeave={(e) => e.currentTarget.style.color = "var(--text-quaternary)"}
               onClick={(e) => { e.stopPropagation(); setSelectedLead(info.row.original); }}>
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
             </button>
-            <button className="p-1" style={{ color: "#444" }} title="Delete"
-              onMouseEnter={(e) => e.currentTarget.style.color = "#ef4444"} onMouseLeave={(e) => e.currentTarget.style.color = "#444"}
+            <button className="p-1" style={{ color: "var(--text-quaternary)" }} title="Delete"
+              onMouseEnter={(e) => e.currentTarget.style.color = "#ef4444"} onMouseLeave={(e) => e.currentTarget.style.color = "var(--text-quaternary)"}
               onClick={(e) => { e.stopPropagation(); deleteLead(info.row.original.id); }}>
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -795,22 +795,22 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
 
   const leadIds = useMemo(() => leads.map((l) => l.id), [leads]);
 
-  const btnStyle = { background: "transparent", border: "1px solid #333", color: "#ccc", borderRadius: "6px" };
-  const btnHover = (e: React.MouseEvent) => { (e.target as HTMLElement).style.background = "#252525"; };
+  const btnStyle = { background: "transparent", border: "1px solid var(--border-light)", color: "var(--text-secondary)", borderRadius: "6px" };
+  const btnHover = (e: React.MouseEvent) => { (e.target as HTMLElement).style.background = "var(--surface3)"; };
   const btnLeave = (e: React.MouseEvent) => { (e.target as HTMLElement).style.background = "transparent"; };
-  const modalBg = { background: "#161616", border: "1px solid #2a2a2a" };
-  const inputStyle = { background: "#1e1e1e", border: "1px solid #2a2a2a", color: "#f0f0f0", outline: "none" };
-  const dropdownStyle = { background: "#1e1e1e", border: "1px solid #333" };
+  const modalBg = { background: "var(--surface)", border: "1px solid var(--border)" };
+  const inputStyle = { background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", outline: "none" };
+  const dropdownStyle = { background: "var(--surface2)", border: "1px solid var(--border-light)" };
 
   return (
-    <div className="flex flex-col h-full" style={{ background: "#0f0f0f" }}>
+    <div className="flex flex-col h-full" style={{ background: "var(--bg)" }}>
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2" style={{ background: "#131313", borderBottom: "1px solid #2a2a2a" }}>
+      <div className="flex items-center justify-between px-4 py-2" style={{ background: "var(--stats-bg)", borderBottom: "1px solid var(--border)" }}>
         <div className="flex items-center gap-3">
-          <h1 className="text-sm font-semibold" style={{ color: "#888" }}>Prospects</h1>
+          <h1 className="text-sm font-semibold" style={{ color: "var(--text-muted)" }}>Prospects</h1>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-sm" style={{ color: "#666" }}>{leads.length} leads</span>
+          <span className="text-sm" style={{ color: "var(--text-dim)" }}>{leads.length} leads</span>
           <button onClick={() => setShowImportModal(true)} style={btnStyle} onMouseEnter={btnHover} onMouseLeave={btnLeave}
             className="px-3 py-1.5 text-sm flex items-center gap-1.5">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -824,44 +824,44 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
             </button>
             {showExportMenu && (
               <div className="absolute right-0 top-full mt-1 w-48 rounded-lg shadow-xl z-40 py-1" style={dropdownStyle}>
-                <button className="w-full text-left px-3 py-2 text-sm" style={{ color: "#ccc" }}
+                <button className="w-full text-left px-3 py-2 text-sm" style={{ color: "var(--text-secondary)" }}
                   onMouseEnter={(e) => e.currentTarget.style.background = "#252525"} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
                   onClick={handleExportPdf}>Export as PDF</button>
-                <button className="w-full text-left px-3 py-2 text-sm" style={{ color: "#ccc" }}
+                <button className="w-full text-left px-3 py-2 text-sm" style={{ color: "var(--text-secondary)" }}
                   onMouseEnter={(e) => e.currentTarget.style.background = "#252525"} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
                   onClick={() => handleExport("xlsx")}>Export as Excel (.xlsx)</button>
-                <button className="w-full text-left px-3 py-2 text-sm" style={{ color: "#ccc" }}
+                <button className="w-full text-left px-3 py-2 text-sm" style={{ color: "var(--text-secondary)" }}
                   onMouseEnter={(e) => e.currentTarget.style.background = "#252525"} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
                   onClick={() => handleExport("csv")}>Export as CSV</button>
               </div>
             )}
           </div>
           <button onClick={() => setShowAddModal(true)}
-            className="px-3 py-1.5 text-sm font-semibold rounded-md transition-colors" style={{ background: "#ea580c", color: "#fff" }}
-            onMouseEnter={(e) => e.currentTarget.style.background = "#f97316"}
-            onMouseLeave={(e) => e.currentTarget.style.background = "#ea580c"}>+ New Lead</button>
+            className="px-3 py-1.5 text-sm font-semibold rounded-md transition-colors" style={{ background: "var(--accent)", color: "#fff" }}
+            onMouseEnter={(e) => e.currentTarget.style.background = "var(--accent-hover)"}
+            onMouseLeave={(e) => e.currentTarget.style.background = "var(--accent)"}>+ New Lead</button>
 
           {/* User menu */}
           <div className="relative ml-1">
             <button onClick={() => setShowUserMenu(!showUserMenu)}
               className="flex items-center gap-2 px-2 py-1 rounded-md transition-colors"
-              style={{ border: "1px solid #2a2a2a" }}
-              onMouseEnter={(e) => e.currentTarget.style.background = "#1e1e1e"}
+              style={{ border: "1px solid var(--border)" }}
+              onMouseEnter={(e) => e.currentTarget.style.background = "var(--surface2)"}
               onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
               <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold"
-                style={{ background: "#ea580c", color: "#fff" }}>
+                style={{ background: "var(--accent)", color: "#fff" }}>
                 {currentUser ? currentUser[0].toUpperCase() : "?"}
               </div>
-              <span className="text-sm hidden sm:inline" style={{ color: "#ccc" }}>{currentUser}</span>
-              <svg className="w-3.5 h-3.5" style={{ color: "#666" }} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <span className="text-sm hidden sm:inline" style={{ color: "var(--text-secondary)" }}>{currentUser}</span>
+              <svg className="w-3.5 h-3.5" style={{ color: "var(--text-dim)" }} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
               </svg>
             </button>
             {showUserMenu && (
               <div className="absolute right-0 top-full mt-1 w-44 rounded-lg shadow-xl z-50 py-1"
-                style={{ background: "#1e1e1e", border: "1px solid #333" }}>
-                <div className="px-3 py-2 text-xs" style={{ color: "#666", borderBottom: "1px solid #2a2a2a" }}>
-                  Signed in as <span style={{ color: "#ccc" }}>{currentUser}</span>
+                style={{ background: "var(--surface2)", border: "1px solid var(--border-light)" }}>
+                <div className="px-3 py-2 text-xs" style={{ color: "var(--text-dim)", borderBottom: "1px solid var(--border)" }}>
+                  Signed in as <span style={{ color: "var(--text-secondary)" }}>{currentUser}</span>
                 </div>
                 <button
                   className="w-full text-left px-3 py-2 text-sm flex items-center gap-2 transition-colors"
@@ -887,9 +887,9 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
       <TabBar tabs={TABS} active={activeTab} onChange={setActiveTab} />
 
       {/* Toolbar */}
-      <div className="flex items-center gap-3 px-4 py-2" style={{ background: "#131313", borderBottom: "1px solid #2a2a2a" }}>
+      <div className="flex items-center gap-3 px-4 py-2" style={{ background: "var(--stats-bg)", borderBottom: "1px solid var(--border)" }}>
         <div className="relative flex-1 max-w-xs">
-          <svg className="absolute left-2.5 top-2 w-4 h-4" style={{ color: "#555" }} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+          <svg className="absolute left-2.5 top-2 w-4 h-4" style={{ color: "var(--text-tertiary)" }} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
           <input type="text" placeholder="Search leads..."
             className="w-full pl-8 pr-3 py-1.5 text-sm rounded-md" style={inputStyle}
@@ -897,33 +897,33 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
         </div>
         {selectedIds.length > 0 && (
           <div className="relative">
-            <button className="px-3 py-1.5 text-sm font-medium rounded-md" style={{ background: "#ea580c", color: "#fff" }}
+            <button className="px-3 py-1.5 text-sm font-medium rounded-md" style={{ background: "var(--accent)", color: "#fff" }}
               onClick={() => setShowBulkMenu(!showBulkMenu)}>
               {selectedIds.length} selected — Bulk actions
             </button>
             {showBulkMenu && (
               <div className="absolute top-full mt-1 left-0 w-56 rounded-lg shadow-xl z-40 py-1" style={dropdownStyle}>
-                <div className="px-3 py-1 text-xs uppercase" style={{ color: "#555" }}>Set stage</div>
+                <div className="px-3 py-1 text-xs uppercase" style={{ color: "var(--text-tertiary)" }}>Set stage</div>
                 {PIPELINE_STAGES.map((s) => (
                   <button key={s.value} className="w-full text-left px-3 py-1.5 text-sm flex items-center gap-2"
-                    style={{ color: "#ccc" }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = "#252525"}
+                    style={{ color: "var(--text-secondary)" }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = "var(--surface3)"}
                     onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
                     onClick={() => bulkAction("update", "status", s.value)}>
                     <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: s.color }} /> {s.label}
                   </button>
                 ))}
-                <div style={{ borderTop: "1px solid #2a2a2a", margin: "4px 0" }} />
-                <button className="w-full text-left px-3 py-1.5 text-sm" style={{ color: "#ccc" }}
+                <div style={{ borderTop: "1px solid var(--border)", margin: "4px 0" }} />
+                <button className="w-full text-left px-3 py-1.5 text-sm" style={{ color: "var(--text-secondary)" }}
                   onMouseEnter={(e) => e.currentTarget.style.background = "#252525"} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
                   onClick={() => bulkAction("update", "emailed", 1)}>Mark as Emailed</button>
-                <button className="w-full text-left px-3 py-1.5 text-sm" style={{ color: "#ccc" }}
+                <button className="w-full text-left px-3 py-1.5 text-sm" style={{ color: "var(--text-secondary)" }}
                   onMouseEnter={(e) => e.currentTarget.style.background = "#252525"} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
                   onClick={() => bulkAction("update", "messaged", 1)}>Mark as Messaged</button>
-                <button className="w-full text-left px-3 py-1.5 text-sm" style={{ color: "#ccc" }}
+                <button className="w-full text-left px-3 py-1.5 text-sm" style={{ color: "var(--text-secondary)" }}
                   onMouseEnter={(e) => e.currentTarget.style.background = "#252525"} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
                   onClick={() => bulkAction("update", "responded", 1)}>Mark as Responded</button>
-                <div style={{ borderTop: "1px solid #2a2a2a", margin: "4px 0" }} />
+                <div style={{ borderTop: "1px solid var(--border)", margin: "4px 0" }} />
                 <button className="w-full text-left px-3 py-1.5 text-sm" style={{ color: "#ef4444" }}
                   onMouseEnter={(e) => e.currentTarget.style.background = "rgba(239,68,68,0.1)"} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
                   onClick={() => { if (confirm(`Delete ${selectedIds.length} leads?`)) bulkAction("delete"); }}>Delete selected</button>
@@ -939,25 +939,25 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
               {table.getAllLeafColumns()
                 .filter((c) => !["row_num", "actions", "drag_handle", "select", "add_column"].includes(c.id))
                 .map((column) => (
-                  <label key={column.id} className="flex items-center gap-2 px-3 py-1.5 text-sm cursor-pointer" style={{ color: "#ccc" }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = "#252525"}
+                  <label key={column.id} className="flex items-center gap-2 px-3 py-1.5 text-sm cursor-pointer" style={{ color: "var(--text-secondary)" }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = "var(--surface3)"}
                     onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
                     <input type="checkbox" checked={column.getIsVisible()} onChange={column.getToggleVisibilityHandler()}
-                      style={{ accentColor: "#ea580c" }} />
+                      style={{ accentColor: "var(--accent)" }} />
                     {getLabel(column.id)}
                   </label>
                 ))}
             </div>
           )}
         </div>
-        <span className="text-xs hidden lg:inline" style={{ color: "#444" }}>Drag column edges to resize</span>
+        <span className="text-xs hidden lg:inline" style={{ color: "var(--text-quaternary)" }}>Drag column edges to resize</span>
       </div>
 
       {/* Table */}
       <div className="flex-1 overflow-auto">
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} modifiers={[restrictToVerticalAxis]}>
           <table className="text-sm border-collapse" style={{ width: table.getTotalSize(), tableLayout: "fixed" }}>
-            <thead className="sticky top-0 z-10" style={{ background: "#161616" }}>
+            <thead className="sticky top-0 z-10" style={{ background: "var(--surface)" }}>
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr key={headerGroup.id}>
                   {headerGroup.headers.map((header) => (
@@ -970,7 +970,7 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
               {loading ? (
                 <tr><td colSpan={columns.length} className="text-center py-8"><div className="flex justify-center"><LoadingAI message="Loading prospects" /></div></td></tr>
               ) : leads.length === 0 ? (
-                <tr><td colSpan={columns.length} className="text-center py-8" style={{ color: "#555" }}>No leads found</td></tr>
+                <tr><td colSpan={columns.length} className="text-center py-8" style={{ color: "var(--text-tertiary)" }}>No leads found</td></tr>
               ) : (
                 <SortableContext items={leadIds} strategy={verticalListSortingStrategy}>
                   {table.getRowModel().rows.map((row) => (
@@ -989,21 +989,21 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
       {showAddModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" onClick={() => setShowAddModal(false)}>
           <div className="rounded-xl shadow-2xl w-full max-w-md p-6" style={modalBg} onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-lg font-semibold mb-4" style={{ color: "#f0f0f0" }}>Add New Lead</h2>
+            <h2 className="text-lg font-semibold mb-4" style={{ color: "var(--text)" }}>Add New Lead</h2>
             <div className="space-y-3">
               <div>
-                <label className="block text-sm mb-1" style={{ color: "#888" }}>Business Name *</label>
+                <label className="block text-sm mb-1" style={{ color: "var(--text-muted)" }}>Business Name *</label>
                 <input className="w-full px-3 py-2 rounded-md text-sm" style={inputStyle}
                   value={newLead.business_name} autoFocus
                   onChange={(e) => { setNewLead((p) => ({ ...p, business_name: e.target.value })); checkDuplicate(e.target.value, newLead.email); }} />
               </div>
               <div>
-                <label className="block text-sm mb-1" style={{ color: "#888" }}>Contact Name</label>
+                <label className="block text-sm mb-1" style={{ color: "var(--text-muted)" }}>Contact Name</label>
                 <input className="w-full px-3 py-2 rounded-md text-sm" style={inputStyle}
                   value={newLead.contact_name} onChange={(e) => setNewLead((p) => ({ ...p, contact_name: e.target.value }))} />
               </div>
               <div>
-                <label className="block text-sm mb-1" style={{ color: "#888" }}>Email</label>
+                <label className="block text-sm mb-1" style={{ color: "var(--text-muted)" }}>Email</label>
                 <input className="w-full px-3 py-2 rounded-md text-sm" style={inputStyle}
                   value={newLead.email}
                   onChange={(e) => { setNewLead((p) => ({ ...p, email: e.target.value })); checkDuplicate(newLead.business_name, e.target.value); }} />
@@ -1013,8 +1013,8 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
               )}
             </div>
             <div className="flex justify-end gap-2 mt-5">
-              <button className="px-4 py-2 text-sm" style={{ color: "#666" }} onClick={() => { setShowAddModal(false); setDuplicateWarning(""); }}>Cancel</button>
-              <button className="px-4 py-2 text-sm font-semibold rounded-md" style={{ background: "#ea580c", color: "#fff" }} onClick={addLead}>Add Lead</button>
+              <button className="px-4 py-2 text-sm" style={{ color: "var(--text-dim)" }} onClick={() => { setShowAddModal(false); setDuplicateWarning(""); }}>Cancel</button>
+              <button className="px-4 py-2 text-sm font-semibold rounded-md" style={{ background: "var(--accent)", color: "#fff" }} onClick={addLead}>Add Lead</button>
             </div>
           </div>
         </div>
@@ -1024,12 +1024,12 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
       {showImportModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" onClick={() => setShowImportModal(false)}>
           <div className="rounded-xl shadow-2xl w-full max-w-md p-6" style={modalBg} onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-lg font-semibold mb-2" style={{ color: "#f0f0f0" }}>Import Leads</h2>
-            <p className="text-sm mb-4" style={{ color: "#666" }}>Upload CSV or Excel. Duplicates will be skipped.</p>
+            <h2 className="text-lg font-semibold mb-2" style={{ color: "var(--text)" }}>Import Leads</h2>
+            <p className="text-sm mb-4" style={{ color: "var(--text-dim)" }}>Upload CSV or Excel. Duplicates will be skipped.</p>
             <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls" onChange={handleImport}
               className="w-full text-sm rounded-md p-2" style={{ ...inputStyle, cursor: "pointer" }} />
             <div className="flex justify-end mt-4">
-              <button className="px-4 py-2 text-sm" style={{ color: "#666" }} onClick={() => setShowImportModal(false)}>Cancel</button>
+              <button className="px-4 py-2 text-sm" style={{ color: "var(--text-dim)" }} onClick={() => setShowImportModal(false)}>Cancel</button>
             </div>
           </div>
         </div>
@@ -1039,16 +1039,16 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
       {showAddColumnModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" onClick={() => setShowAddColumnModal(false)}>
           <div className="rounded-xl shadow-2xl w-full max-w-sm p-6" style={modalBg} onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-lg font-semibold mb-4" style={{ color: "#f0f0f0" }}>Add Column</h2>
+            <h2 className="text-lg font-semibold mb-4" style={{ color: "var(--text)" }}>Add Column</h2>
             <div className="space-y-3">
               <div>
-                <label className="block text-sm mb-1" style={{ color: "#888" }}>Column Name</label>
+                <label className="block text-sm mb-1" style={{ color: "var(--text-muted)" }}>Column Name</label>
                 <input className="w-full px-3 py-2 rounded-md text-sm" style={inputStyle}
                   value={newColName} onChange={(e) => setNewColName(e.target.value)} autoFocus
                   onKeyDown={(e) => { if (e.key === "Enter") addCustomColumn(); }} />
               </div>
               <div>
-                <label className="block text-sm mb-1" style={{ color: "#888" }}>Type</label>
+                <label className="block text-sm mb-1" style={{ color: "var(--text-muted)" }}>Type</label>
                 <select className="w-full px-3 py-2 rounded-md text-sm" style={inputStyle}
                   value={newColType} onChange={(e) => setNewColType(e.target.value)}>
                   <option value="text">Text</option>
@@ -1061,8 +1061,8 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
               </div>
             </div>
             <div className="flex justify-end gap-2 mt-5">
-              <button className="px-4 py-2 text-sm" style={{ color: "#666" }} onClick={() => setShowAddColumnModal(false)}>Cancel</button>
-              <button className="px-4 py-2 text-sm font-semibold rounded-md" style={{ background: "#ea580c", color: "#fff" }} onClick={addCustomColumn}>Add Column</button>
+              <button className="px-4 py-2 text-sm" style={{ color: "var(--text-dim)" }} onClick={() => setShowAddColumnModal(false)}>Cancel</button>
+              <button className="px-4 py-2 text-sm font-semibold rounded-md" style={{ background: "var(--accent)", color: "#fff" }} onClick={addCustomColumn}>Add Column</button>
             </div>
           </div>
         </div>

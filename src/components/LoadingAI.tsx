@@ -102,11 +102,11 @@ export default function LoadingAI({ message = "Loading" }: { message?: string })
 
       {/* Text with animated dots */}
       <div className="flex items-center gap-1">
-        <span className="text-sm font-medium tracking-wide" style={{ color: "#888" }}>{message}</span>
+        <span className="text-sm font-medium tracking-wide" style={{ color: "var(--text-muted)" }}>{message}</span>
         <span className="flex gap-0.5">
           {[0, 1, 2].map((i) => (
             <span key={i} className="inline-block w-1 h-1 rounded-full" style={{
-              background: "#ea580c",
+              background: "var(--accent)",
               animation: `aidot 1.4s ${i * 0.2}s ease-in-out infinite`,
             }} />
           ))}

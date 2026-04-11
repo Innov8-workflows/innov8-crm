@@ -176,15 +176,15 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-start justify-center pt-8 pb-8 overflow-y-auto" onClick={onClose}>
-      <div className="w-full max-w-3xl rounded-xl shadow-2xl" style={{ background: "#161616", border: "1px solid #2a2a2a" }}
+      <div className="w-full max-w-3xl rounded-xl shadow-2xl" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
         onClick={(e) => e.stopPropagation()}>
 
         {/* Header */}
-        <div className="flex items-start justify-between p-5" style={{ borderBottom: "1px solid #2a2a2a" }}>
+        <div className="flex items-start justify-between p-5" style={{ borderBottom: "1px solid var(--border)" }}>
           <div className="flex-1 min-w-0">
-            <h2 className="text-xl font-bold truncate" style={{ color: "#f0f0f0" }}>{details.business_name}</h2>
+            <h2 className="text-xl font-bold truncate" style={{ color: "var(--text)" }}>{details.business_name}</h2>
             <div className="flex items-center gap-3 mt-1">
-              <span className="text-sm" style={{ color: "#888" }}>{details.contact_name} · {details.email}</span>
+              <span className="text-sm" style={{ color: "var(--text-muted)" }}>{details.contact_name} · {details.email}</span>
               <span className="px-2 py-0.5 rounded-full text-xs font-medium"
                 style={{ background: PROJECT_STAGES.find((s) => s.value === details.stage)?.color + "25",
                   color: PROJECT_STAGES.find((s) => s.value === details.stage)?.color }}>
@@ -193,10 +193,10 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
             </div>
             {/* Progress bar */}
             <div className="mt-3 flex items-center gap-3">
-              <div className="flex-1 h-2 rounded-full" style={{ background: "#252525" }}>
-                <div className="h-2 rounded-full transition-all" style={{ width: `${progress}%`, background: progress === 100 ? "#22c55e" : "#ea580c" }} />
+              <div className="flex-1 h-2 rounded-full" style={{ background: "var(--surface3)" }}>
+                <div className="h-2 rounded-full transition-all" style={{ width: `${progress}%`, background: progress === 100 ? "#22c55e" : "var(--accent)" }} />
               </div>
-              <span className="text-xs font-medium" style={{ color: progress === 100 ? "#22c55e" : "#888" }}>
+              <span className="text-xs font-medium" style={{ color: progress === 100 ? "#22c55e" : "var(--text-muted)" }}>
                 {completedCount}/{totalTasks} tasks
               </span>
             </div>
@@ -220,9 +220,9 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
                 Mark as Lost
               </button>
             )}
-            <button onClick={onClose} className="p-1.5 rounded-md transition-colors" style={{ color: "#666" }}
-              onMouseEnter={(e) => e.currentTarget.style.color = "#f0f0f0"}
-              onMouseLeave={(e) => e.currentTarget.style.color = "#666"}>
+            <button onClick={onClose} className="p-1.5 rounded-md transition-colors" style={{ color: "var(--text-dim)" }}
+              onMouseEnter={(e) => e.currentTarget.style.color = "var(--text)"}
+              onMouseLeave={(e) => e.currentTarget.style.color = "var(--text-dim)"}>
               <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
@@ -230,13 +230,13 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
         </div>
 
         {/* Tabs */}
-        <div className="flex px-5" style={{ borderBottom: "1px solid #2a2a2a" }}>
+        <div className="flex px-5" style={{ borderBottom: "1px solid var(--border)" }}>
           {(["tasks", "files", "details"] as const).map((tab) => (
             <button key={tab} onClick={() => setActiveTab(tab)}
               className="px-4 py-2.5 text-sm font-medium capitalize"
               style={{
-                color: activeTab === tab ? "#ea580c" : "#666",
-                borderBottom: activeTab === tab ? "2px solid #ea580c" : "2px solid transparent",
+                color: activeTab === tab ? "var(--accent)" : "var(--text-dim)",
+                borderBottom: activeTab === tab ? "2px solid var(--accent)" : "2px solid transparent",
               }}>
               {tab} {tab === "tasks" ? `(${completedCount}/${totalTasks})` : tab === "files" ? `(${files.length})` : ""}
             </button>
@@ -250,18 +250,18 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
               {/* Add task */}
               <div className="flex gap-2">
                 <input className="flex-1 px-3 py-1.5 text-sm rounded-md"
-                  style={{ background: "#1e1e1e", border: "1px solid #2a2a2a", color: "#f0f0f0", outline: "none" }}
+                  style={{ background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", outline: "none" }}
                   placeholder="Add a task..." value={newTask}
                   onChange={(e) => setNewTask(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") addTask(); }} />
                 <select className="px-2 py-1.5 text-xs rounded-md"
-                  style={{ background: "#1e1e1e", border: "1px solid #2a2a2a", color: "#888", outline: "none" }}
+                  style={{ background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-muted)", outline: "none" }}
                   value={newTaskStage} onChange={(e) => setNewTaskStage(e.target.value)}>
                   <option value="">No stage</option>
                   {PROJECT_STAGES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
                 </select>
                 <button onClick={addTask} className="px-3 py-1.5 text-sm rounded-md font-medium"
-                  style={{ background: "#ea580c", color: "#fff" }}>Add</button>
+                  style={{ background: "var(--accent)", color: "#fff" }}>Add</button>
               </div>
 
               {/* Tasks grouped by stage */}
@@ -274,23 +274,23 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
                   <div className="space-y-1">
                     {stageGroup.tasks.map((task) => (
                       <div key={task.id} className="flex items-center gap-2 px-3 py-2 rounded-lg group"
-                        style={{ background: "#1e1e1e", border: "1px solid #2a2a2a" }}>
+                        style={{ background: "var(--surface2)", border: "1px solid var(--border)" }}>
                         <button onClick={() => toggleTask(task.id, !task.completed)}
                           className="flex-shrink-0 w-5 h-5 rounded-md flex items-center justify-center"
-                          style={{ border: task.completed ? "none" : "1px solid #444",
+                          style={{ border: task.completed ? "none" : "1px solid var(--text-quaternary)",
                             background: task.completed ? "#22c55e" : "transparent" }}>
                           {task.completed && <svg className="w-3 h-3" fill="#fff" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>}
                         </button>
                         <span className="flex-1 text-sm" style={{
-                          color: task.completed ? "#555" : "#ddd",
+                          color: task.completed ? "var(--text-tertiary)" : "#ddd",
                           textDecoration: task.completed ? "line-through" : "none",
                         }}>{task.title}</span>
                         <button onClick={() => deleteTask(task.id)}
                           className="opacity-0 group-hover:opacity-100 p-1 transition-opacity"
-                          style={{ color: "#555" }}
+                          style={{ color: "var(--text-tertiary)" }}
                           onMouseEnter={(e) => e.currentTarget.style.color = "#ef4444"}
-                          onMouseLeave={(e) => e.currentTarget.style.color = "#555"}>
+                          onMouseLeave={(e) => e.currentTarget.style.color = "var(--text-tertiary)"}>
                           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                         </button>
@@ -301,24 +301,24 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
               ))}
               {unstagedTasks.length > 0 && (
                 <div>
-                  <div className="text-xs font-semibold uppercase mb-2" style={{ color: "#555" }}>Other Tasks</div>
+                  <div className="text-xs font-semibold uppercase mb-2" style={{ color: "var(--text-tertiary)" }}>Other Tasks</div>
                   <div className="space-y-1">
                     {unstagedTasks.map((task) => (
                       <div key={task.id} className="flex items-center gap-2 px-3 py-2 rounded-lg group"
-                        style={{ background: "#1e1e1e", border: "1px solid #2a2a2a" }}>
+                        style={{ background: "var(--surface2)", border: "1px solid var(--border)" }}>
                         <button onClick={() => toggleTask(task.id, !task.completed)}
                           className="flex-shrink-0 w-5 h-5 rounded-md flex items-center justify-center"
-                          style={{ border: task.completed ? "none" : "1px solid #444",
+                          style={{ border: task.completed ? "none" : "1px solid var(--text-quaternary)",
                             background: task.completed ? "#22c55e" : "transparent" }}>
                           {task.completed && <svg className="w-3 h-3" fill="#fff" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>}
                         </button>
                         <span className="flex-1 text-sm" style={{
-                          color: task.completed ? "#555" : "#ddd",
+                          color: task.completed ? "var(--text-tertiary)" : "#ddd",
                           textDecoration: task.completed ? "line-through" : "none",
                         }}>{task.title}</span>
                         <button onClick={() => deleteTask(task.id)}
-                          className="opacity-0 group-hover:opacity-100 p-1 transition-opacity" style={{ color: "#555" }}>
+                          className="opacity-0 group-hover:opacity-100 p-1 transition-opacity" style={{ color: "var(--text-tertiary)" }}>
                           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                         </button>
@@ -336,9 +336,9 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
               <div className="flex gap-2">
                 <label className="flex-1 cursor-pointer">
                   <div className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
-                    style={{ background: "#ea580c", color: "#fff" }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = "#f97316"}
-                    onMouseLeave={(e) => e.currentTarget.style.background = "#ea580c"}>
+                    style={{ background: "var(--accent)", color: "#fff" }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = "var(--accent-hover)"}
+                    onMouseLeave={(e) => e.currentTarget.style.background = "var(--accent)"}>
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
                     Attach File
@@ -348,9 +348,9 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
                 </label>
                 <button onClick={() => setShowUrlForm(!showUrlForm)}
                   className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
-                  style={{ background: "#1e1e1e", border: "1px solid #333", color: "#ccc" }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = "#252525"; e.currentTarget.style.borderColor = "#ea580c"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = "#1e1e1e"; e.currentTarget.style.borderColor = "#333"; }}>
+                  style={{ background: "var(--surface2)", border: "1px solid var(--border-light)", color: "var(--text-secondary)" }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = "var(--surface3)"; e.currentTarget.style.borderColor = "var(--accent)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "var(--surface2)"; e.currentTarget.style.borderColor = "var(--border-light)"; }}>
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
                   Add URL Link
@@ -359,29 +359,29 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
 
               {/* URL form */}
               {showUrlForm && (
-                <div className="p-3 rounded-lg space-y-2" style={{ background: "#1a1a1a", border: "1px solid #2a2a2a" }}>
+                <div className="p-3 rounded-lg space-y-2" style={{ background: "#1a1a1a", border: "1px solid var(--border)" }}>
                   <input className="w-full px-3 py-1.5 text-sm rounded-md"
-                    style={{ background: "#1e1e1e", border: "1px solid #2a2a2a", color: "#f0f0f0", outline: "none" }}
+                    style={{ background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", outline: "none" }}
                     placeholder="File name (e.g. Logo, Contract, Brief)..." value={newFileName}
                     onChange={(e) => setNewFileName(e.target.value)} />
                   <input className="w-full px-3 py-1.5 text-sm rounded-md"
-                    style={{ background: "#1e1e1e", border: "1px solid #2a2a2a", color: "#f0f0f0", outline: "none" }}
+                    style={{ background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", outline: "none" }}
                     placeholder="https://drive.google.com/..." value={newFileUrl}
                     onChange={(e) => setNewFileUrl(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") addFileUrl(); }} />
                   <div className="flex justify-end gap-2">
                     <button onClick={() => { setShowUrlForm(false); setNewFileName(""); setNewFileUrl(""); }}
-                      className="px-3 py-1.5 text-xs" style={{ color: "#666" }}>Cancel</button>
+                      className="px-3 py-1.5 text-xs" style={{ color: "var(--text-dim)" }}>Cancel</button>
                     <button onClick={addFileUrl} className="px-4 py-1.5 text-sm rounded-md font-medium"
-                      style={{ background: "#ea580c", color: "#fff" }}>Save</button>
+                      style={{ background: "var(--accent)", color: "#fff" }}>Save</button>
                   </div>
                 </div>
               )}
 
               {/* File list */}
               {files.length === 0 ? (
-                <div className="text-center py-8" style={{ color: "#444" }}>
-                  <svg className="w-10 h-10 mx-auto mb-2" fill="none" stroke="currentColor" strokeWidth={1} viewBox="0 0 24 24" style={{ color: "#333" }}>
+                <div className="text-center py-8" style={{ color: "var(--text-quaternary)" }}>
+                  <svg className="w-10 h-10 mx-auto mb-2" fill="none" stroke="currentColor" strokeWidth={1} viewBox="0 0 24 24" style={{ color: "var(--border-light)" }}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
                   <p className="text-sm">No files yet</p>
                   <p className="text-xs mt-1">Upload images, documents or add links</p>
@@ -393,7 +393,7 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
                     const isCover = (file as unknown as Record<string, unknown>).is_cover === 1;
                     return (
                       <div key={file.id} className="rounded-lg overflow-hidden group"
-                        style={{ background: "#1e1e1e", border: `1px solid ${isCover ? "#ea580c" : "#2a2a2a"}` }}>
+                        style={{ background: "var(--surface2)", border: `1px solid ${isCover ? "var(--accent)" : "var(--border)"}` }}>
                         {/* Image preview */}
                         {isImage && (
                           <div className="w-full h-32 overflow-hidden" style={{ background: "#111" }}>
@@ -403,30 +403,30 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
                         <div className="flex items-center gap-3 px-3 py-2.5">
                           {!isImage && (
                             <div className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0"
-                              style={{ background: "#252525" }}>
-                              <svg className="w-4 h-4" style={{ color: "#888" }} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                              style={{ background: "var(--surface3)" }}>
+                              <svg className="w-4 h-4" style={{ color: "var(--text-muted)" }} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
                             </div>
                           )}
                           <div className="flex-1 min-w-0">
                             <a href={file.url.startsWith("data:") ? undefined : file.url} target="_blank" rel="noreferrer"
-                              className="text-sm font-medium truncate block" style={{ color: "#ea580c" }}>{file.name}</a>
+                              className="text-sm font-medium truncate block" style={{ color: "var(--accent)" }}>{file.name}</a>
                             {!file.url.startsWith("data:") && (
-                              <p className="text-xs truncate" style={{ color: "#555" }}>{file.url}</p>
+                              <p className="text-xs truncate" style={{ color: "var(--text-tertiary)" }}>{file.url}</p>
                             )}
                           </div>
                           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             {isImage && (
                               <button onClick={() => setCover(file.id)} title={isCover ? "Cover image" : "Set as cover"}
-                                className="p-1 rounded" style={{ color: isCover ? "#ea580c" : "#555" }}>
+                                className="p-1 rounded" style={{ color: isCover ? "var(--accent)" : "var(--text-tertiary)" }}>
                                 <svg className="w-3.5 h-3.5" fill={isCover ? "currentColor" : "none"} stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                               </button>
                             )}
                             <button onClick={() => deleteFile(file.id)}
-                              className="p-1" style={{ color: "#555" }}
+                              className="p-1" style={{ color: "var(--text-tertiary)" }}
                               onMouseEnter={(e) => e.currentTarget.style.color = "#ef4444"}
-                              onMouseLeave={(e) => e.currentTarget.style.color = "#555"}>
+                              onMouseLeave={(e) => e.currentTarget.style.color = "var(--text-tertiary)"}>
                               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                             </button>
@@ -484,7 +484,7 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
 
                 return (
                   <div>
-                    <label className="block text-xs font-medium mb-1 uppercase" style={{ color: "#666" }}>Products / Tiers</label>
+                    <label className="block text-xs font-medium mb-1 uppercase" style={{ color: "var(--text-dim)" }}>Products / Tiers</label>
                     {/* Selected products as tags */}
                     {selectedProducts.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 mb-2">
@@ -500,24 +500,24 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
                     )}
                     {/* Product fee summary */}
                     {(totalRecurring > 0 || totalOneTime > 0) && (
-                      <div className="flex gap-3 mb-2 text-xs" style={{ color: "#666" }}>
+                      <div className="flex gap-3 mb-2 text-xs" style={{ color: "var(--text-dim)" }}>
                         {totalRecurring > 0 && <span>Recurring: <span style={{ color: "#22c55e" }}>£{totalRecurring.toFixed(2)}/mo</span></span>}
-                        {totalOneTime > 0 && <span>One-time: <span style={{ color: "#ea580c" }}>£{totalOneTime.toFixed(2)}</span></span>}
+                        {totalOneTime > 0 && <span>One-time: <span style={{ color: "var(--accent)" }}>£{totalOneTime.toFixed(2)}</span></span>}
                       </div>
                     )}
                     {/* Add product dropdown */}
                     {availableProducts.length > 0 && (
                       <select
                         className="w-full px-3 py-2 text-sm rounded-md cursor-pointer"
-                        style={{ background: "#1e1e1e", border: "1px solid #2a2a2a", color: "#888", outline: "none" }}
+                        style={{ background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-muted)", outline: "none" }}
                         value=""
                         onChange={(e) => { if (e.target.value) addProduct(e.target.value); }}
                       >
-                        <option value="" style={{ background: "#1e1e1e", color: "#888" }}>
+                        <option value="" style={{ background: "var(--surface2)", color: "var(--text-muted)" }}>
                           {selectedProducts.length > 0 ? "+ Add another product..." : "Select a product..."}
                         </option>
                         {availableProducts.map((p) => (
-                          <option key={p.price_id} value={p.price_id} style={{ background: "#1e1e1e", color: "#f0f0f0" }}>
+                          <option key={p.price_id} value={p.price_id} style={{ background: "var(--surface2)", color: "var(--text)" }}>
                             {p.name} — £{p.amount.toFixed(2)}{p.recurring ? `/${p.interval === "month" ? "mo" : p.interval}` : " one-time"}
                           </option>
                         ))}
@@ -536,17 +536,17 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
                 { key: "project_notes", label: "Project Notes", placeholder: "Any additional notes..." },
               ].map((field) => (
                 <div key={field.key}>
-                  <label className="block text-xs font-medium mb-1 uppercase" style={{ color: "#666" }}>{field.label}</label>
+                  <label className="block text-xs font-medium mb-1 uppercase" style={{ color: "var(--text-dim)" }}>{field.label}</label>
                   {editing === field.key ? (
                     field.key === "project_notes" ? (
                       <textarea className="w-full px-3 py-2 text-sm rounded-md" rows={3}
-                        style={{ background: "#1e1e1e", border: "1px solid #ea580c", color: "#f0f0f0", outline: "none", resize: "vertical" }}
+                        style={{ background: "var(--surface2)", border: "1px solid var(--accent)", color: "var(--text)", outline: "none", resize: "vertical" }}
                         defaultValue={(details as unknown as Record<string, unknown>)[field.key] as string}
                         autoFocus
                         onBlur={(e) => updateDetail(field.key, e.target.value)} />
                     ) : (
                       <input className="w-full px-3 py-2 text-sm rounded-md"
-                        style={{ background: "#1e1e1e", border: "1px solid #ea580c", color: "#f0f0f0", outline: "none",
+                        style={{ background: "var(--surface2)", border: "1px solid var(--accent)", color: "var(--text)", outline: "none",
                           ...(field.type === "date" ? { colorScheme: "dark" } : {}) }}
                         type={field.type || "text"}
                         defaultValue={(details as unknown as Record<string, unknown>)[field.key] as string}
@@ -556,11 +556,11 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
                     )
                   ) : (
                     <div className="px-3 py-2 text-sm rounded-md cursor-pointer min-h-[36px]"
-                      style={{ background: "#1e1e1e", border: "1px solid #2a2a2a",
-                        color: (details as unknown as Record<string, unknown>)[field.key] ? "#f0f0f0" : "#444" }}
+                      style={{ background: "var(--surface2)", border: "1px solid var(--border)",
+                        color: (details as unknown as Record<string, unknown>)[field.key] ? "var(--text)" : "var(--text-quaternary)" }}
                       onClick={() => setEditing(field.key)}
-                      onMouseEnter={(e) => e.currentTarget.style.borderColor = "#444"}
-                      onMouseLeave={(e) => e.currentTarget.style.borderColor = "#2a2a2a"}>
+                      onMouseEnter={(e) => e.currentTarget.style.borderColor = "var(--text-quaternary)"}
+                      onMouseLeave={(e) => e.currentTarget.style.borderColor = "var(--border)"}>
                       {field.key === "monthly_fee"
                         ? (details.monthly_fee ? `£${details.monthly_fee}` : field.placeholder)
                         : field.key === "capex"
@@ -572,7 +572,7 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
               ))}
 
               {/* Save button */}
-              <div className="flex items-center justify-between pt-4 mt-2" style={{ borderTop: "1px solid #2a2a2a" }}>
+              <div className="flex items-center justify-between pt-4 mt-2" style={{ borderTop: "1px solid var(--border)" }}>
                 {hasUnsavedChanges ? (
                   <span className="text-xs flex items-center gap-1.5" style={{ color: "#eab308" }}>
                     <span className="w-2 h-2 rounded-full" style={{ background: "#eab308" }} />
@@ -611,13 +611,13 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
                     disabled={!hasUnsavedChanges || saving}
                     className="px-5 py-2 text-sm font-semibold rounded-lg transition-all"
                     style={{
-                      background: hasUnsavedChanges ? "#ea580c" : "#252525",
-                      color: hasUnsavedChanges ? "#fff" : "#555",
+                      background: hasUnsavedChanges ? "var(--accent)" : "var(--surface3)",
+                      color: hasUnsavedChanges ? "#fff" : "var(--text-tertiary)",
                       opacity: saving ? 0.6 : 1,
                       cursor: hasUnsavedChanges ? "pointer" : "default",
                     }}
-                    onMouseEnter={(e) => { if (hasUnsavedChanges) e.currentTarget.style.background = "#f97316"; }}
-                    onMouseLeave={(e) => { if (hasUnsavedChanges) e.currentTarget.style.background = "#ea580c"; }}
+                    onMouseEnter={(e) => { if (hasUnsavedChanges) e.currentTarget.style.background = "var(--accent-hover)"; }}
+                    onMouseLeave={(e) => { if (hasUnsavedChanges) e.currentTarget.style.background = "var(--accent)"; }}
                   >
                     {saving ? "Saving..." : "Save Changes"}
                   </button>

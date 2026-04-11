@@ -17,7 +17,7 @@ export default function FollowUpDate({ value, onChange }: FollowUpDateProps) {
     return (
       <input type="date" autoFocus
         className="w-full px-1 py-0.5 text-xs rounded"
-        style={{ background: "#1e1e1e", border: "1px solid #ea580c", color: "#f0f0f0", outline: "none", colorScheme: "dark" }}
+        style={{ background: "var(--surface2)", border: "1px solid var(--accent)", color: "var(--text)", outline: "none", colorScheme: "dark" }}
         value={value || ""}
         onChange={(e) => { onChange(e.target.value); setEditing(false); }}
         onBlur={() => setEditing(false)}
@@ -27,9 +27,9 @@ export default function FollowUpDate({ value, onChange }: FollowUpDateProps) {
 
   if (!value) {
     return (
-      <button className="text-xs px-1 py-0.5 transition-colors" style={{ color: "#444" }}
-        onMouseEnter={(e) => e.currentTarget.style.color = "#888"}
-        onMouseLeave={(e) => e.currentTarget.style.color = "#444"}
+      <button className="text-xs px-1 py-0.5 transition-colors" style={{ color: "var(--text-quaternary)" }}
+        onMouseEnter={(e) => e.currentTarget.style.color = "var(--text-muted)"}
+        onMouseLeave={(e) => e.currentTarget.style.color = "var(--text-quaternary)"}
         onClick={() => setEditing(true)}>
         Set date
       </button>
@@ -42,7 +42,7 @@ export default function FollowUpDate({ value, onChange }: FollowUpDateProps) {
     <button className="px-1.5 py-0.5 rounded text-xs font-medium"
       style={{
         background: isOverdue ? "rgba(239,68,68,0.15)" : isToday ? "rgba(234,179,8,0.15)" : "rgba(255,255,255,0.05)",
-        color: isOverdue ? "#ef4444" : isToday ? "#eab308" : "#888",
+        color: isOverdue ? "#ef4444" : isToday ? "#eab308" : "var(--text-muted)",
         border: `1px solid ${isOverdue ? "rgba(239,68,68,0.2)" : isToday ? "rgba(234,179,8,0.2)" : "transparent"}`,
       }}
       onClick={() => setEditing(true)} title={value}>

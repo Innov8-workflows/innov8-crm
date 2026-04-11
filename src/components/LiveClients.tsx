@@ -185,16 +185,16 @@ export default function LiveClients({ ownerFilter = "" }: { ownerFilter?: string
   return (
     <div className="flex-1 flex flex-col" style={{ minHeight: 0 }}>
       {/* Dashboard Stats */}
-      <div style={{ background: "#131313", borderBottom: "1px solid #2a2a2a" }}>
+      <div style={{ background: "var(--stats-bg)", borderBottom: "1px solid var(--border)" }}>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 px-4 py-3">
           {[
             { label: "Live Clients", value: stats?.clientCount ?? clients.length, color: "#f0f0f0", icon: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" },
             { label: "Monthly Revenue", value: `£${(stats?.mrr ?? 0).toFixed(2)}`, color: "#22c55e", icon: "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" },
             { label: "Total CAPEX", value: `£${(stats?.capex ?? 0).toFixed(2)}`, color: "#ea580c", icon: "M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" },
-            { label: "Overdue Renewals", value: stats?.overdueRenewals ?? 0, color: stats?.overdueRenewals ? "#ef4444" : "#666", icon: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" },
-            { label: "Lost Clients", value: stats?.lostClients ?? 0, color: stats?.lostClients ? "#ef4444" : "#666", icon: "M22 10.5h-6m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM4 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 0110.374 21c-2.331 0-4.512-.645-6.374-1.766z" },
+            { label: "Overdue Renewals", value: stats?.overdueRenewals ?? 0, color: stats?.overdueRenewals ? "#ef4444" : "var(--text-dim)", icon: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" },
+            { label: "Lost Clients", value: stats?.lostClients ?? 0, color: stats?.lostClients ? "#ef4444" : "var(--text-dim)", icon: "M22 10.5h-6m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM4 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 0110.374 21c-2.331 0-4.512-.645-6.374-1.766z" },
           ].map((card) => (
-            <div key={card.label} className="flex items-center gap-3 p-3 rounded-lg" style={{ background: "#1e1e1e", border: "1px solid #2a2a2a" }}>
+            <div key={card.label} className="flex items-center gap-3 p-3 rounded-lg" style={{ background: "var(--surface2)", border: "1px solid var(--border)" }}>
               <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `${card.color}15` }}>
                 <svg className="w-5 h-5" fill="none" stroke={card.color} strokeWidth={1.5} viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d={card.icon} />
@@ -202,7 +202,7 @@ export default function LiveClients({ ownerFilter = "" }: { ownerFilter?: string
               </div>
               <div>
                 <div className="text-xl font-bold" style={{ color: card.color }}>{card.value}</div>
-                <div className="text-xs" style={{ color: "#666" }}>{card.label}</div>
+                <div className="text-xs" style={{ color: "var(--text-dim)" }}>{card.label}</div>
               </div>
             </div>
           ))}
@@ -210,14 +210,14 @@ export default function LiveClients({ ownerFilter = "" }: { ownerFilter?: string
       </div>
 
       {/* Toolbar: Search + Filter + View Toggle */}
-      <div className="flex items-center gap-3 px-4 py-2" style={{ background: "#131313", borderBottom: "1px solid #2a2a2a" }}>
+      <div className="flex items-center gap-3 px-4 py-2" style={{ background: "var(--stats-bg)", borderBottom: "1px solid var(--border)" }}>
         <div className="relative flex-1" style={{ maxWidth: 320 }}>
           <svg className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2" fill="none" stroke="#666" strokeWidth={1.5} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
           </svg>
           <input
             className="w-full pl-8 pr-3 py-1.5 text-xs rounded-md"
-            style={{ background: "#1e1e1e", border: "1px solid #2a2a2a", color: "#f0f0f0", outline: "none" }}
+            style={{ background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)", outline: "none" }}
             placeholder="Search clients..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -225,10 +225,10 @@ export default function LiveClients({ ownerFilter = "" }: { ownerFilter?: string
         </div>
 
         {/* Active / Lost toggle */}
-        <div className="flex rounded-md overflow-hidden" style={{ border: "1px solid #2a2a2a" }}>
+        <div className="flex rounded-md overflow-hidden" style={{ border: "1px solid var(--border)" }}>
           <button
             className="px-3 py-1.5 text-xs font-medium flex items-center gap-1.5 transition-colors"
-            style={{ background: !isLostView ? "#22c55e" : "#1e1e1e", color: !isLostView ? "#fff" : "#888" }}
+            style={{ background: !isLostView ? "#22c55e" : "var(--surface2)", color: !isLostView ? "#fff" : "var(--text-muted)" }}
             onClick={() => setClientFilter("active")}
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -238,7 +238,7 @@ export default function LiveClients({ ownerFilter = "" }: { ownerFilter?: string
           </button>
           <button
             className="px-3 py-1.5 text-xs font-medium flex items-center gap-1.5 transition-colors"
-            style={{ background: isLostView ? "#ef4444" : "#1e1e1e", color: isLostView ? "#fff" : "#888" }}
+            style={{ background: isLostView ? "#ef4444" : "var(--surface2)", color: isLostView ? "#fff" : "var(--text-muted)" }}
             onClick={() => setClientFilter("lost")}
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -249,14 +249,14 @@ export default function LiveClients({ ownerFilter = "" }: { ownerFilter?: string
         </div>
 
         {/* Grid / Card toggle */}
-        <div className="flex rounded-md overflow-hidden" style={{ border: "1px solid #2a2a2a" }}>
+        <div className="flex rounded-md overflow-hidden" style={{ border: "1px solid var(--border)" }}>
           {(["grid", "card"] as const).map((mode) => (
             <button
               key={mode}
               className="px-3 py-1.5 text-xs font-medium flex items-center gap-1.5 transition-colors"
               style={{
-                background: viewMode === mode ? "#ea580c" : "#1e1e1e",
-                color: viewMode === mode ? "#fff" : "#888",
+                background: viewMode === mode ? "var(--accent)" : "var(--surface2)",
+                color: viewMode === mode ? "#fff" : "var(--text-muted)",
               }}
               onClick={() => setViewMode(mode)}
             >
@@ -273,14 +273,14 @@ export default function LiveClients({ ownerFilter = "" }: { ownerFilter?: string
             </button>
           ))}
         </div>
-        <span className="text-xs" style={{ color: "#666" }}>{filtered.length} client{filtered.length !== 1 ? "s" : ""}</span>
+        <span className="text-xs" style={{ color: "var(--text-dim)" }}>{filtered.length} client{filtered.length !== 1 ? "s" : ""}</span>
       </div>
 
       {/* Content */}
       <div className="flex-1 overflow-auto">
         {clients.length === 0 ? (
-          <div className="text-center py-16" style={{ color: "#444" }}>
-            <svg className="w-12 h-12 mx-auto mb-3" fill="none" stroke="currentColor" strokeWidth={1} viewBox="0 0 24 24" style={{ color: "#333" }}>
+          <div className="text-center py-16" style={{ color: "var(--text-quaternary)" }}>
+            <svg className="w-12 h-12 mx-auto mb-3" fill="none" stroke="currentColor" strokeWidth={1} viewBox="0 0 24 24" style={{ color: "var(--border-light)" }}>
               <path strokeLinecap="round" strokeLinejoin="round" d={isLostView
                 ? "M22 10.5h-6m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM4 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 0110.374 21c-2.331 0-4.512-.645-6.374-1.766z"
                 : "M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
@@ -347,7 +347,7 @@ export default function LiveClients({ ownerFilter = "" }: { ownerFilter?: string
       {confirmDelete !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.7)" }}
           onClick={() => setConfirmDelete(null)}>
-          <div className="rounded-xl p-6 max-w-sm w-full mx-4" style={{ background: "#1e1e1e", border: "1px solid #2a2a2a" }}
+          <div className="rounded-xl p-6 max-w-sm w-full mx-4" style={{ background: "var(--surface2)", border: "1px solid var(--border)" }}
             onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "#ef444420" }}>
@@ -356,17 +356,17 @@ export default function LiveClients({ ownerFilter = "" }: { ownerFilter?: string
                 </svg>
               </div>
               <div>
-                <h3 className="text-sm font-semibold" style={{ color: "#f0f0f0" }}>Delete Client Permanently</h3>
-                <p className="text-xs mt-0.5" style={{ color: "#888" }}>
+                <h3 className="text-sm font-semibold" style={{ color: "var(--text)" }}>Delete Client Permanently</h3>
+                <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
                   {clients.find((c) => c.id === confirmDelete)?.business_name}
                 </p>
               </div>
             </div>
-            <p className="text-xs mb-4" style={{ color: "#888" }}>
+            <p className="text-xs mb-4" style={{ color: "var(--text-muted)" }}>
               This will permanently delete the project, all files, tasks, and the original lead with all its notes, activities and email logs. This cannot be undone.
             </p>
             <div className="flex gap-2 justify-end">
-              <button className="px-3 py-1.5 text-sm rounded-md" style={{ background: "#252525", color: "#ccc" }}
+              <button className="px-3 py-1.5 text-sm rounded-md" style={{ background: "var(--surface3)", color: "var(--text-secondary)" }}
                 onClick={() => setConfirmDelete(null)}>Cancel</button>
               <button className="px-3 py-1.5 text-sm font-semibold rounded-md" style={{ background: "#ef4444", color: "#fff" }}
                 onClick={() => deleteClient(confirmDelete)}>Delete Permanently</button>
@@ -380,7 +380,7 @@ export default function LiveClients({ ownerFilter = "" }: { ownerFilter?: string
         <div className="fixed bottom-4 right-4 z-50 px-4 py-3 rounded-lg shadow-xl flex items-center gap-3 max-w-sm"
           style={{ background: invoiceResult.ok ? "#052e16" : "#450a0a", border: `1px solid ${invoiceResult.ok ? "#22c55e40" : "#ef444440"}` }}>
           <span className="text-sm" style={{ color: invoiceResult.ok ? "#22c55e" : "#ef4444" }}>{invoiceResult.msg}</span>
-          <button className="text-xs px-2 py-0.5 rounded" style={{ color: "#888" }}
+          <button className="text-xs px-2 py-0.5 rounded" style={{ color: "var(--text-muted)" }}
             onClick={() => setInvoiceResult(null)}>Dismiss</button>
         </div>
       )}
@@ -436,17 +436,17 @@ function GridView({ clients, sortKey, sortDir, onSort, editingCell, editValue, o
   return (
     <div style={{ minWidth: 900 }}>
       {/* Header */}
-      <div className="grid items-center px-2 py-1.5 sticky top-0 z-10" style={{ gridTemplateColumns: gridTemplate, background: "#161616", borderBottom: "1px solid #2a2a2a" }}>
+      <div className="grid items-center px-2 py-1.5 sticky top-0 z-10" style={{ gridTemplateColumns: gridTemplate, background: "var(--surface)", borderBottom: "1px solid var(--border)" }}>
         <div />
-        <span className="text-xs font-medium px-2" style={{ color: "#888" }}>Status</span>
+        <span className="text-xs font-medium px-2" style={{ color: "var(--text-muted)" }}>Status</span>
         {GRID_COLUMNS.map((col) => (
           <button
             key={col.key}
             className="flex items-center gap-1 text-xs font-medium px-2 py-1 rounded transition-colors text-left"
-            style={{ color: sortKey === col.key ? "#ea580c" : "#888" }}
+            style={{ color: sortKey === col.key ? "var(--accent)" : "var(--text-muted)" }}
             onClick={() => onSort(col.key)}
-            onMouseEnter={(e) => e.currentTarget.style.color = "#f0f0f0"}
-            onMouseLeave={(e) => e.currentTarget.style.color = sortKey === col.key ? "#ea580c" : "#888"}
+            onMouseEnter={(e) => e.currentTarget.style.color = "var(--text)"}
+            onMouseLeave={(e) => e.currentTarget.style.color = sortKey === col.key ? "var(--accent)" : "var(--text-muted)"}
           >
             {col.label}
             {sortKey === col.key && (
@@ -456,7 +456,7 @@ function GridView({ clients, sortKey, sortDir, onSort, editingCell, editValue, o
             )}
           </button>
         ))}
-        <span className="text-xs px-2" style={{ color: "#888" }}>Action</span>
+        <span className="text-xs px-2" style={{ color: "var(--text-muted)" }}>Action</span>
       </div>
 
       {/* Rows */}
@@ -466,14 +466,14 @@ function GridView({ clients, sortKey, sortDir, onSort, editingCell, editValue, o
           className="grid items-center px-2 py-1.5 transition-colors"
           style={{
             gridTemplateColumns: gridTemplate,
-            background: idx % 2 === 0 ? "#0f0f0f" : "#131313",
-            borderBottom: "1px solid #1e1e1e",
+            background: idx % 2 === 0 ? "var(--bg)" : "var(--stats-bg)",
+            borderBottom: "1px solid var(--surface2)",
           }}
           onMouseEnter={(e) => e.currentTarget.style.background = "#1a1a1a"}
-          onMouseLeave={(e) => e.currentTarget.style.background = idx % 2 === 0 ? "#0f0f0f" : "#131313"}
+          onMouseLeave={(e) => e.currentTarget.style.background = idx % 2 === 0 ? "var(--bg)" : "var(--stats-bg)"}
         >
           {/* Row number */}
-          <span className="text-xs text-center" style={{ color: "#444" }}>{idx + 1}</span>
+          <span className="text-xs text-center" style={{ color: "var(--text-quaternary)" }}>{idx + 1}</span>
 
           {/* Status badge */}
           {(() => {
@@ -498,7 +498,7 @@ function GridView({ clients, sortKey, sortDir, onSort, editingCell, editValue, o
                 <input
                   key={col.key}
                   className="text-xs px-2 py-1 rounded mx-1"
-                  style={{ background: "#1e1e1e", border: "1px solid #ea580c", color: "#f0f0f0", outline: "none" }}
+                  style={{ background: "var(--surface2)", border: "1px solid var(--accent)", color: "var(--text)", outline: "none" }}
                   type={col.type || "text"}
                   value={editValue}
                   onChange={(e) => onEditChange(e.target.value)}
@@ -511,7 +511,7 @@ function GridView({ clients, sortKey, sortDir, onSort, editingCell, editValue, o
 
             if (col.key === "business_name") {
               return (
-                <button key={col.key} className="text-xs font-medium px-2 text-left truncate" style={{ color: "#f0f0f0" }}
+                <button key={col.key} className="text-xs font-medium px-2 text-left truncate" style={{ color: "var(--text)" }}
                   onClick={() => onOpenProject(client)}>
                   {String(rawValue)}
                 </button>
@@ -521,7 +521,7 @@ function GridView({ clients, sortKey, sortDir, onSort, editingCell, editValue, o
             if (col.key === "monthly_fee") {
               return (
                 <span key={col.key} className="text-xs font-semibold px-2 cursor-pointer rounded py-0.5"
-                  style={{ color: Number(rawValue) > 0 ? "#22c55e" : "#444" }}
+                  style={{ color: Number(rawValue) > 0 ? "#22c55e" : "var(--text-quaternary)" }}
                   onClick={() => col.editable && onStartEdit(client.id, col.key, rawValue as string | number)}>
                   {Number(rawValue) > 0 ? `£${Number(rawValue).toFixed(2)}` : "—"}
                 </span>
@@ -532,7 +532,7 @@ function GridView({ clients, sortKey, sortDir, onSort, editingCell, editValue, o
               const overdue = isOverdue(String(rawValue));
               return (
                 <span key={col.key} className="text-xs px-2 cursor-pointer rounded py-0.5"
-                  style={{ color: overdue ? "#ef4444" : rawValue ? "#ccc" : "#444" }}
+                  style={{ color: overdue ? "#ef4444" : rawValue ? "var(--text-secondary)" : "var(--text-quaternary)" }}
                   onClick={() => col.editable && onStartEdit(client.id, col.key, rawValue as string | number)}>
                   {rawValue ? formatDate(String(rawValue)) : "—"}{overdue && " !"}
                 </span>
@@ -540,12 +540,12 @@ function GridView({ clients, sortKey, sortDir, onSort, editingCell, editValue, o
             }
 
             if (col.key === "completed_at") {
-              return <span key={col.key} className="text-xs px-2" style={{ color: "#888" }}>{rawValue ? formatDate(String(rawValue)) : "—"}</span>;
+              return <span key={col.key} className="text-xs px-2" style={{ color: "var(--text-muted)" }}>{rawValue ? formatDate(String(rawValue)) : "—"}</span>;
             }
 
             if (col.key === "domain") {
               return (
-                <span key={col.key} className="text-xs px-2 truncate cursor-pointer" style={{ color: rawValue ? "#ea580c" : "#444" }}
+                <span key={col.key} className="text-xs px-2 truncate cursor-pointer" style={{ color: rawValue ? "var(--accent)" : "var(--text-quaternary)" }}
                   onClick={() => col.editable && onStartEdit(client.id, col.key, rawValue as string | number)}>
                   {String(rawValue) || "—"}
                 </span>
@@ -554,7 +554,7 @@ function GridView({ clients, sortKey, sortDir, onSort, editingCell, editValue, o
 
             return (
               <span key={col.key} className={`text-xs px-2 truncate ${col.editable ? "cursor-pointer" : ""}`}
-                style={{ color: rawValue ? "#ccc" : "#444" }}
+                style={{ color: rawValue ? "var(--text-secondary)" : "var(--text-quaternary)" }}
                 onClick={() => col.editable && onStartEdit(client.id, col.key, rawValue as string | number)}>
                 {String(rawValue) || "—"}
               </span>
@@ -581,9 +581,9 @@ function GridView({ clients, sortKey, sortDir, onSort, editingCell, editValue, o
               </button>
             )}
             <button className="p-1 rounded transition-colors"
-              style={{ color: "#555" }}
+              style={{ color: "var(--text-tertiary)" }}
               onMouseEnter={(e) => { e.currentTarget.style.color = "#ef4444"; e.currentTarget.style.background = "#ef444415"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = "#555"; e.currentTarget.style.background = "transparent"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-tertiary)"; e.currentTarget.style.background = "transparent"; }}
               onClick={(e) => { e.stopPropagation(); onDelete(client.id); }}
               title="Delete permanently">
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -625,9 +625,9 @@ function CardView({ clients, formatDate, isOverdue, onOpenProject, isLostView, o
           <div
             key={client.id}
             className="rounded-xl overflow-hidden cursor-pointer transition-all relative"
-            style={{ background: "#161616", border: `1px solid ${isLostView ? "#ef444440" : "#2a2a2a"}`, opacity: isLostView ? 0.75 : 1 }}
-            onMouseEnter={(e) => { e.currentTarget.style.borderColor = isLostView ? "#ef4444" : "#444"; e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.opacity = "1"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.borderColor = isLostView ? "#ef444440" : "#2a2a2a"; e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.opacity = isLostView ? "0.75" : "1"; }}
+            style={{ background: "var(--surface)", border: `1px solid ${isLostView ? "#ef444440" : "var(--border)"}`, opacity: isLostView ? 0.75 : 1 }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = isLostView ? "#ef4444" : "var(--text-quaternary)"; e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.opacity = "1"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = isLostView ? "#ef444440" : "var(--border)"; e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.opacity = isLostView ? "0.75" : "1"; }}
             onClick={() => onOpenProject(client)}
           >
             {/* Invoice status badge — top left */}
@@ -660,11 +660,11 @@ function CardView({ clients, formatDate, isOverdue, onOpenProject, isLostView, o
 
             {/* Cover Image */}
             {client.cover_image ? (
-              <div className="w-full h-36 overflow-hidden" style={{ background: "#1e1e1e" }}>
+              <div className="w-full h-36 overflow-hidden" style={{ background: "var(--surface2)" }}>
                 <img src={client.cover_image} alt={client.business_name || ""} className="w-full h-full object-cover" style={isLostView ? { filter: "grayscale(60%)" } : {}} />
               </div>
             ) : (
-              <div className="w-full h-20 flex items-center justify-center" style={{ background: "linear-gradient(135deg, #1e1e1e 0%, #2a2a2a 100%)" }}>
+              <div className="w-full h-20 flex items-center justify-center" style={{ background: "linear-gradient(135deg, var(--surface2) 0%, var(--border) 100%)" }}>
                 <svg className="w-8 h-8" fill="none" stroke="#333" strokeWidth={1} viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
                 </svg>
@@ -675,15 +675,15 @@ function CardView({ clients, formatDate, isOverdue, onOpenProject, isLostView, o
             <div className="p-3">
               <div className="flex items-start justify-between mb-1">
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-sm font-semibold truncate" style={{ color: "#f0f0f0" }}>{client.business_name}</h3>
-                  <p className="text-xs truncate" style={{ color: "#666" }}>
+                  <h3 className="text-sm font-semibold truncate" style={{ color: "var(--text)" }}>{client.business_name}</h3>
+                  <p className="text-xs truncate" style={{ color: "var(--text-dim)" }}>
                     {client.contact_name}{client.business_type ? ` · ${client.business_type}` : ""}
                   </p>
                 </div>
                 <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
                   {client.capex != null && client.capex > 0 && (
                     <span className="text-xs font-bold px-2 py-0.5 rounded-full"
-                      style={{ background: "#ea580c20", color: "#ea580c" }}>
+                      style={{ background: "#ea580c20", color: "var(--accent)" }}>
                       £{client.capex}
                     </span>
                   )}
@@ -697,23 +697,23 @@ function CardView({ clients, formatDate, isOverdue, onOpenProject, isLostView, o
               </div>
 
               {client.domain && (
-                <p className="text-xs mt-1 truncate" style={{ color: "#ea580c" }}>{client.domain}</p>
+                <p className="text-xs mt-1 truncate" style={{ color: "var(--accent)" }}>{client.domain}</p>
               )}
 
               {client.tasks_total !== undefined && client.tasks_total > 0 && (
                 <div className="mt-2">
                   <div className="flex items-center justify-between text-xs mb-1">
-                    <span style={{ color: "#666" }}>Tasks</span>
-                    <span style={{ color: "#888" }}>{client.tasks_done}/{client.tasks_total}</span>
+                    <span style={{ color: "var(--text-dim)" }}>Tasks</span>
+                    <span style={{ color: "var(--text-muted)" }}>{client.tasks_done}/{client.tasks_total}</span>
                   </div>
-                  <div className="w-full h-1 rounded-full" style={{ background: "#2a2a2a" }}>
-                    <div className="h-full rounded-full transition-all" style={{ width: `${taskPct}%`, background: taskPct === 100 ? "#22c55e" : "#ea580c" }} />
+                  <div className="w-full h-1 rounded-full" style={{ background: "var(--border)" }}>
+                    <div className="h-full rounded-full transition-all" style={{ width: `${taskPct}%`, background: taskPct === 100 ? "#22c55e" : "var(--accent)" }} />
                   </div>
                 </div>
               )}
 
               {/* Footer with action */}
-              <div className="flex items-center justify-between mt-2 pt-2" style={{ borderTop: "1px solid #2a2a2a" }}>
+              <div className="flex items-center justify-between mt-2 pt-2" style={{ borderTop: "1px solid var(--border)" }}>
                 <div className="flex items-center gap-2">
                   {client.email && (
                     <svg className="w-3.5 h-3.5" fill="none" stroke="#666" strokeWidth={1.5} viewBox="0 0 24 24">
@@ -728,7 +728,7 @@ function CardView({ clients, formatDate, isOverdue, onOpenProject, isLostView, o
                 </div>
                 <div className="flex items-center gap-2">
                   {client.renewal_date && (
-                    <span className="text-xs" style={{ color: overdue ? "#ef4444" : "#888" }}>
+                    <span className="text-xs" style={{ color: overdue ? "#ef4444" : "var(--text-muted)" }}>
                       {overdue ? "Overdue: " : ""}{formatDate(client.renewal_date)}
                     </span>
                   )}
@@ -751,9 +751,9 @@ function CardView({ clients, formatDate, isOverdue, onOpenProject, isLostView, o
                   )}
                   {!isLostView && client.monthly_fee > 0 && (
                     <button className="p-1 rounded transition-colors"
-                      style={{ color: invoicing === client.id ? "#eab308" : "#555" }}
+                      style={{ color: invoicing === client.id ? "#eab308" : "var(--text-tertiary)" }}
                       onMouseEnter={(e) => { if (invoicing !== client.id) { e.currentTarget.style.color = "#3b82f6"; e.currentTarget.style.background = "#3b82f615"; } }}
-                      onMouseLeave={(e) => { if (invoicing !== client.id) { e.currentTarget.style.color = "#555"; e.currentTarget.style.background = "transparent"; } }}
+                      onMouseLeave={(e) => { if (invoicing !== client.id) { e.currentTarget.style.color = "var(--text-tertiary)"; e.currentTarget.style.background = "transparent"; } }}
                       onClick={(e) => onSendInvoice(client.id, e)}
                       disabled={invoicing === client.id}
                       title="Send Stripe invoice">
@@ -763,9 +763,9 @@ function CardView({ clients, formatDate, isOverdue, onOpenProject, isLostView, o
                     </button>
                   )}
                   <button className="p-1 rounded transition-colors"
-                    style={{ color: "#555" }}
+                    style={{ color: "var(--text-tertiary)" }}
                     onMouseEnter={(e) => { e.currentTarget.style.color = "#ef4444"; e.currentTarget.style.background = "#ef444415"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.color = "#555"; e.currentTarget.style.background = "transparent"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-tertiary)"; e.currentTarget.style.background = "transparent"; }}
                     onClick={(e) => { e.stopPropagation(); onDelete(client.id); }}
                     title="Delete permanently">
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">

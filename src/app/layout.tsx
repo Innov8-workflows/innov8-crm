@@ -12,11 +12,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full dark">
+    <html lang="en" className="h-full" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+        <script dangerouslySetInnerHTML={{ __html: `try{var t=localStorage.getItem('crm_theme');if(t==='light')document.documentElement.classList.add('theme-light');else if(t==='midnight')document.documentElement.classList.add('theme-midnight');}catch(e){}` }} />
       </head>
       <body className="h-full font-sans antialiased">
         {children}

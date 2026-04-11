@@ -40,7 +40,7 @@ export default function Home() {
 
   return (
     <ToastProvider>
-      <div className="flex flex-col h-screen" style={{ background: "#0f0f0f" }}>
+      <div className="flex flex-col h-screen" style={{ background: "var(--bg)" }}>
         <ViewNav active={view} onChange={setView} projectCount={projectCount} clientCount={clientCount}
           ownerFilter={ownerFilter} onOwnerChange={handleOwnerChange} />
         <Suspense fallback={<LoadingAI message="Loading" />}>

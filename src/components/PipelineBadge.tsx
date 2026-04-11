@@ -34,12 +34,12 @@ export default function PipelineBadge({ value, onChange }: PipelineBadgeProps) {
       </button>
       {open && (
         <div className="absolute top-full left-0 mt-1 w-40 rounded-lg shadow-xl z-50 py-1"
-          style={{ background: "#1e1e1e", border: "1px solid #333" }}>
+          style={{ background: "var(--surface2)", border: "1px solid var(--border-light)" }}>
           {PIPELINE_STAGES.map((s) => (
             <button key={s.value}
               className="w-full text-left px-3 py-1.5 text-sm flex items-center gap-2 transition-colors"
-              style={{ color: s.value === value ? s.color : "#ccc" }}
-              onMouseEnter={(e) => e.currentTarget.style.background = "#252525"}
+              style={{ color: s.value === value ? s.color : "var(--text-secondary)" }}
+              onMouseEnter={(e) => e.currentTarget.style.background = "var(--surface3)"}
               onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
               onClick={() => { onChange(s.value); setOpen(false); }}>
               <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />

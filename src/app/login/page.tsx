@@ -33,7 +33,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center relative" style={{ background: "#0f0f0f" }}>
+    <div className="min-h-screen flex items-center justify-center relative" style={{ background: "var(--bg)" }}>
       {/* Background image */}
       <div className="absolute inset-0" style={{
         backgroundImage: "url(/login-bg.jpg)",
@@ -47,28 +47,28 @@ export default function LoginPage() {
       }} />
 
       <div className="w-full max-w-sm relative z-10">
-        <div className="rounded-xl p-8" style={{ background: "#161616", border: "1px solid #2a2a2a" }}>
+        <div className="rounded-xl p-8" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
           {/* Logo */}
           <div className="flex justify-center mb-6">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-lg flex items-center justify-center font-mono text-sm font-medium text-white"
-                style={{ background: "#ea580c" }}>
+                style={{ background: "var(--accent)" }}>
                 i8
               </div>
               <div>
-                <h1 className="text-xl font-bold" style={{ color: "#f0f0f0" }}>innov8 CRM</h1>
-                <p className="text-xs" style={{ color: "#666" }}>Smarter Workflows. Built for Growth.</p>
+                <h1 className="text-xl font-bold" style={{ color: "var(--text)" }}>innov8 CRM</h1>
+                <p className="text-xs" style={{ color: "var(--text-dim)" }}>Smarter Workflows. Built for Growth.</p>
               </div>
             </div>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-1.5" style={{ color: "#888" }}>Username</label>
+              <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-muted)" }}>Username</label>
               <input
                 type="text"
                 className="w-full px-3 py-2.5 rounded-lg text-sm"
-                style={{ background: "#1e1e1e", border: "1px solid #2a2a2a", color: "#f0f0f0" }}
+                style={{ background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)" }}
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 autoFocus
@@ -77,11 +77,11 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1.5" style={{ color: "#888" }}>Password</label>
+              <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-muted)" }}>Password</label>
               <input
                 type="password"
                 className="w-full px-3 py-2.5 rounded-lg text-sm"
-                style={{ background: "#1e1e1e", border: "1px solid #2a2a2a", color: "#f0f0f0" }}
+                style={{ background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text)" }}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -99,19 +99,19 @@ export default function LoginPage() {
               disabled={loading}
               className="w-full py-2.5 text-sm font-semibold rounded-lg transition-all"
               style={{
-                background: loading ? "#333" : "#ea580c",
+                background: loading ? "var(--border-light)" : "var(--accent)",
                 color: "#fff",
                 opacity: loading ? 0.6 : 1,
               }}
-              onMouseEnter={(e) => { if (!loading) e.currentTarget.style.background = "#f97316"; }}
-              onMouseLeave={(e) => { if (!loading) e.currentTarget.style.background = "#ea580c"; }}
+              onMouseEnter={(e) => { if (!loading) e.currentTarget.style.background = "var(--accent-hover)"; }}
+              onMouseLeave={(e) => { if (!loading) e.currentTarget.style.background = "var(--accent)"; }}
             >
               {loading ? "Signing in..." : "Sign in"}
             </button>
           </form>
         </div>
 
-        <p className="text-center mt-4 text-xs" style={{ color: "#444" }}>
+        <p className="text-center mt-4 text-xs" style={{ color: "var(--text-quaternary)" }}>
           innov8workflows.co.uk
         </p>
       </div>

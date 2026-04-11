@@ -77,7 +77,7 @@ export default function Dashboard({ ownerFilter = "" }: { ownerFilter?: string }
     <div className="flex-1 overflow-auto p-6 space-y-6">
       {/* Section 1: Revenue Overview */}
       <div>
-        <h2 className="text-sm font-semibold uppercase tracking-wider mb-3" style={{ color: "#666" }}>Revenue Overview</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--text-dim)" }}>Revenue Overview</h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
           <RevenueCard label="Client MRR" value={`\u00A3${(clients?.mrr || 0).toFixed(2)}`} color="#22c55e"
             icon="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -96,7 +96,7 @@ export default function Dashboard({ ownerFilter = "" }: { ownerFilter?: string }
 
       {/* Section 2: Sales Pipeline Cards */}
       <div>
-        <h2 className="text-sm font-semibold uppercase tracking-wider mb-3" style={{ color: "#666" }}>Sales Pipeline</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--text-dim)" }}>Sales Pipeline</h2>
         <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 gap-3">
           <PipelineCard label="Total Leads" value={prospects?.total || 0} color="#f0f0f0" />
           <PipelineCard label="Emailed" value={prospects?.emailed || 0} color="#3b82f6" />
@@ -113,13 +113,13 @@ export default function Dashboard({ ownerFilter = "" }: { ownerFilter?: string }
       {/* Section 3: Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Pipeline Funnel Bar Chart */}
-        <div className="rounded-xl p-5" style={{ background: "#161616", border: "1px solid #2a2a2a" }}>
-          <h3 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: "#666" }}>Pipeline Funnel</h3>
+        <div className="rounded-xl p-5" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+          <h3 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: "var(--text-dim)" }}>Pipeline Funnel</h3>
           <div className="space-y-3">
             {funnelData.map((d) => (
               <div key={d.label} className="flex items-center gap-3">
-                <span className="text-xs w-16 text-right flex-shrink-0" style={{ color: "#888" }}>{d.label}</span>
-                <div className="flex-1 h-7 rounded-md overflow-hidden" style={{ background: "#1e1e1e" }}>
+                <span className="text-xs w-16 text-right flex-shrink-0" style={{ color: "var(--text-muted)" }}>{d.label}</span>
+                <div className="flex-1 h-7 rounded-md overflow-hidden" style={{ background: "var(--surface2)" }}>
                   <div className="h-full rounded-md flex items-center pl-2 transition-all duration-500"
                     style={{ width: `${Math.max((d.value / funnelMax) * 100, d.value > 0 ? 8 : 0)}%`, background: `${d.color}30`, borderLeft: `3px solid ${d.color}` }}>
                     <span className="text-xs font-bold" style={{ color: d.color }}>{d.value}</span>
@@ -131,28 +131,28 @@ export default function Dashboard({ ownerFilter = "" }: { ownerFilter?: string }
         </div>
 
         {/* Stage Distribution Donut */}
-        <div className="rounded-xl p-5 flex flex-col items-center" style={{ background: "#161616", border: "1px solid #2a2a2a" }}>
-          <h3 className="text-sm font-semibold uppercase tracking-wider mb-4 self-start" style={{ color: "#666" }}>Stage Distribution</h3>
+        <div className="rounded-xl p-5 flex flex-col items-center" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+          <h3 className="text-sm font-semibold uppercase tracking-wider mb-4 self-start" style={{ color: "var(--text-dim)" }}>Stage Distribution</h3>
           <DonutChart data={stageData} total={prospects?.total || 0} centerLabel="Leads" />
           <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 mt-4">
             {stageData.map((d) => (
               <div key={d.label} className="flex items-center gap-1.5">
                 <div className="w-2.5 h-2.5 rounded-full" style={{ background: d.color }} />
-                <span className="text-xs" style={{ color: "#888" }}>{d.label} ({d.value})</span>
+                <span className="text-xs" style={{ color: "var(--text-muted)" }}>{d.label} ({d.value})</span>
               </div>
             ))}
           </div>
         </div>
 
         {/* Outcome Donut */}
-        <div className="rounded-xl p-5 flex flex-col items-center" style={{ background: "#161616", border: "1px solid #2a2a2a" }}>
-          <h3 className="text-sm font-semibold uppercase tracking-wider mb-4 self-start" style={{ color: "#666" }}>Outcomes</h3>
+        <div className="rounded-xl p-5 flex flex-col items-center" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+          <h3 className="text-sm font-semibold uppercase tracking-wider mb-4 self-start" style={{ color: "var(--text-dim)" }}>Outcomes</h3>
           <DonutChart data={outcomeData} total={prospects?.total || 0} centerLabel="Total" />
           <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 mt-4">
             {outcomeData.map((d) => (
               <div key={d.label} className="flex items-center gap-1.5">
                 <div className="w-2.5 h-2.5 rounded-full" style={{ background: d.color }} />
-                <span className="text-xs" style={{ color: "#888" }}>{d.label} ({d.value})</span>
+                <span className="text-xs" style={{ color: "var(--text-muted)" }}>{d.label} ({d.value})</span>
               </div>
             ))}
           </div>
@@ -161,8 +161,8 @@ export default function Dashboard({ ownerFilter = "" }: { ownerFilter?: string }
 
       {/* Section 4: Key Metrics & Alerts */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="rounded-xl p-5" style={{ background: "#161616", border: "1px solid #2a2a2a" }}>
-          <h3 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: "#666" }}>Key Metrics</h3>
+        <div className="rounded-xl p-5" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+          <h3 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: "var(--text-dim)" }}>Key Metrics</h3>
           <div className="space-y-4">
             <MetricRow label="Conversion Rate" value={`${conversionRate}%`} color="#22c55e" />
             <MetricRow label="Avg Revenue / Client" value={`\u00A3${avgRevenue}`} color="#3b82f6" />
@@ -173,8 +173,8 @@ export default function Dashboard({ ownerFilter = "" }: { ownerFilter?: string }
           </div>
         </div>
 
-        <div className="rounded-xl p-5" style={{ background: "#161616", border: "1px solid #2a2a2a" }}>
-          <h3 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: "#666" }}>Alerts</h3>
+        <div className="rounded-xl p-5" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+          <h3 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: "var(--text-dim)" }}>Alerts</h3>
           <div className="space-y-3">
             <AlertRow label="Overdue Follow-ups" value={prospects?.overdue || 0} danger={true} />
             <AlertRow label="Due Today" value={prospects?.dueToday || 0} danger={false} />
@@ -228,7 +228,7 @@ function DonutChart({ data, total, centerLabel }: { data: { label: string; value
 
 function RevenueCard({ label, value, color, icon }: { label: string; value: string; color: string; icon: string }) {
   return (
-    <div className="rounded-xl p-5 flex items-center gap-4" style={{ background: "#161616", border: "1px solid #2a2a2a" }}>
+    <div className="rounded-xl p-5 flex items-center gap-4" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
       <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `${color}15` }}>
         <svg className="w-6 h-6" fill="none" stroke={color} strokeWidth={1.5} viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" d={icon} />
@@ -236,7 +236,7 @@ function RevenueCard({ label, value, color, icon }: { label: string; value: stri
       </div>
       <div>
         <div className="text-2xl font-bold" style={{ color }}>{value}</div>
-        <div className="text-xs mt-0.5" style={{ color: "#666" }}>{label}</div>
+        <div className="text-xs mt-0.5" style={{ color: "var(--text-dim)" }}>{label}</div>
       </div>
     </div>
   );
@@ -244,9 +244,9 @@ function RevenueCard({ label, value, color, icon }: { label: string; value: stri
 
 function PipelineCard({ label, value, color }: { label: string; value: number; color: string }) {
   return (
-    <div className="text-center p-3 rounded-lg" style={{ background: "#1e1e1e", border: "1px solid #2a2a2a" }}>
-      <div className="text-2xl font-bold" style={{ color: value > 0 ? color : "#444" }}>{value}</div>
-      <div className="text-xs mt-1" style={{ color: "#666" }}>{label}</div>
+    <div className="text-center p-3 rounded-lg" style={{ background: "var(--surface2)", border: "1px solid var(--border)" }}>
+      <div className="text-2xl font-bold" style={{ color: value > 0 ? color : "var(--text-quaternary)" }}>{value}</div>
+      <div className="text-xs mt-1" style={{ color: "var(--text-dim)" }}>{label}</div>
     </div>
   );
 }
@@ -254,7 +254,7 @@ function PipelineCard({ label, value, color }: { label: string; value: number; c
 function MetricRow({ label, value, color }: { label: string; value: string; color: string }) {
   return (
     <div className="flex items-center justify-between">
-      <span className="text-sm" style={{ color: "#999" }}>{label}</span>
+      <span className="text-sm" style={{ color: "var(--text-secondary)" }}>{label}</span>
       <span className="text-lg font-bold" style={{ color }}>{value}</span>
     </div>
   );
@@ -262,13 +262,13 @@ function MetricRow({ label, value, color }: { label: string; value: string; colo
 
 function AlertRow({ label, value, danger }: { label: string; value: number; danger: boolean }) {
   const isActive = value > 0;
-  const color = isActive && danger ? "#ef4444" : isActive ? "#f59e0b" : "#333";
+  const color = isActive && danger ? "#ef4444" : isActive ? "#f59e0b" : "var(--border-light)";
   return (
     <div className="flex items-center justify-between px-3 py-2 rounded-lg" style={{
       background: isActive && danger ? "#ef444410" : isActive ? "#f59e0b10" : "transparent",
       border: isActive ? `1px solid ${color}30` : "1px solid transparent",
     }}>
-      <span className="text-sm" style={{ color: isActive ? "#ccc" : "#555" }}>{label}</span>
+      <span className="text-sm" style={{ color: isActive ? "var(--text-secondary)" : "var(--text-tertiary)" }}>{label}</span>
       <span className="text-sm font-bold" style={{ color }}>{value}</span>
     </div>
   );

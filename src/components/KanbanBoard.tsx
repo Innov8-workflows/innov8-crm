@@ -73,29 +73,29 @@ export default function KanbanBoard({ ownerFilter = "" }: { ownerFilter?: string
   return (
     <>
       {/* Project Dashboard */}
-      <div style={{ background: "#131313", borderBottom: "1px solid #2a2a2a" }}>
+      <div style={{ background: "var(--stats-bg)", borderBottom: "1px solid var(--border)" }}>
         <div className="grid gap-3 px-4 py-3" style={{ gridTemplateColumns: `repeat(${PROJECT_STAGES.length + 1}, 1fr)` }}>
-          <div className="flex items-center gap-3 p-3 rounded-lg" style={{ background: "#1e1e1e", border: "1px solid #2a2a2a" }}>
+          <div className="flex items-center gap-3 p-3 rounded-lg" style={{ background: "var(--surface2)", border: "1px solid var(--border)" }}>
             <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "#ea580c15" }}>
               <svg className="w-5 h-5" fill="none" stroke="#ea580c" strokeWidth={1.5} viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 6.878V6a2.25 2.25 0 012.25-2.25h7.5A2.25 2.25 0 0118 6v.878m-12 0c.235-.083.487-.128.75-.128h10.5c.263 0 .515.045.75.128m-12 0A2.25 2.25 0 004.5 9v.878m13.5-3A2.25 2.25 0 0119.5 9v.878m0 0a2.246 2.246 0 00-.75-.128H5.25c-.263 0-.515.045-.75.128m15 0A2.25 2.25 0 0121 12v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18v-6c0-1.007.662-1.858 1.574-2.144z" />
               </svg>
             </div>
             <div>
-              <div className="text-xl font-bold" style={{ color: "#f0f0f0" }}>{projects.length}</div>
-              <div className="text-xs" style={{ color: "#666" }}>Total Projects</div>
+              <div className="text-xl font-bold" style={{ color: "var(--text)" }}>{projects.length}</div>
+              <div className="text-xs" style={{ color: "var(--text-dim)" }}>Total Projects</div>
             </div>
           </div>
           {PROJECT_STAGES.map((stage) => {
             const count = getProjectsByStage(stage.value).length;
             return (
-              <div key={stage.value} className="flex items-center gap-3 p-3 rounded-lg" style={{ background: "#1e1e1e", border: "1px solid #2a2a2a" }}>
+              <div key={stage.value} className="flex items-center gap-3 p-3 rounded-lg" style={{ background: "var(--surface2)", border: "1px solid var(--border)" }}>
                 <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `${stage.color}15` }}>
                   <div className="w-3 h-3 rounded-full" style={{ background: stage.color }} />
                 </div>
                 <div>
-                  <div className="text-xl font-bold" style={{ color: count > 0 ? stage.color : "#444" }}>{count}</div>
-                  <div className="text-xs" style={{ color: "#666" }}>{stage.label}</div>
+                  <div className="text-xl font-bold" style={{ color: count > 0 ? stage.color : "var(--text-quaternary)" }}>{count}</div>
+                  <div className="text-xs" style={{ color: "var(--text-dim)" }}>{stage.label}</div>
                 </div>
               </div>
             );
@@ -111,23 +111,23 @@ export default function KanbanBoard({ ownerFilter = "" }: { ownerFilter?: string
               <div
                 key={stage.value}
                 className="w-72 flex-shrink-0 flex flex-col rounded-xl"
-                style={{ background: isCompleted ? "#0d1f0d" : "#161616", border: `1px solid ${isCompleted ? "#059669" + "40" : "#2a2a2a"}` }}
+                style={{ background: isCompleted ? "#0d1f0d" : "var(--surface)", border: `1px solid ${isCompleted ? "#059669" + "40" : "var(--border)"}` }}
                 onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = stage.color; }}
-                onDragLeave={(e) => { e.currentTarget.style.borderColor = isCompleted ? "#059669" + "40" : "#2a2a2a"; }}
+                onDragLeave={(e) => { e.currentTarget.style.borderColor = isCompleted ? "#059669" + "40" : "var(--border)"; }}
                 onDrop={(e) => {
                   e.preventDefault();
-                  e.currentTarget.style.borderColor = isCompleted ? "#059669" + "40" : "#2a2a2a";
+                  e.currentTarget.style.borderColor = isCompleted ? "#059669" + "40" : "var(--border)";
                   if (dragProject) moveProject(dragProject, stage.value);
                   setDragProject(null);
                 }}
               >
                 {/* Column header */}
-                <div className="flex items-center justify-between px-3 py-2.5" style={{ borderBottom: `1px solid ${isCompleted ? "#059669" + "30" : "#2a2a2a"}` }}>
+                <div className="flex items-center justify-between px-3 py-2.5" style={{ borderBottom: `1px solid ${isCompleted ? "#059669" + "30" : "var(--border)"}` }}>
                   <div className="flex items-center gap-2">
                     <div className="w-2.5 h-2.5 rounded-full" style={{ background: stage.color }} />
-                    <span className="text-sm font-semibold" style={{ color: "#ccc" }}>{stage.label}</span>
+                    <span className="text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>{stage.label}</span>
                   </div>
-                  <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: "#252525", color: "#888" }}>
+                  <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: "var(--surface3)", color: "var(--text-muted)" }}>
                     {stageProjects.length}
                   </span>
                 </div>
@@ -142,12 +142,12 @@ export default function KanbanBoard({ ownerFilter = "" }: { ownerFilter?: string
                       onDragEnd={() => setDragProject(null)}
                       className="rounded-lg p-3 cursor-pointer transition-all"
                       style={{
-                        background: isCompleted ? "#132613" : "#1e1e1e",
-                        border: `1px solid ${dragProject === project.id ? stage.color : isCompleted ? "#059669" + "30" : "#2a2a2a"}`,
+                        background: isCompleted ? "#132613" : "var(--surface2)",
+                        border: `1px solid ${dragProject === project.id ? stage.color : isCompleted ? "#059669" + "30" : "var(--border)"}`,
                         opacity: dragProject === project.id ? 0.5 : 1,
                       }}
-                      onMouseEnter={(e) => e.currentTarget.style.borderColor = "#444"}
-                      onMouseLeave={(e) => { if (dragProject !== project.id) e.currentTarget.style.borderColor = isCompleted ? "#059669" + "30" : "#2a2a2a"; }}
+                      onMouseEnter={(e) => e.currentTarget.style.borderColor = "var(--text-quaternary)"}
+                      onMouseLeave={(e) => { if (dragProject !== project.id) e.currentTarget.style.borderColor = isCompleted ? "#059669" + "30" : "var(--border)"; }}
                       onClick={() => setSelectedProject(project)}
                     >
                       {/* Cover image */}
@@ -156,19 +156,19 @@ export default function KanbanBoard({ ownerFilter = "" }: { ownerFilter?: string
                           <img src={project.cover_image} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" />
                         </div>
                       )}
-                      <h3 className="text-sm font-medium truncate" style={{ color: "#f0f0f0" }}>
+                      <h3 className="text-sm font-medium truncate" style={{ color: "var(--text)" }}>
                         {project.business_name}
                       </h3>
-                      <p className="text-xs mt-1 truncate" style={{ color: "#666" }}>
+                      <p className="text-xs mt-1 truncate" style={{ color: "var(--text-dim)" }}>
                         {project.contact_name || "No contact"} {project.business_type ? `· ${project.business_type}` : ""}
                       </p>
                       {project.domain && (
-                        <p className="text-xs mt-1 truncate" style={{ color: "#ea580c" }}>
+                        <p className="text-xs mt-1 truncate" style={{ color: "var(--accent)" }}>
                           {project.domain}
                         </p>
                       )}
                       <div className="flex items-center justify-between mt-2">
-                        <span className="text-xs" style={{ color: "#555" }}>
+                        <span className="text-xs" style={{ color: "var(--text-tertiary)" }}>
                           {isCompleted && project.completed_at
                             ? `Done ${new Date(project.completed_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`
                             : new Date(project.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
@@ -183,7 +183,7 @@ export default function KanbanBoard({ ownerFilter = "" }: { ownerFilter?: string
                   ))}
 
                   {stageProjects.length === 0 && (
-                    <div className="text-center py-8 text-xs" style={{ color: "#333" }}>
+                    <div className="text-center py-8 text-xs" style={{ color: "var(--border-light)" }}>
                       {isCompleted ? "Drag completed projects here" : "Drag projects here"}
                     </div>
                   )}
