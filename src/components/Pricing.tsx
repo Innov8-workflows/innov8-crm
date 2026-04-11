@@ -3,25 +3,37 @@
 export default function Pricing() {
   return (
     <div className="flex-1 overflow-auto p-6 space-y-8">
-      {/* Blue Collar Trades */}
+      {/* Header */}
       <div>
-        <h2 className="text-sm font-semibold uppercase tracking-wider mb-1" style={{ color: "var(--text-dim)" }}>Blue Collar Pricing Structure</h2>
-        <p className="text-xs mb-4" style={{ color: "var(--text-quaternary)" }}>Plumbers, Electricians, Construction, etc</p>
+        <p className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: "var(--accent)" }}>Innov8 Workflows</p>
+        <h1 className="text-3xl font-bold mb-1">Pricing <span style={{ color: "var(--accent)" }}>Structure</span></h1>
+        <p className="text-sm" style={{ color: "var(--text-dim)" }}>Website product — all tiers include hosting &amp; support</p>
+      </div>
+
+      {/* Tier 1 Market: Blue Collar Trades */}
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: "var(--text-dim)" }}>Tier 1 Market</p>
+        <h2 className="text-lg font-bold mb-0.5" style={{ color: "var(--text)" }}>Blue Collar Trades</h2>
+        <p className="text-xs mb-4" style={{ color: "var(--text-quaternary)" }}>Plumbers &middot; Electricians &middot; Construction &middot; Heating engineers</p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <PricingCard tier="T1" upfront="£0" monthly="£85/pm" color="#22c55e" label="No upfront cost" popular={false} />
           <PricingCard tier="T2" upfront="£299" monthly="£50/pm" color="var(--accent)" label="Mid-range" popular={true} />
-          <PricingCard tier="T3" upfront="£499" monthly="£30/pm" color="#3b82f6" label="Best value long-term" popular={false} />
+          <PricingCard tier="T3" upfront="£499" monthly="£30/pm" color="#ef4444" label="Best value long-term" popular={false} />
         </div>
       </div>
 
-      {/* Social / Lifestyle */}
+      {/* Tier 2 Market: Social / Lifestyle */}
       <div>
-        <h2 className="text-sm font-semibold uppercase tracking-wider mb-1" style={{ color: "var(--text-dim)" }}>Social / Lifestyle Pricing Structure</h2>
-        <p className="text-xs mb-4" style={{ color: "var(--text-quaternary)" }}>Dog groomers, Beauticians, Hairdressers, etc</p>
+        <p className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: "var(--text-dim)" }}>Tier 2 Market</p>
+        <h2 className="text-lg font-bold mb-0.5" style={{ color: "var(--text)" }}>Social / Lifestyle</h2>
+        <p className="text-xs mb-4" style={{ color: "var(--text-quaternary)" }}>Dog groomers &middot; Beauticians &middot; Hairdressers &middot; Barbers</p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <PricingCard tier="T1" upfront="£0" monthly="£65/pm" color="#22c55e" label="No upfront cost" popular={false} />
-          <PricingCard tier="T2" upfront="£199" monthly="£40/pm" color="var(--accent)" label="Mid-range" popular={true} />
-          <PricingCard tier="T3" upfront="£399" monthly="£25/pm" color="#3b82f6" label="Best value long-term" popular={false} />
+          <PricingCard tier="T1" upfront="£0" monthly="£50/pm" color="#22c55e" label="No upfront cost" popular={false} />
+          <PricingCard tier="T2" upfront="£149" monthly="£35/pm" color="var(--accent)" label="Mid-range" popular={true} />
+          <PricingCard tier="T3" upfront="£299" monthly="£20/pm" color="#ef4444" label="Best value long-term" popular={false} />
+        </div>
+        <div className="mt-3 px-4 py-2 rounded-lg text-xs" style={{ background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-dim)" }}>
+          &#9888; T3 at £20/pm is your absolute floor — any lower and support becomes unviable.
         </div>
       </div>
 
