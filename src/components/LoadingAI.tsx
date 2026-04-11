@@ -1,104 +1,113 @@
 "use client";
 
 /**
- * Animated AI-themed loading spinner in Innov8 brand colours.
- * Features a pulsing neural-network / brain-circuit motif with
- * orbiting nodes and a glowing core.
+ * Neural Pulse Robot Head loading animation.
+ * Robot head with glowing eyes, neural pathways firing in the brain,
+ * antenna, ear panels, and segmented mouth — all in brand orange.
  */
 export default function LoadingAI({ message = "Loading" }: { message?: string }) {
   return (
-    <div className="flex-1 flex flex-col items-center justify-center gap-5 select-none">
-      {/* SVG animation */}
-      <div className="relative" style={{ width: 96, height: 96 }}>
-        <svg viewBox="0 0 96 96" width={96} height={96} fill="none" xmlns="http://www.w3.org/2000/svg">
-          {/* Outer ring - slow spin */}
-          <circle cx="48" cy="48" r="44" stroke="#2a2a2a" strokeWidth="1.5" />
-          <circle cx="48" cy="48" r="44" stroke="url(#ring)" strokeWidth="2" strokeLinecap="round"
-            strokeDasharray="70 210">
-            <animateTransform attributeName="transform" type="rotate" from="0 48 48" to="360 48 48" dur="3s" repeatCount="indefinite" />
+    <div className="flex-1 flex flex-col items-center justify-center gap-4 select-none">
+      <svg width="120" height="140" viewBox="0 0 160 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+
+        {/* Robot head - rounded rectangle */}
+        <rect x="30" y="20" width="100" height="110" rx="20" ry="20" fill="var(--bg)" stroke="#ea580c" strokeWidth="2" opacity="0.7"/>
+
+        {/* Forehead plate line */}
+        <line x1="45" y1="35" x2="115" y2="35" stroke="#ea580c" strokeWidth="0.5" opacity="0.3"/>
+
+        {/* Antenna */}
+        <line x1="80" y1="20" x2="80" y2="5" stroke="#ea580c" strokeWidth="1.5" opacity="0.5"/>
+        <circle cx="80" cy="5" r="3" fill="#ea580c" opacity="0.6">
+          <animate attributeName="opacity" values="0.3;1;0.3" dur="1.5s" repeatCount="indefinite"/>
+        </circle>
+
+        {/* Ear panels */}
+        <rect x="18" y="50" width="12" height="30" rx="3" fill="none" stroke="#ea580c" strokeWidth="1" opacity="0.3"/>
+        <rect x="130" y="50" width="12" height="30" rx="3" fill="none" stroke="#ea580c" strokeWidth="1" opacity="0.3"/>
+        {/* Ear indicators */}
+        <rect x="20" y="55" width="8" height="6" rx="1" fill="#ea580c" opacity="0.15">
+          <animate attributeName="opacity" values="0.1;0.3;0.1" dur="2s" repeatCount="indefinite"/>
+        </rect>
+        <rect x="20" y="64" width="8" height="6" rx="1" fill="#ea580c" opacity="0.15">
+          <animate attributeName="opacity" values="0.1;0.3;0.1" dur="2s" begin="0.5s" repeatCount="indefinite"/>
+        </rect>
+        <rect x="132" y="55" width="8" height="6" rx="1" fill="#ea580c" opacity="0.15">
+          <animate attributeName="opacity" values="0.1;0.3;0.1" dur="2s" begin="0.3s" repeatCount="indefinite"/>
+        </rect>
+        <rect x="132" y="64" width="8" height="6" rx="1" fill="#ea580c" opacity="0.15">
+          <animate attributeName="opacity" values="0.1;0.3;0.1" dur="2s" begin="0.8s" repeatCount="indefinite"/>
+        </rect>
+
+        {/* Eyes */}
+        <circle cx="58" cy="65" r="10" fill="none" stroke="#ea580c" strokeWidth="1.5" opacity="0.5"/>
+        <circle cx="58" cy="65" r="5" fill="#ea580c" opacity="0.15">
+          <animate attributeName="r" values="4;6;4" dur="2s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values="0.1;0.25;0.1" dur="2s" repeatCount="indefinite"/>
+        </circle>
+        <circle cx="58" cy="65" r="2.5" fill="#ea580c" opacity="0.7">
+          <animate attributeName="opacity" values="0.5;1;0.5" dur="1.5s" repeatCount="indefinite"/>
+        </circle>
+
+        <circle cx="102" cy="65" r="10" fill="none" stroke="#ea580c" strokeWidth="1.5" opacity="0.5"/>
+        <circle cx="102" cy="65" r="5" fill="#ea580c" opacity="0.15">
+          <animate attributeName="r" values="4;6;4" dur="2s" begin="0.2s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values="0.1;0.25;0.1" dur="2s" begin="0.2s" repeatCount="indefinite"/>
+        </circle>
+        <circle cx="102" cy="65" r="2.5" fill="#ea580c" opacity="0.7">
+          <animate attributeName="opacity" values="0.5;1;0.5" dur="1.5s" begin="0.2s" repeatCount="indefinite"/>
+        </circle>
+
+        {/* Mouth segments */}
+        <line x1="60" y1="100" x2="70" y2="100" stroke="#ea580c" strokeWidth="1.5" opacity="0.4" strokeLinecap="round"/>
+        <line x1="73" y1="100" x2="80" y2="100" stroke="#ea580c" strokeWidth="1.5" opacity="0.4" strokeLinecap="round">
+          <animate attributeName="opacity" values="0.2;0.6;0.2" dur="1.5s" repeatCount="indefinite"/>
+        </line>
+        <line x1="83" y1="100" x2="90" y2="100" stroke="#ea580c" strokeWidth="1.5" opacity="0.4" strokeLinecap="round">
+          <animate attributeName="opacity" values="0.2;0.6;0.2" dur="1.5s" begin="0.3s" repeatCount="indefinite"/>
+        </line>
+        <line x1="93" y1="100" x2="100" y2="100" stroke="#ea580c" strokeWidth="1.5" opacity="0.4" strokeLinecap="round">
+          <animate attributeName="opacity" values="0.2;0.6;0.2" dur="1.5s" begin="0.6s" repeatCount="indefinite"/>
+        </line>
+
+        {/* Chin line */}
+        <line x1="50" y1="115" x2="110" y2="115" stroke="#ea580c" strokeWidth="0.5" opacity="0.2"/>
+
+        {/* Neck */}
+        <rect x="65" y="130" width="30" height="15" rx="3" fill="none" stroke="#ea580c" strokeWidth="1" opacity="0.3"/>
+        <line x1="72" y1="132" x2="72" y2="143" stroke="#ea580c" strokeWidth="0.5" opacity="0.2"/>
+        <line x1="80" y1="132" x2="80" y2="143" stroke="#ea580c" strokeWidth="0.5" opacity="0.2"/>
+        <line x1="88" y1="132" x2="88" y2="143" stroke="#ea580c" strokeWidth="0.5" opacity="0.2"/>
+
+        {/* ── NEURAL PULSE BRAIN ── */}
+        <g transform="translate(80, 48)">
+          {/* Neural pathways */}
+          {[[-16, 0], [-8, 14], [8, 14], [16, 0], [8, -14], [-8, -14]].map(([x, y], i) => (
+            <g key={i}>
+              <line x1="0" y1="0" x2={x} y2={y} stroke="#ea580c" strokeWidth="0.6" opacity="0.25"/>
+              <circle r="2" fill={i % 2 === 0 ? "#ea580c" : "#f97316"} opacity="0.9">
+                <animateMotion dur="1.2s" begin={`${i * 0.2}s`} repeatCount="indefinite" path={`M0,0 L${x},${y}`}/>
+                <animate attributeName="opacity" values="0;1;0" dur="1.2s" begin={`${i * 0.2}s`} repeatCount="indefinite"/>
+              </circle>
+              <circle cx={x} cy={y} r="2" fill="#ea580c" opacity="0.4">
+                <animate attributeName="opacity" values="0.2;0.8;0.2" dur="1.2s" begin={`${i * 0.2}s`} repeatCount="indefinite"/>
+              </circle>
+            </g>
+          ))}
+          {/* Centre node */}
+          <circle r="4" fill="var(--bg)" stroke="#ea580c" strokeWidth="1"/>
+          <circle r="2" fill="#ea580c" opacity="0.5">
+            <animate attributeName="r" values="1.5;3;1.5" dur="1.5s" repeatCount="indefinite"/>
+            <animate attributeName="opacity" values="0.3;0.7;0.3" dur="1.5s" repeatCount="indefinite"/>
           </circle>
+        </g>
 
-          {/* Middle ring - counter-spin */}
-          <circle cx="48" cy="48" r="32" stroke="#1e1e1e" strokeWidth="1" />
-          <circle cx="48" cy="48" r="32" stroke="url(#ring2)" strokeWidth="1.5" strokeLinecap="round"
-            strokeDasharray="40 160">
-            <animateTransform attributeName="transform" type="rotate" from="360 48 48" to="0 48 48" dur="2s" repeatCount="indefinite" />
-          </circle>
+        {/* Subtle head glow */}
+        <rect x="30" y="20" width="100" height="110" rx="20" ry="20" fill="none" stroke="#ea580c" strokeWidth="1" opacity="0.08">
+          <animate attributeName="opacity" values="0.05;0.15;0.05" dur="3s" repeatCount="indefinite"/>
+        </rect>
 
-          {/* Neural connection lines (6 spokes) */}
-          {[0, 60, 120, 180, 240, 300].map((angle) => (
-            <line key={angle} x1="48" y1="48"
-              x2={48 + 38 * Math.cos((angle * Math.PI) / 180)}
-              y2={48 + 38 * Math.sin((angle * Math.PI) / 180)}
-              stroke="#ea580c" strokeWidth="0.5" opacity="0.25">
-              <animate attributeName="opacity" values="0.1;0.4;0.1" dur="2s" begin={`${angle / 360}s`} repeatCount="indefinite" />
-            </line>
-          ))}
-
-          {/* Orbiting nodes (3 dots on the outer ring) */}
-          {[0, 1, 2].map((i) => (
-            <circle key={i} r="3" fill="#ea580c" opacity="0.9">
-              <animateMotion dur="3s" begin={`${i}s`} repeatCount="indefinite"
-                path="M48,4 A44,44 0 1,1 47.99,4" />
-              <animate attributeName="r" values="2;3.5;2" dur="1.5s" begin={`${i * 0.5}s`} repeatCount="indefinite" />
-            </circle>
-          ))}
-
-          {/* Inner orbiting nodes (2 dots on middle ring) */}
-          {[0, 1].map((i) => (
-            <circle key={`inner-${i}`} r="2" fill="#f97316" opacity="0.7">
-              <animateMotion dur="2s" begin={`${i * 1}s`} repeatCount="indefinite"
-                path="M48,16 A32,32 0 1,0 48.01,16" />
-              <animate attributeName="r" values="1.5;2.5;1.5" dur="1s" begin={`${i * 0.5}s`} repeatCount="indefinite" />
-            </circle>
-          ))}
-
-          {/* Core AI "brain" icon */}
-          <g transform="translate(48,48)">
-            {/* Pulsing glow */}
-            <circle r="14" fill="#ea580c" opacity="0.06">
-              <animate attributeName="r" values="12;16;12" dur="2s" repeatCount="indefinite" />
-              <animate attributeName="opacity" values="0.06;0.12;0.06" dur="2s" repeatCount="indefinite" />
-            </circle>
-            <circle r="10" fill="#161616" stroke="#ea580c" strokeWidth="1.5" opacity="0.9" />
-
-            {/* AI circuit pattern inside core */}
-            {/* Horizontal line */}
-            <line x1="-4" y1="0" x2="4" y2="0" stroke="#ea580c" strokeWidth="1" strokeLinecap="round" opacity="0.8" />
-            {/* Vertical line */}
-            <line x1="0" y1="-4" x2="0" y2="4" stroke="#ea580c" strokeWidth="1" strokeLinecap="round" opacity="0.8" />
-            {/* Corner nodes */}
-            <circle cx="-4" cy="-4" r="1.2" fill="#ea580c" opacity="0.7">
-              <animate attributeName="opacity" values="0.4;1;0.4" dur="1.5s" begin="0s" repeatCount="indefinite" />
-            </circle>
-            <circle cx="4" cy="-4" r="1.2" fill="#ea580c" opacity="0.7">
-              <animate attributeName="opacity" values="0.4;1;0.4" dur="1.5s" begin="0.4s" repeatCount="indefinite" />
-            </circle>
-            <circle cx="4" cy="4" r="1.2" fill="#ea580c" opacity="0.7">
-              <animate attributeName="opacity" values="0.4;1;0.4" dur="1.5s" begin="0.8s" repeatCount="indefinite" />
-            </circle>
-            <circle cx="-4" cy="4" r="1.2" fill="#ea580c" opacity="0.7">
-              <animate attributeName="opacity" values="0.4;1;0.4" dur="1.5s" begin="1.2s" repeatCount="indefinite" />
-            </circle>
-            {/* Diagonal connectors */}
-            <line x1="-4" y1="-4" x2="4" y2="4" stroke="#f97316" strokeWidth="0.5" opacity="0.4" />
-            <line x1="4" y1="-4" x2="-4" y2="4" stroke="#f97316" strokeWidth="0.5" opacity="0.4" />
-          </g>
-
-          {/* Gradient definitions */}
-          <defs>
-            <linearGradient id="ring" x1="0" y1="0" x2="96" y2="96">
-              <stop offset="0%" stopColor="#ea580c" />
-              <stop offset="50%" stopColor="#f97316" />
-              <stop offset="100%" stopColor="#ea580c" stopOpacity="0.3" />
-            </linearGradient>
-            <linearGradient id="ring2" x1="96" y1="0" x2="0" y2="96">
-              <stop offset="0%" stopColor="#f97316" stopOpacity="0.6" />
-              <stop offset="100%" stopColor="#ea580c" stopOpacity="0.2" />
-            </linearGradient>
-          </defs>
-        </svg>
-      </div>
+      </svg>
 
       {/* Text with animated dots */}
       <div className="flex items-center gap-1">
