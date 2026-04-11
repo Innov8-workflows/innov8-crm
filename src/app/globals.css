@@ -71,6 +71,46 @@
   --accent-glow: rgba(234, 88, 12, 0.25);
 }
 
+/* ── Slate Grey Theme ── */
+.theme-slate {
+  --bg: #1e1e24;
+  --nav-bg: #16161b;
+  --stats-bg: #1a1a20;
+  --surface: #25252d;
+  --surface2: #2e2e38;
+  --surface3: #3a3a46;
+  --border: #353540;
+  --border-light: #454552;
+  --text: #e4e4e8;
+  --text-secondary: #c8c8ce;
+  --text-muted: #9898a0;
+  --text-dim: #707078;
+  --text-tertiary: #58585f;
+  --text-quaternary: #48484f;
+  --accent-subtle: rgba(234, 88, 12, 0.12);
+  --accent-glow: rgba(234, 88, 12, 0.25);
+}
+
+/* ── Forest Green Theme ── */
+.theme-forest {
+  --bg: #0a1410;
+  --nav-bg: #060e0a;
+  --stats-bg: #0c1810;
+  --surface: #10201a;
+  --surface2: #1a3028;
+  --surface3: #264038;
+  --border: #1e3028;
+  --border-light: #2a4038;
+  --text: #d8efe0;
+  --text-secondary: #b8d8c4;
+  --text-muted: #80b090;
+  --text-dim: #508868;
+  --text-tertiary: #386850;
+  --text-quaternary: #285040;
+  --accent-subtle: rgba(234, 88, 12, 0.12);
+  --accent-glow: rgba(234, 88, 12, 0.25);
+}
+
 @theme inline {
   --color-background: var(--bg);
   --color-foreground: var(--text);
