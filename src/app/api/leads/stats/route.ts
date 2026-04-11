@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getClient, initDb, first } from "@/lib/db";
+import { getClient, initDb, first, all } from "@/lib/db";
 import type { InValue } from "@libsql/client";
 
 export async function GET(request: NextRequest) {
@@ -54,6 +54,27 @@ export async function GET(request: NextRequest) {
     totalMonthly = (r?.v as number) || 0;
   } catch {}
 
+  // Win/rejection breakdown by business type
+  const byTypeSQL = `SELECT
+    business_type,
+    COUNT(*) as total,
+    SUM(CASE WHEN status IN ('won','completed') THEN 1 ELSE 0 END) as won,
+    SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected,
+    SUM(CASE WHEN status = 'lost' THEN 1 ELSE 0 END) as lost
+  FROM leads ${ownerWhere}
+  AND business_type != '' AND business_type IS NOT NULL
+  GROUP BY business_type
+  ORDER BY total DESC`;
+
+  const byTypeRows = all(await db.execute({ sql: byTypeSQL, args }));
+  const byType = byTypeRows.map((r) => ({
+    type: r.business_type as string,
+    total: Number(r.total) || 0,
+    won: Number(r.won) || 0,
+    rejected: Number(r.rejected) || 0,
+    lost: Number(r.lost) || 0,
+  }));
+
   const response = NextResponse.json({
     total: Number(stats?.total) || 0,
     emailed: Number(stats?.emailed) || 0,
@@ -68,6 +89,7 @@ export async function GET(request: NextRequest) {
     dueToday: Number(stats?.dueToday) || 0,
     totalCapex: Number(stats?.totalCapex) || 0,
     totalMonthly,
+    byType,
   });
   response.headers.set("Cache-Control", "private, max-age=5");
   return response;

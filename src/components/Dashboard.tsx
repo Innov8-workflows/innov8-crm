@@ -3,11 +3,16 @@
 import { useState, useEffect, useCallback } from "react";
 import LoadingAI from "./LoadingAI";
 
+interface TypeBreakdown {
+  type: string; total: number; won: number; rejected: number; lost: number;
+}
+
 interface ProspectStats {
   total: number; emailed: number; messaged: number; called: number;
   meetingsBooked: number; maybe: number; won: number; lost: number;
   rejected: number; overdue: number; dueToday: number;
   totalCapex: number; totalMonthly: number;
+  byType: TypeBreakdown[];
 }
 
 interface ClientStats {
@@ -183,7 +188,56 @@ export default function Dashboard({ ownerFilter = "" }: { ownerFilter?: string }
           </div>
         </div>
       </div>
-    </div>
+
+      {/* Section 5: Win & Rejection Rate by Business Type */}
+      {prospects?.byType && prospects.byType.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Win Rate */}
+          <div className="rounded-xl p-5" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+            <h3 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: "var(--text-dim)" }}>Win Rate by Business Type</h3>
+            <div className="space-y-3">
+              {prospects.byType
+                .map((t) => ({ ...t, winPct: t.total > 0 ? (t.won / t.total) * 100 : 0 }))
+                .sort((a, b) => b.winPct - a.winPct)
+                .map((t) => (
+                <div key={`win-${t.type}`} className="flex items-center gap-3">
+                  <span className="text-xs w-24 text-right flex-shrink-0 truncate" style={{ color: "var(--text-muted)" }} title={t.type}>{t.type}</span>
+                  <div className="flex-1 h-6 rounded-md overflow-hidden" style={{ background: "var(--surface2)" }}>
+                    <div className="h-full rounded-md flex items-center px-2 transition-all duration-500"
+                      style={{ width: `${Math.max(t.winPct, t.won > 0 ? 8 : 0)}%`, background: "#05966930", borderLeft: t.won > 0 ? "3px solid #059669" : "none" }}>
+                      {t.won > 0 && <span className="text-xs font-bold" style={{ color: "#059669" }}>{t.won}</span>}
+                    </div>
+                  </div>
+                  <span className="text-xs font-bold w-12 text-right" style={{ color: t.winPct > 0 ? "#059669" : "var(--text-quaternary)" }}>{t.winPct.toFixed(0)}%</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Rejection Rate */}
+          <div className="rounded-xl p-5" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+            <h3 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: "var(--text-dim)" }}>Rejection Rate by Business Type</h3>
+            <div className="space-y-3">
+              {prospects.byType
+                .map((t) => ({ ...t, rejPct: t.total > 0 ? ((t.rejected + t.lost) / t.total) * 100 : 0 }))
+                .sort((a, b) => b.rejPct - a.rejPct)
+                .map((t) => (
+                <div key={`rej-${t.type}`} className="flex items-center gap-3">
+                  <span className="text-xs w-24 text-right flex-shrink-0 truncate" style={{ color: "var(--text-muted)" }} title={t.type}>{t.type}</span>
+                  <div className="flex-1 h-6 rounded-md overflow-hidden" style={{ background: "var(--surface2)" }}>
+                    <div className="h-full rounded-md flex items-center px-2 transition-all duration-500"
+                      style={{ width: `${Math.max(t.rejPct, (t.rejected + t.lost) > 0 ? 8 : 0)}%`, background: "#ef444430", borderLeft: (t.rejected + t.lost) > 0 ? "3px solid #ef4444" : "none" }}>
+                      {(t.rejected + t.lost) > 0 && <span className="text-xs font-bold" style={{ color: "#ef4444" }}>{t.rejected + t.lost}</span>}
+                    </div>
+                  </div>
+                  <span className="text-xs font-bold w-12 text-right" style={{ color: t.rejPct > 0 ? "#ef4444" : "var(--text-quaternary)" }}>{t.rejPct.toFixed(0)}%</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+      </div>
   );
 }
 
