@@ -41,6 +41,38 @@ export default function Dashboard({ ownerFilter = "" }: { ownerFilter?: string }
   const conversionRate = prospects && prospects.total > 0 ? ((prospects.won / prospects.total) * 100).toFixed(1) : "0";
   const avgRevenue = clients && clients.clientCount > 0 ? (clients.mrr / clients.clientCount).toFixed(0) : "0";
 
+  // Pipeline funnel data
+  const funnelData = [
+    { label: "Emailed", value: prospects?.emailed || 0, color: "#3b82f6" },
+    { label: "Messaged", value: prospects?.messaged || 0, color: "#8b5cf6" },
+    { label: "Called", value: prospects?.called || 0, color: "#f59e0b" },
+    { label: "Meetings", value: prospects?.meetingsBooked || 0, color: "#10b981" },
+    { label: "Maybe", value: prospects?.maybe || 0, color: "#ea580c" },
+    { label: "Won", value: prospects?.won || 0, color: "#059669" },
+  ];
+  const funnelMax = Math.max(...funnelData.map((d) => d.value), 1);
+
+  // Stage distribution for donut chart
+  const stageData = [
+    { label: "New", value: (prospects?.total || 0) - (prospects?.emailed || 0) - (prospects?.messaged || 0) - (prospects?.called || 0) - (prospects?.meetingsBooked || 0) - (prospects?.maybe || 0) - (prospects?.won || 0) - (prospects?.lost || 0) - (prospects?.rejected || 0), color: "#6B7280" },
+    { label: "Emailed", value: prospects?.emailed || 0, color: "#3b82f6" },
+    { label: "Messaged", value: prospects?.messaged || 0, color: "#8b5cf6" },
+    { label: "Called", value: prospects?.called || 0, color: "#f59e0b" },
+    { label: "Meetings", value: prospects?.meetingsBooked || 0, color: "#10b981" },
+    { label: "Maybe", value: prospects?.maybe || 0, color: "#ea580c" },
+    { label: "Won", value: prospects?.won || 0, color: "#059669" },
+    { label: "Lost", value: prospects?.lost || 0, color: "#ef4444" },
+    { label: "Rejected", value: prospects?.rejected || 0, color: "#9CA3AF" },
+  ].filter((d) => d.value > 0);
+
+  // Outcome donut data
+  const outcomeData = [
+    { label: "Active", value: (prospects?.total || 0) - (prospects?.won || 0) - (prospects?.lost || 0) - (prospects?.rejected || 0), color: "#ea580c" },
+    { label: "Won", value: prospects?.won || 0, color: "#059669" },
+    { label: "Lost", value: prospects?.lost || 0, color: "#ef4444" },
+    { label: "Rejected", value: prospects?.rejected || 0, color: "#9CA3AF" },
+  ].filter((d) => d.value > 0);
+
   return (
     <div className="flex-1 overflow-auto p-6 space-y-6">
       {/* Section 1: Revenue Overview */}
@@ -62,7 +94,7 @@ export default function Dashboard({ ownerFilter = "" }: { ownerFilter?: string }
         </div>
       </div>
 
-      {/* Section 2: Sales Pipeline */}
+      {/* Section 2: Sales Pipeline Cards */}
       <div>
         <h2 className="text-sm font-semibold uppercase tracking-wider mb-3" style={{ color: "#666" }}>Sales Pipeline</h2>
         <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 gap-3">
@@ -78,9 +110,57 @@ export default function Dashboard({ ownerFilter = "" }: { ownerFilter?: string }
         </div>
       </div>
 
-      {/* Section 3: Key Metrics & Alerts */}
+      {/* Section 3: Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Pipeline Funnel Bar Chart */}
+        <div className="rounded-xl p-5" style={{ background: "#161616", border: "1px solid #2a2a2a" }}>
+          <h3 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: "#666" }}>Pipeline Funnel</h3>
+          <div className="space-y-3">
+            {funnelData.map((d) => (
+              <div key={d.label} className="flex items-center gap-3">
+                <span className="text-xs w-16 text-right flex-shrink-0" style={{ color: "#888" }}>{d.label}</span>
+                <div className="flex-1 h-7 rounded-md overflow-hidden" style={{ background: "#1e1e1e" }}>
+                  <div className="h-full rounded-md flex items-center pl-2 transition-all duration-500"
+                    style={{ width: `${Math.max((d.value / funnelMax) * 100, d.value > 0 ? 8 : 0)}%`, background: `${d.color}30`, borderLeft: `3px solid ${d.color}` }}>
+                    <span className="text-xs font-bold" style={{ color: d.color }}>{d.value}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Stage Distribution Donut */}
+        <div className="rounded-xl p-5 flex flex-col items-center" style={{ background: "#161616", border: "1px solid #2a2a2a" }}>
+          <h3 className="text-sm font-semibold uppercase tracking-wider mb-4 self-start" style={{ color: "#666" }}>Stage Distribution</h3>
+          <DonutChart data={stageData} total={prospects?.total || 0} centerLabel="Leads" />
+          <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 mt-4">
+            {stageData.map((d) => (
+              <div key={d.label} className="flex items-center gap-1.5">
+                <div className="w-2.5 h-2.5 rounded-full" style={{ background: d.color }} />
+                <span className="text-xs" style={{ color: "#888" }}>{d.label} ({d.value})</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Outcome Donut */}
+        <div className="rounded-xl p-5 flex flex-col items-center" style={{ background: "#161616", border: "1px solid #2a2a2a" }}>
+          <h3 className="text-sm font-semibold uppercase tracking-wider mb-4 self-start" style={{ color: "#666" }}>Outcomes</h3>
+          <DonutChart data={outcomeData} total={prospects?.total || 0} centerLabel="Total" />
+          <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 mt-4">
+            {outcomeData.map((d) => (
+              <div key={d.label} className="flex items-center gap-1.5">
+                <div className="w-2.5 h-2.5 rounded-full" style={{ background: d.color }} />
+                <span className="text-xs" style={{ color: "#888" }}>{d.label} ({d.value})</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Section 4: Key Metrics & Alerts */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {/* Key Metrics */}
         <div className="rounded-xl p-5" style={{ background: "#161616", border: "1px solid #2a2a2a" }}>
           <h3 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: "#666" }}>Key Metrics</h3>
           <div className="space-y-4">
@@ -93,7 +173,6 @@ export default function Dashboard({ ownerFilter = "" }: { ownerFilter?: string }
           </div>
         </div>
 
-        {/* Alerts */}
         <div className="rounded-xl p-5" style={{ background: "#161616", border: "1px solid #2a2a2a" }}>
           <h3 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: "#666" }}>Alerts</h3>
           <div className="space-y-3">
@@ -107,6 +186,45 @@ export default function Dashboard({ ownerFilter = "" }: { ownerFilter?: string }
     </div>
   );
 }
+
+/* ── Chart Components ── */
+
+function DonutChart({ data, total, centerLabel }: { data: { label: string; value: number; color: string }[]; total: number; centerLabel: string }) {
+  const size = 180;
+  const strokeWidth = 28;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+
+  let accumulated = 0;
+  const segments = data.map((d) => {
+    const pct = total > 0 ? d.value / total : 0;
+    const offset = accumulated;
+    accumulated += pct;
+    return { ...d, pct, offset };
+  });
+
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      {/* Background ring */}
+      <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#1e1e1e" strokeWidth={strokeWidth} />
+      {/* Data segments */}
+      {segments.map((seg) => (
+        <circle key={seg.label} cx={size / 2} cy={size / 2} r={radius} fill="none"
+          stroke={seg.color} strokeWidth={strokeWidth}
+          strokeDasharray={`${seg.pct * circumference} ${circumference}`}
+          strokeDashoffset={-seg.offset * circumference}
+          strokeLinecap="butt"
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+          style={{ transition: "stroke-dasharray 0.6s ease" }} />
+      ))}
+      {/* Center text */}
+      <text x={size / 2} y={size / 2 - 8} textAnchor="middle" fill="#f0f0f0" fontSize="28" fontWeight="700">{total}</text>
+      <text x={size / 2} y={size / 2 + 14} textAnchor="middle" fill="#666" fontSize="11" fontWeight="500">{centerLabel}</text>
+    </svg>
+  );
+}
+
+/* ── Card Components ── */
 
 function RevenueCard({ label, value, color, icon }: { label: string; value: string; color: string; icon: string }) {
   return (
