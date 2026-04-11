@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 
-type ViewId = "prospects" | "projects" | "clients" | "dashboard";
+type ViewId = "prospects" | "projects" | "clients" | "dashboard" | "pricing";
 
 interface ViewNavProps {
   active: ViewId;
@@ -18,6 +18,7 @@ const views = [
   { id: "projects" as const, label: "Projects", emoji: "🔨" },
   { id: "clients" as const, label: "Live Clients", emoji: "✅" },
   { id: "dashboard" as const, label: "Dashboard", emoji: "📊" },
+  { id: "pricing" as const, label: "Pricing", emoji: "💷" },
 ];
 
 export default function ViewNav({ active, onChange, projectCount = 0, clientCount = 0, ownerFilter, onOwnerChange }: ViewNavProps) {

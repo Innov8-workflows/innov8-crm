@@ -11,9 +11,10 @@ const LeadGrid = lazy(() => import("@/components/LeadGrid"));
 const KanbanBoard = lazy(() => import("@/components/KanbanBoard"));
 const LiveClients = lazy(() => import("@/components/LiveClients"));
 const Dashboard = lazy(() => import("@/components/Dashboard"));
+const Pricing = lazy(() => import("@/components/Pricing"));
 
 export default function Home() {
-  const [view, setView] = useState<"prospects" | "projects" | "clients" | "dashboard">("prospects");
+  const [view, setView] = useState<"prospects" | "projects" | "clients" | "dashboard" | "pricing">("prospects");
   const [projectCount, setProjectCount] = useState(0);
   const [clientCount, setClientCount] = useState(0);
   const [ownerFilter, setOwnerFilter] = useState(() => {
@@ -55,6 +56,9 @@ export default function Home() {
           </ErrorBoundary>
           <ErrorBoundary fallbackMessage="Dashboard failed to load">
             {view === "dashboard" && <Dashboard ownerFilter={ownerFilter} />}
+          </ErrorBoundary>
+          <ErrorBoundary fallbackMessage="Pricing failed to load">
+            {view === "pricing" && <Pricing />}
           </ErrorBoundary>
         </Suspense>
       </div>
