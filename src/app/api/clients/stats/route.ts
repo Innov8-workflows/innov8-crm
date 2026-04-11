@@ -8,35 +8,36 @@ export async function GET(request: NextRequest) {
   const ownerParam = request.nextUrl.searchParams.get("owner");
   const today = new Date().toISOString().split("T")[0];
 
-  // Build owner join/filter
-  let ownerJoin = "";
+  // Always JOIN leads for owner filter and capex
   let ownerFilter = "";
-  const ownerArgs: unknown[] = [];
+  const args: unknown[] = [];
   if (ownerParam === "__unassigned__") {
-    ownerJoin = " JOIN leads l ON p.lead_id = l.id";
     ownerFilter = " AND (l.owner = '' OR l.owner IS NULL)";
   } else if (ownerParam) {
-    ownerJoin = " JOIN leads l ON p.lead_id = l.id";
     ownerFilter = " AND l.owner = ?";
-    ownerArgs.push(ownerParam);
+    args.push(ownerParam);
   }
 
-  const ACTIVE = `p.completed_at != '' AND (p.client_status IN ('active', 'refine') OR p.client_status IS NULL)`;
-  const LOST = `p.completed_at != '' AND p.client_status = 'lost'`;
+  // Single query for all client stats (was 5 separate queries)
+  const sql = `SELECT
+    COALESCE(SUM(CASE WHEN p.client_status IN ('active','refine') OR p.client_status IS NULL THEN p.monthly_fee ELSE 0 END), 0) as mrr,
+    COALESCE(SUM(CASE WHEN p.client_status IN ('active','refine') OR p.client_status IS NULL THEN l.capex ELSE 0 END), 0) as capex,
+    SUM(CASE WHEN p.client_status IN ('active','refine') OR p.client_status IS NULL THEN 1 ELSE 0 END) as clientCount,
+    SUM(CASE WHEN (p.client_status IN ('active','refine') OR p.client_status IS NULL) AND p.renewal_date != '' AND p.renewal_date < '${today}' THEN 1 ELSE 0 END) as overdueRenewals,
+    SUM(CASE WHEN p.client_status = 'lost' THEN 1 ELSE 0 END) as lostClients
+  FROM projects p
+  JOIN leads l ON p.lead_id = l.id
+  WHERE p.completed_at != ''${ownerFilter}`;
 
-  const [mrrResult, capexResult, countResult, overdueResult, lostResult] = await Promise.all([
-    db.execute({ sql: `SELECT COALESCE(SUM(p.monthly_fee), 0) as total FROM projects p${ownerJoin} WHERE ${ACTIVE}${ownerFilter}`, args: [...ownerArgs] as never[] }),
-    db.execute({ sql: `SELECT COALESCE(SUM(l2.capex), 0) as total FROM leads l2 JOIN projects p ON p.lead_id = l2.id${ownerParam ? " JOIN leads lo ON p.lead_id = lo.id" : ""} WHERE ${ACTIVE}${ownerParam === "__unassigned__" ? " AND (l2.owner = '' OR l2.owner IS NULL)" : ownerParam ? " AND l2.owner = ?" : ""}`, args: ownerParam && ownerParam !== "__unassigned__" ? [ownerParam] as never[] : [] as never[] }),
-    db.execute({ sql: `SELECT COUNT(*) as total FROM projects p${ownerJoin} WHERE ${ACTIVE}${ownerFilter}`, args: [...ownerArgs] as never[] }),
-    db.execute({ sql: `SELECT COUNT(*) as total FROM projects p${ownerJoin} WHERE ${ACTIVE}${ownerFilter} AND p.renewal_date != '' AND p.renewal_date < ?`, args: [...ownerArgs, today] as never[] }),
-    db.execute({ sql: `SELECT COUNT(*) as total FROM projects p${ownerJoin} WHERE ${LOST}${ownerFilter}`, args: [...ownerArgs] as never[] }),
-  ]);
+  const stats = first(await db.execute({ sql, args: args as never[] }));
 
-  return NextResponse.json({
-    mrr: (first(mrrResult)?.total as number) || 0,
-    capex: (first(capexResult)?.total as number) || 0,
-    clientCount: (first(countResult)?.total as number) || 0,
-    overdueRenewals: (first(overdueResult)?.total as number) || 0,
-    lostClients: (first(lostResult)?.total as number) || 0,
+  const response = NextResponse.json({
+    mrr: Number(stats?.mrr) || 0,
+    capex: Number(stats?.capex) || 0,
+    clientCount: Number(stats?.clientCount) || 0,
+    overdueRenewals: Number(stats?.overdueRenewals) || 0,
+    lostClients: Number(stats?.lostClients) || 0,
   });
+  response.headers.set("Cache-Control", "private, max-age=5");
+  return response;
 }

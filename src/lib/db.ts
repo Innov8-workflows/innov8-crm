@@ -13,7 +13,18 @@ export function getClient(): Client {
   return client;
 }
 
+let dbInitialised = false;
+let dbInitPromise: Promise<void> | null = null;
+
 export async function initDb() {
+  if (dbInitialised) return;
+  if (dbInitPromise) return dbInitPromise;
+  dbInitPromise = doInitDb();
+  await dbInitPromise;
+  dbInitialised = true;
+}
+
+async function doInitDb() {
   const db = getClient();
 
   await db.executeMultiple(`
