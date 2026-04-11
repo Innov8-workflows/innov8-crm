@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Loading Icon Previews — Pick Your Favourite</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0f0f0f; color: #f0f0f0; font-family: -apple-system, sans-serif; padding: 40px; }
+  h1 { text-align: center; font-size: 24px; margin-bottom: 40px; color: #ea580c; }
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 30px; max-width: 900px; margin: 0 auto; }
+  .card { background: #161616; border: 1px solid #2a2a2a; border-radius: 16px; padding: 40px 20px; text-align: center; }
+  .card h2 { font-size: 16px; color: #ea580c; margin-bottom: 8px; }
+  .card p { font-size: 12px; color: #888; margin-bottom: 30px; }
+  .preview { display: flex; justify-content: center; align-items: center; min-height: 140px; }
+  .label { margin-top: 20px; font-size: 11px; color: #555; }
+</style>
+</head>
+<body>
+<h1>Pick Your AI Loading Animation</h1>
+<div class="grid">
+
+<!-- 1. Neural Pulse -->
+<div class="card">
+  <h2>1. Neural Pulse</h2>
+  <p>Brain with electrical signals firing along neural pathways</p>
+  <div class="preview">
+    <svg width="120" height="120" viewBox="0 0 120 120" fill="none">
+      <!-- Brain outline -->
+      <circle cx="60" cy="60" r="40" stroke="#ea580c" stroke-width="1.5" opacity="0.3"/>
+      <circle cx="60" cy="60" r="25" stroke="#ea580c" stroke-width="1" opacity="0.2"/>
+      <!-- Neural pathways -->
+      <g>
+        <line x1="60" y1="60" x2="60" y2="18" stroke="#ea580c" stroke-width="0.8" opacity="0.3"/>
+        <line x1="60" y1="60" x2="96" y2="39" stroke="#ea580c" stroke-width="0.8" opacity="0.3"/>
+        <line x1="60" y1="60" x2="96" y2="81" stroke="#ea580c" stroke-width="0.8" opacity="0.3"/>
+        <line x1="60" y1="60" x2="60" y2="102" stroke="#ea580c" stroke-width="0.8" opacity="0.3"/>
+        <line x1="60" y1="60" x2="24" y2="81" stroke="#ea580c" stroke-width="0.8" opacity="0.3"/>
+        <line x1="60" y1="60" x2="24" y2="39" stroke="#ea580c" stroke-width="0.8" opacity="0.3"/>
+      </g>
+      <!-- Pulse dots travelling along pathways -->
+      <circle r="3" fill="#ea580c" opacity="0.9">
+        <animateMotion dur="1.5s" repeatCount="indefinite" path="M60,60 L60,18"/>
+        <animate attributeName="opacity" values="0;1;0" dur="1.5s" repeatCount="indefinite"/>
+      </circle>
+      <circle r="3" fill="#f97316" opacity="0.9">
+        <animateMotion dur="1.5s" begin="0.25s" repeatCount="indefinite" path="M60,60 L96,39"/>
+        <animate attributeName="opacity" values="0;1;0" dur="1.5s" begin="0.25s" repeatCount="indefinite"/>
+      </circle>
+      <circle r="3" fill="#ea580c" opacity="0.9">
+        <animateMotion dur="1.5s" begin="0.5s" repeatCount="indefinite" path="M60,60 L96,81"/>
+        <animate attributeName="opacity" values="0;1;0" dur="1.5s" begin="0.5s" repeatCount="indefinite"/>
+      </circle>
+      <circle r="3" fill="#f97316" opacity="0.9">
+        <animateMotion dur="1.5s" begin="0.75s" repeatCount="indefinite" path="M60,60 L60,102"/>
+        <animate attributeName="opacity" values="0;1;0" dur="1.5s" begin="0.75s" repeatCount="indefinite"/>
+      </circle>
+      <circle r="3" fill="#ea580c" opacity="0.9">
+        <animateMotion dur="1.5s" begin="1s" repeatCount="indefinite" path="M60,60 L24,81"/>
+        <animate attributeName="opacity" values="0;1;0" dur="1.5s" begin="1s" repeatCount="indefinite"/>
+      </circle>
+      <circle r="3" fill="#f97316" opacity="0.9">
+        <animateMotion dur="1.5s" begin="1.25s" repeatCount="indefinite" path="M60,60 L24,39"/>
+        <animate attributeName="opacity" values="0;1;0" dur="1.5s" begin="1.25s" repeatCount="indefinite"/>
+      </circle>
+      <!-- Centre node -->
+      <circle cx="60" cy="60" r="6" fill="#161616" stroke="#ea580c" stroke-width="1.5"/>
+      <circle cx="60" cy="60" r="3" fill="#ea580c" opacity="0.6">
+        <animate attributeName="r" values="2;4;2" dur="2s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0.4;0.8;0.4" dur="2s" repeatCount="indefinite"/>
+      </circle>
+      <!-- Outer nodes -->
+      <circle cx="60" cy="18" r="3" fill="#ea580c" opacity="0.5"><animate attributeName="opacity" values="0.3;1;0.3" dur="1.5s" repeatCount="indefinite"/></circle>
+      <circle cx="96" cy="39" r="3" fill="#ea580c" opacity="0.5"><animate attributeName="opacity" values="0.3;1;0.3" dur="1.5s" begin="0.25s" repeatCount="indefinite"/></circle>
+      <circle cx="96" cy="81" r="3" fill="#ea580c" opacity="0.5"><animate attributeName="opacity" values="0.3;1;0.3" dur="1.5s" begin="0.5s" repeatCount="indefinite"/></circle>
+      <circle cx="60" cy="102" r="3" fill="#ea580c" opacity="0.5"><animate attributeName="opacity" values="0.3;1;0.3" dur="1.5s" begin="0.75s" repeatCount="indefinite"/></circle>
+      <circle cx="24" cy="81" r="3" fill="#ea580c" opacity="0.5"><animate attributeName="opacity" values="0.3;1;0.3" dur="1.5s" begin="1s" repeatCount="indefinite"/></circle>
+      <circle cx="24" cy="39" r="3" fill="#ea580c" opacity="0.5"><animate attributeName="opacity" values="0.3;1;0.3" dur="1.5s" begin="1.25s" repeatCount="indefinite"/></circle>
+    </svg>
+  </div>
+  <div class="label">Neural network with firing synapses</div>
+</div>
+
+<!-- 2. AI Orbit -->
+<div class="card">
+  <h2>2. AI Orbit</h2>
+  <p>Concentric rings with orbiting data particles</p>
+  <div class="preview">
+    <svg width="120" height="120" viewBox="0 0 120 120" fill="none">
+      <!-- Outer ring - slow -->
+      <circle cx="60" cy="60" r="50" stroke="#ea580c" stroke-width="1" opacity="0.2" stroke-dasharray="4 8"/>
+      <circle cx="60" cy="60" r="50" stroke="#ea580c" stroke-width="1.5" opacity="0.4" stroke-dasharray="20 295" stroke-linecap="round">
+        <animateTransform attributeName="transform" type="rotate" from="0 60 60" to="360 60 60" dur="8s" repeatCount="indefinite"/>
+      </circle>
+      <!-- Middle ring - medium -->
+      <circle cx="60" cy="60" r="35" stroke="#f97316" stroke-width="1" opacity="0.15"/>
+      <circle cx="60" cy="60" r="35" stroke="#f97316" stroke-width="1.5" opacity="0.5" stroke-dasharray="30 190" stroke-linecap="round">
+        <animateTransform attributeName="transform" type="rotate" from="360 60 60" to="0 60 60" dur="4s" repeatCount="indefinite"/>
+      </circle>
+      <!-- Inner ring - fast -->
+      <circle cx="60" cy="60" r="20" stroke="#ea580c" stroke-width="1" opacity="0.15"/>
+      <circle cx="60" cy="60" r="20" stroke="#ea580c" stroke-width="2" opacity="0.6" stroke-dasharray="15 111" stroke-linecap="round">
+        <animateTransform attributeName="transform" type="rotate" from="0 60 60" to="360 60 60" dur="2s" repeatCount="indefinite"/>
+      </circle>
+      <!-- Orbiting particles -->
+      <circle r="3.5" fill="#ea580c"><animateMotion dur="8s" repeatCount="indefinite" path="M60,10 A50,50 0 1,1 59.99,10"/></circle>
+      <circle r="2.5" fill="#f97316"><animateMotion dur="8s" begin="2.6s" repeatCount="indefinite" path="M60,10 A50,50 0 1,1 59.99,10"/></circle>
+      <circle r="3" fill="#f97316"><animateMotion dur="4s" repeatCount="indefinite" path="M60,25 A35,35 0 1,0 60.01,25"/></circle>
+      <circle r="2.5" fill="#ea580c"><animateMotion dur="2s" repeatCount="indefinite" path="M60,40 A20,20 0 1,1 59.99,40"/></circle>
+      <!-- Centre hexagon -->
+      <polygon points="60,50 68.66,55 68.66,65 60,70 51.34,65 51.34,55" fill="#161616" stroke="#ea580c" stroke-width="1.5"/>
+      <circle cx="60" cy="60" r="4" fill="#ea580c" opacity="0.5">
+        <animate attributeName="r" values="3;5;3" dur="1.5s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0.3;0.7;0.3" dur="1.5s" repeatCount="indefinite"/>
+      </circle>
+    </svg>
+  </div>
+  <div class="label">Data processing orbits with hexagonal core</div>
+</div>
+
+<!-- 3. Morphing Cube -->
+<div class="card">
+  <h2>3. Morphing Cube</h2>
+  <p>Wireframe shape that rotates and pulses</p>
+  <div class="preview">
+    <svg width="120" height="120" viewBox="0 0 120 120" fill="none">
+      <g transform="translate(60,60)">
+        <!-- Rotating wireframe cube -->
+        <g>
+          <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="6s" repeatCount="indefinite"/>
+          <!-- Front face -->
+          <rect x="-25" y="-25" width="50" height="50" stroke="#ea580c" stroke-width="1.5" fill="none" opacity="0.6" rx="2">
+            <animate attributeName="rx" values="2;25;2" dur="4s" repeatCount="indefinite"/>
+          </rect>
+          <!-- Back face (offset) -->
+          <rect x="-18" y="-18" width="36" height="36" stroke="#f97316" stroke-width="1" fill="none" opacity="0.3" rx="2">
+            <animate attributeName="rx" values="2;18;2" dur="4s" repeatCount="indefinite"/>
+          </rect>
+          <!-- Inner shape -->
+          <rect x="-10" y="-10" width="20" height="20" stroke="#ea580c" stroke-width="1" fill="none" opacity="0.2" rx="1">
+            <animate attributeName="rx" values="1;10;1" dur="4s" repeatCount="indefinite"/>
+          </rect>
+          <!-- Connecting lines -->
+          <line x1="-25" y1="-25" x2="-18" y2="-18" stroke="#ea580c" stroke-width="0.5" opacity="0.3"/>
+          <line x1="25" y1="-25" x2="18" y2="-18" stroke="#ea580c" stroke-width="0.5" opacity="0.3"/>
+          <line x1="25" y1="25" x2="18" y2="18" stroke="#ea580c" stroke-width="0.5" opacity="0.3"/>
+          <line x1="-25" y1="25" x2="-18" y2="18" stroke="#ea580c" stroke-width="0.5" opacity="0.3"/>
+          <!-- Vertex dots -->
+          <circle cx="-25" cy="-25" r="2" fill="#ea580c"><animate attributeName="opacity" values="0.3;1;0.3" dur="2s" repeatCount="indefinite"/></circle>
+          <circle cx="25" cy="-25" r="2" fill="#ea580c"><animate attributeName="opacity" values="0.3;1;0.3" dur="2s" begin="0.5s" repeatCount="indefinite"/></circle>
+          <circle cx="25" cy="25" r="2" fill="#ea580c"><animate attributeName="opacity" values="0.3;1;0.3" dur="2s" begin="1s" repeatCount="indefinite"/></circle>
+          <circle cx="-25" cy="25" r="2" fill="#ea580c"><animate attributeName="opacity" values="0.3;1;0.3" dur="2s" begin="1.5s" repeatCount="indefinite"/></circle>
+        </g>
+        <!-- Centre glow -->
+        <circle r="8" fill="#ea580c" opacity="0.08">
+          <animate attributeName="r" values="6;12;6" dur="2s" repeatCount="indefinite"/>
+        </circle>
+      </g>
+    </svg>
+  </div>
+  <div class="label">Rotating wireframe morphing cube → sphere</div>
+</div>
+
+<!-- 4. DNA Helix -->
+<div class="card">
+  <h2>4. DNA Helix</h2>
+  <p>Double helix with data flowing upward through nodes</p>
+  <div class="preview">
+    <svg width="120" height="120" viewBox="0 0 120 120" fill="none">
+      <g>
+        <!-- Strand 1 -->
+        <path d="M35,105 C35,95 85,85 85,75 C85,65 35,55 35,45 C35,35 85,25 85,15" stroke="#ea580c" stroke-width="2" fill="none" opacity="0.6" stroke-linecap="round"/>
+        <!-- Strand 2 -->
+        <path d="M85,105 C85,95 35,85 35,75 C35,65 85,55 85,45 C85,35 35,25 35,15" stroke="#f97316" stroke-width="2" fill="none" opacity="0.4" stroke-linecap="round"/>
+        <!-- Connecting rungs -->
+        <line x1="35" y1="105" x2="85" y2="105" stroke="#ea580c" stroke-width="0.5" opacity="0.2"/>
+        <line x1="60" y1="90" x2="60" y2="90" stroke="#ea580c" stroke-width="0.5" opacity="0.2"/>
+        <line x1="85" y1="75" x2="35" y2="75" stroke="#ea580c" stroke-width="0.5" opacity="0.2"/>
+        <line x1="60" y1="60" x2="60" y2="60" stroke="#ea580c" stroke-width="0.5" opacity="0.2"/>
+        <line x1="35" y1="45" x2="85" y2="45" stroke="#ea580c" stroke-width="0.5" opacity="0.2"/>
+        <line x1="60" y1="30" x2="60" y2="30" stroke="#ea580c" stroke-width="0.5" opacity="0.2"/>
+        <line x1="85" y1="15" x2="35" y2="15" stroke="#ea580c" stroke-width="0.5" opacity="0.2"/>
+        <!-- Nodes on strand 1 - pulse upward -->
+        <circle cx="35" cy="105" r="3" fill="#ea580c"><animate attributeName="opacity" values="0.2;1;0.2" dur="2s" repeatCount="indefinite"/></circle>
+        <circle cx="85" cy="75" r="3" fill="#ea580c"><animate attributeName="opacity" values="0.2;1;0.2" dur="2s" begin="0.4s" repeatCount="indefinite"/></circle>
+        <circle cx="35" cy="45" r="3" fill="#ea580c"><animate attributeName="opacity" values="0.2;1;0.2" dur="2s" begin="0.8s" repeatCount="indefinite"/></circle>
+        <circle cx="85" cy="15" r="3" fill="#ea580c"><animate attributeName="opacity" values="0.2;1;0.2" dur="2s" begin="1.2s" repeatCount="indefinite"/></circle>
+        <!-- Nodes on strand 2 - pulse upward offset -->
+        <circle cx="85" cy="105" r="3" fill="#f97316"><animate attributeName="opacity" values="0.2;1;0.2" dur="2s" begin="0.2s" repeatCount="indefinite"/></circle>
+        <circle cx="35" cy="75" r="3" fill="#f97316"><animate attributeName="opacity" values="0.2;1;0.2" dur="2s" begin="0.6s" repeatCount="indefinite"/></circle>
+        <circle cx="85" cy="45" r="3" fill="#f97316"><animate attributeName="opacity" values="0.2;1;0.2" dur="2s" begin="1s" repeatCount="indefinite"/></circle>
+        <circle cx="35" cy="15" r="3" fill="#f97316"><animate attributeName="opacity" values="0.2;1;0.2" dur="2s" begin="1.4s" repeatCount="indefinite"/></circle>
+        <!-- Data pulse travelling up strand 1 -->
+        <circle r="2.5" fill="#fff" opacity="0.8">
+          <animateMotion dur="2.5s" repeatCount="indefinite" path="M35,105 C35,95 85,85 85,75 C85,65 35,55 35,45 C35,35 85,25 85,15"/>
+          <animate attributeName="opacity" values="0;0.9;0" dur="2.5s" repeatCount="indefinite"/>
+        </circle>
+      </g>
+    </svg>
+  </div>
+  <div class="label">Data flowing up through double helix strands</div>
+</div>
+
+</div>
+
+<p style="text-align:center; margin-top:40px; color:#666; font-size:13px;">Click on the one you like and tell me the number!</p>
+</body>
+</html>
