@@ -111,6 +111,46 @@
   --accent-glow: rgba(234, 88, 12, 0.25);
 }
 
+/* ── Purple Theme ── */
+.theme-purple {
+  --bg: #0e0a18;
+  --nav-bg: #080512;
+  --stats-bg: #110c1e;
+  --surface: #1a1128;
+  --surface2: #261a3a;
+  --surface3: #35264e;
+  --border: #2e1f44;
+  --border-light: #3d2c5a;
+  --text: #e8e0f4;
+  --text-secondary: #d0c4e4;
+  --text-muted: #a090c0;
+  --text-dim: #7860a0;
+  --text-tertiary: #5c4680;
+  --text-quaternary: #443466;
+  --accent-subtle: rgba(234, 88, 12, 0.12);
+  --accent-glow: rgba(234, 88, 12, 0.25);
+}
+
+/* ── Pink Theme ── */
+.theme-pink {
+  --bg: #180a12;
+  --nav-bg: #12060c;
+  --stats-bg: #1e0c16;
+  --surface: #28111e;
+  --surface2: #3a1a2c;
+  --surface3: #4e2640;
+  --border: #441f34;
+  --border-light: #5a2c48;
+  --text: #f4e0ec;
+  --text-secondary: #e4c4d6;
+  --text-muted: #c090a8;
+  --text-dim: #a06080;
+  --text-tertiary: #804664;
+  --text-quaternary: #66344e;
+  --accent-subtle: rgba(234, 88, 12, 0.12);
+  --accent-glow: rgba(234, 88, 12, 0.25);
+}
+
 @theme inline {
   --color-background: var(--bg);
   --color-foreground: var(--text);
