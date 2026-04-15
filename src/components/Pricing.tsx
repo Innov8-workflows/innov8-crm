@@ -69,14 +69,33 @@ export default function Pricing() {
         </div>
       </div>
 
+      {/* Discovery Questions */}
+      <div className="rounded-xl p-6" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+        <h3 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: "var(--text-dim)" }}>Discovery Questions — Keep the Conversation Going</h3>
+        <p className="text-xs mb-4" style={{ color: "var(--text-quaternary)" }}>Use these to understand their situation and keep things natural. Don&apos;t fire them off like a checklist — weave them in.</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <QuestionCard emoji="🤔" question="Have you just not got round to getting a website?" note="Opens the door — most say yes, which means they already want one" />
+          <QuestionCard emoji="💷" question="Has price been a big factor in why you haven't got one?" note="If yes, perfect lead-in to T1 at £0 upfront" />
+          <QuestionCard emoji="📸" question="Have you had a chance to look at the before & afters section?" note="Draws attention to the gallery — visual proof of quality" />
+          <QuestionCard emoji="📱" question="How do most of your customers find you at the moment?" note="Reveals their reliance on Facebook/word of mouth — your angle" />
+          <QuestionCard emoji="⭐" question="I saw you've got some cracking reviews — do you get many enquiries from them?" note="Compliment + shows you've done your homework" />
+          <QuestionCard emoji="🔍" question="Have you ever Googled your trade in your area and seen who comes up?" note="Plants the SEO seed — they'll check after the call" />
+          <QuestionCard emoji="📞" question="Do you get much work over the quieter months?" note="If yes, great. If no — that's exactly what a website helps with" />
+          <QuestionCard emoji="🏆" question="What would set you apart from the competition if someone was comparing?" note="Gets them talking about their USP — use it to show how the site highlights that" />
+          <QuestionCard emoji="🌐" question="If someone searched for a [plumber/groomer/etc] near you right now, would they find you?" note="Rhetorical usually — makes them realise the gap" />
+        </div>
+      </div>
+
       {/* Quick Reference */}
       <div className="rounded-xl p-6" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
         <h3 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: "var(--text-dim)" }}>Quick Reference — Objection Handling</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <ObjectionCard objection="I already have a website" response="Have a look at yours vs the one I've built — which looks more professional? Plus yours isn't ranking on Google." />
-          <ObjectionCard objection="I get enough work from Facebook" response="Facebook's great for now, but what happens when the algorithm changes? A website means you own your online presence." />
-          <ObjectionCard objection="I can't afford it" response="T1 is £0 upfront. And one extra job a month from the website pays for itself many times over." />
-          <ObjectionCard objection="I'll think about it" response="No problem — the demo site will stay live for you to look at. But the offer is first-come-first-served in your area." />
+          <ObjectionCard objection="I already have a website" response="That's fair enough — I had a quick look at it actually. I just thought with the one I've built, it might be worth comparing the two side by side and seeing which one you prefer. No pressure at all." />
+          <ObjectionCard objection="I get enough work from Facebook" response="That's great to hear, honestly. Facebook's brilliant for that. I just think having your own site as well means you're not fully relying on one platform — if the algorithm changes or your page gets restricted, you've always got your own space online." />
+          <ObjectionCard objection="I can't afford it" response="Totally understand — that's exactly why we do the first option at £0 upfront. It's just a small monthly, and realistically one extra job from it would cover that many times over. But no pressure, it's completely up to you." />
+          <ObjectionCard objection="I'll think about it" response="Of course, take your time — the demo site's there for you to look at whenever you're ready. I'll leave it live so you can show anyone. Just bear in mind I only work with one business per trade per area, so if someone else in your patch reaches out first, I'd have to prioritise them." />
+          <ObjectionCard objection="I've been burned before / had a bad experience" response="I'm sorry to hear that, genuinely. That's actually really common which is why we do things differently — we build the site first so you can see exactly what you're getting before you commit to anything. No surprises." />
+          <ObjectionCard objection="I don't really understand websites" response="Honestly you don't need to — that's what I'm here for. I handle absolutely everything: the design, the hosting, keeping it updated. You just carry on doing what you do best and the site works away in the background bringing in enquiries." />
         </div>
       </div>
     </div>
@@ -124,6 +143,18 @@ function BenefitItem({ text }: { text: string }) {
       <span className="mt-0.5 flex-shrink-0" style={{ color: "var(--accent)" }}>&#10003;</span>
       {text}
     </li>
+  );
+}
+
+function QuestionCard({ emoji, question, note }: { emoji: string; question: string; note: string }) {
+  return (
+    <div className="rounded-lg p-4" style={{ background: "var(--surface2)", border: "1px solid var(--border)" }}>
+      <div className="flex items-start gap-2 mb-2">
+        <span className="text-lg flex-shrink-0">{emoji}</span>
+        <p className="text-sm font-medium" style={{ color: "var(--text)" }}>&ldquo;{question}&rdquo;</p>
+      </div>
+      <p className="text-xs pl-7" style={{ color: "var(--text-dim)" }}>{note}</p>
+    </div>
   );
 }
 
