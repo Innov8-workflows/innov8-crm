@@ -43,11 +43,11 @@ export default function Pricing() {
           <h3 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: "var(--text-dim)" }}>Sales Script</h3>
           <div className="space-y-4 text-sm" style={{ color: "var(--text-secondary)" }}>
             <ScriptLine speaker="You" text={`"Hey is that XXX, how are you?"`} />
-            <ScriptLine speaker="Them" text={`"Not bad,"`} dim />
+            <ScriptLine speaker="Them" text={`"Not bad, you?"`} dim />
+            <ScriptLine speaker="You" text={`"Yes, not bad at all..."`} />
             <div className="pl-4" style={{ borderLeft: "2px solid var(--accent)", color: "var(--text)" }}>
-              <p>I noticed you didn&apos;t have a website on Facebook, so I&apos;ve gone ahead and built you one using your reviews and pictures, I&apos;ve sent this across to you.</p>
+              <p>I noticed you didn&apos;t have a website on Facebook, so I&apos;ve went ahead and built you a demo one using your reviews and pictures, and sent this across on messenger, did you manage to have a look at it?</p>
             </div>
-            <ScriptLine speaker="You" text={`"Did you manage to have a look at it? It would be a shame you haven't seen it"`} />
           </div>
         </div>
 
