@@ -42,11 +42,13 @@ export default function Pricing() {
         <div className="rounded-xl p-6" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
           <h3 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: "var(--text-dim)" }}>Sales Script</h3>
           <div className="space-y-4 text-sm" style={{ color: "var(--text-secondary)" }}>
-            <ScriptLine speaker="You" text={`"Hey is that XXX, how are you?"`} />
-            <ScriptLine speaker="Them" text={`"Not bad, you?"`} dim />
+            <ScriptLine speaker="You" text={`"Hey is that XXX?"`} />
+            <ScriptLine speaker="Them" text={`"Yes it is"`} dim />
+            <ScriptLine speaker="You" text={`"Brilliant, how are you today?"`} />
+            <ScriptLine speaker="Them" text={`"Not bad, yourself?"`} dim />
             <ScriptLine speaker="You" text={`"Yes, not bad at all..."`} />
             <div className="pl-4" style={{ borderLeft: "2px solid var(--accent)", color: "var(--text)" }}>
-              <p>I noticed you didn&apos;t have a website on Facebook, so I&apos;ve went ahead and built you a demo one using your reviews and pictures, and sent this across on messenger, did you manage to have a look at it?</p>
+              <p>I noticed you didn&apos;t have a website on Facebook, so I went ahead and built you a demo one using your reviews and pictures, and sent this across on messenger, did you manage to have a look at it?</p>
             </div>
           </div>
         </div>
