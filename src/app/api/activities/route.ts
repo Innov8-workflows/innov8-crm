@@ -8,7 +8,9 @@ export async function GET(request: NextRequest) {
   if (!leadId) return NextResponse.json({ error: "lead_id required" }, { status: 400 });
 
   const result = await db.execute({ sql: "SELECT * FROM activities WHERE lead_id = ? ORDER BY created_at DESC", args: [Number(leadId)] });
-  return NextResponse.json({ activities: all(result) });
+  return NextResponse.json({ activities: all(result) }, {
+    headers: { "Cache-Control": "private, max-age=10" },
+  });
 }
 
 export async function POST(request: NextRequest) {

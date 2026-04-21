@@ -5,7 +5,9 @@ export async function GET() {
   await initDb();
   const db = getClient();
   const result = await db.execute("SELECT * FROM column_config ORDER BY sort_order ASC");
-  return NextResponse.json({ columns: all(result) });
+  return NextResponse.json({ columns: all(result) }, {
+    headers: { "Cache-Control": "private, max-age=60" },
+  });
 }
 
 export async function PUT(request: NextRequest) {

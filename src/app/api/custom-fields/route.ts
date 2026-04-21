@@ -12,12 +12,16 @@ export async function GET(request: NextRequest) {
       sql: "SELECT * FROM custom_field_values WHERE lead_id = ?",
       args: [Number(leadId)],
     });
-    return NextResponse.json({ values: all(result) });
+    return NextResponse.json({ values: all(result) }, {
+      headers: { "Cache-Control": "private, max-age=5" },
+    });
   }
 
   // Return all custom field values grouped by lead_id
   const result = await db.execute("SELECT * FROM custom_field_values");
-  return NextResponse.json({ values: all(result) });
+  return NextResponse.json({ values: all(result) }, {
+    headers: { "Cache-Control": "private, max-age=5" },
+  });
 }
 
 // PUT: set a custom field value for a lead

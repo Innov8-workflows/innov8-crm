@@ -11,7 +11,9 @@ export async function GET(request: NextRequest) {
     sql: "SELECT * FROM project_tasks WHERE project_id = ? ORDER BY sort_order ASC",
     args: [Number(projectId)],
   });
-  return NextResponse.json({ tasks: all(result) });
+  return NextResponse.json({ tasks: all(result) }, {
+    headers: { "Cache-Control": "private, max-age=5" },
+  });
 }
 
 export async function POST(request: NextRequest) {

@@ -263,37 +263,29 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
     } catch {}
   }, [customColumns, colConfigs]);
 
-  // Get current user and users list
+  // Load mount-time data in parallel (was 4 sequential fetches → now 1 round-trip)
   useEffect(() => {
-    fetch("/api/auth/me").then((r) => r.json()).then((data) => {
-      if (data.username) setCurrentUser(data.username);
-    });
-    fetch("/api/users").then((r) => r.json()).then((data) => {
-      setUsersList(data.users || []);
-    });
-  }, []);
+    Promise.all([
+      fetch("/api/auth/me").then((r) => r.json()).catch(() => ({})),
+      fetch("/api/users").then((r) => r.json()).catch(() => ({})),
+      fetch("/api/columns").then((r) => r.json()).catch(() => ({})),
+      fetch("/api/custom-fields").then((r) => r.json()).catch(() => ({})),
+    ]).then(([meData, usersData, colsData, fieldsData]) => {
+      if (meData.username) setCurrentUser(meData.username);
+      setUsersList(usersData.users || []);
 
-  // Load column configs + custom columns
-  useEffect(() => {
-    fetch("/api/columns").then((r) => r.json()).then((data) => {
       const configs: Record<string, ColConfig> = {};
       const custom: ColConfig[] = [];
-      for (const col of data.columns || []) {
+      for (const col of colsData.columns || []) {
         const c = col as ColConfig;
         configs[c.id] = c;
-        // Custom columns start with "custom_"
         if (c.id.startsWith("custom_")) custom.push(c);
       }
       setColConfigs(configs);
       setCustomColumns(custom);
-    });
-  }, []);
 
-  // Load custom field values
-  useEffect(() => {
-    fetch("/api/custom-fields").then((r) => r.json()).then((data) => {
       const map: Record<string, Record<string, string>> = {};
-      for (const v of data.values || []) {
+      for (const v of fieldsData.values || []) {
         const leadId = String(v.lead_id);
         if (!map[leadId]) map[leadId] = {};
         map[leadId][v.field_id as string] = v.value as string;

@@ -7,6 +7,13 @@ const SECRET = new TextEncoder().encode(
 
 const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/auth/setup", "/api/webhook/gmail", "/api/webhook/prospects", "/api/invoices/auto"];
 
+// In-memory cache for verified JWTs. Cold-start safe (cache resets on new lambda).
+// 60s TTL — short enough that revocation via logout still takes effect quickly.
+const tokenCache = new Map<string, number>();
+const TOKEN_TTL_MS = 60_000;
+// Bound cache size so a bot/attacker can't balloon memory
+const MAX_CACHE_SIZE = 500;
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -31,9 +38,28 @@ export async function middleware(request: NextRequest) {
   }
 
   try {
+    // Check cache first — jwtVerify is expensive (~30ms per call in Edge runtime)
+    const cachedExpiry = tokenCache.get(token);
+    if (cachedExpiry && cachedExpiry > Date.now()) {
+      return NextResponse.next();
+    }
     await jwtVerify(token, SECRET);
+    // Trim cache if it's getting too big
+    if (tokenCache.size >= MAX_CACHE_SIZE) {
+      const now = Date.now();
+      for (const [k, exp] of tokenCache) {
+        if (exp < now) tokenCache.delete(k);
+      }
+      // If still too big after trimming expired, drop oldest half
+      if (tokenCache.size >= MAX_CACHE_SIZE) {
+        const keys = Array.from(tokenCache.keys()).slice(0, MAX_CACHE_SIZE / 2);
+        for (const k of keys) tokenCache.delete(k);
+      }
+    }
+    tokenCache.set(token, Date.now() + TOKEN_TTL_MS);
     return NextResponse.next();
   } catch {
+    tokenCache.delete(token);
     // Invalid token — clear it and redirect
     const response = pathname.startsWith("/api/")
       ? NextResponse.json({ error: "Session expired" }, { status: 401 })

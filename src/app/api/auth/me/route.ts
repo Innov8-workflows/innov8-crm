@@ -6,5 +6,7 @@ export async function GET() {
   if (!session) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
-  return NextResponse.json({ username: session.username });
+  return NextResponse.json({ username: session.username }, {
+    headers: { "Cache-Control": "private, max-age=60" },
+  });
 }

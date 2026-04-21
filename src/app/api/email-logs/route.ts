@@ -18,5 +18,7 @@ export async function GET(request: NextRequest) {
   const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
   const result = await db.execute({ sql: `SELECT * FROM email_logs ${where} ORDER BY sent_at DESC`, args: values });
 
-  return NextResponse.json({ email_logs: all(result) });
+  return NextResponse.json({ email_logs: all(result) }, {
+    headers: { "Cache-Control": "private, max-age=30" },
+  });
 }

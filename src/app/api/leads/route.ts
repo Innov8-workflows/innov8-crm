@@ -42,17 +42,21 @@ export async function GET(request: NextRequest) {
 
   const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
-  const result = await db.execute({
-    sql: `SELECT * FROM leads ${where} ORDER BY sort_order ASC, ${sortCol} ${sortDir}`,
-    args: values,
-  });
+  // Run main query + count in parallel — was sequential, cost ~DB_LATENCY extra per request
+  const [result, countResult] = await Promise.all([
+    db.execute({
+      sql: `SELECT * FROM leads ${where} ORDER BY sort_order ASC, ${sortCol} ${sortDir}`,
+      args: values,
+    }),
+    db.execute({
+      sql: `SELECT COUNT(*) as total FROM leads ${where}`,
+      args: values,
+    }),
+  ]);
 
-  const countResult = await db.execute({
-    sql: `SELECT COUNT(*) as total FROM leads ${where}`,
-    args: values,
+  return NextResponse.json({ leads: all(result), total: first(countResult)?.total }, {
+    headers: { "Cache-Control": "private, max-age=3" },
   });
-
-  return NextResponse.json({ leads: all(result), total: first(countResult)?.total });
 }
 
 export async function POST(request: NextRequest) {
