@@ -39,20 +39,26 @@ export async function GET(request: NextRequest) {
   const stats = first(await db.execute({ sql: statsSQL, args }));
 
   // "Called" count comes from the custom_called checkbox (cumulative — once called, always counted)
+  // "Messaged" needs to include both the WhatsApp column (messaged=1) and the FB Messenger custom field
   let calledCount = 0;
+  let fbMessengerOnlyCount = 0;
   try {
-    let calledSQL = `SELECT COUNT(DISTINCT cfv.lead_id) as v
+    const customCountsSQL = `SELECT
+      COUNT(DISTINCT CASE WHEN cfv.field_id = 'custom_called' AND cfv.value = '1' THEN cfv.lead_id END) as called,
+      COUNT(DISTINCT CASE WHEN cfv.field_id = 'custom_fb_messenger' AND cfv.value = '1' AND (l.messaged = 0 OR l.messaged IS NULL) THEN cfv.lead_id END) as fb_only
       FROM custom_field_values cfv JOIN leads l ON cfv.lead_id = l.id
-      WHERE cfv.field_id = 'custom_called' AND cfv.value = '1'`;
-    const calledArgs: InValue[] = [];
+      WHERE 1=1`;
+    let sql = customCountsSQL;
+    const customArgs: InValue[] = [];
     if (ownerParam === "__unassigned__") {
-      calledSQL += " AND (l.owner = '' OR l.owner IS NULL)";
+      sql += " AND (l.owner = '' OR l.owner IS NULL)";
     } else if (ownerParam) {
-      calledSQL += " AND l.owner = ?";
-      calledArgs.push(ownerParam);
+      sql += " AND l.owner = ?";
+      customArgs.push(ownerParam);
     }
-    const r = first(await db.execute({ sql: calledSQL, args: calledArgs }));
-    calledCount = Number(r?.v) || 0;
+    const r = first(await db.execute({ sql, args: customArgs }));
+    calledCount = Number(r?.called) || 0;
+    fbMessengerOnlyCount = Number(r?.fb_only) || 0;
   } catch {}
 
   // Monthly total from custom fields (separate table, needs JOIN)
@@ -96,7 +102,7 @@ export async function GET(request: NextRequest) {
   const response = NextResponse.json({
     total: Number(stats?.total) || 0,
     emailed: Number(stats?.emailed) || 0,
-    messaged: Number(stats?.messaged) || 0,
+    messaged: (Number(stats?.messaged) || 0) + fbMessengerOnlyCount,
     called: calledCount,
     meetingsBooked: Number(stats?.meetingsBooked) || 0,
     maybe: Number(stats?.maybe) || 0,
