@@ -149,10 +149,17 @@ export default function KanbanBoard({ ownerFilter = "" }: { ownerFilter?: string
                       onMouseLeave={(e) => { if (dragProject !== project.id) e.currentTarget.style.borderColor = isCompleted ? "#059669" + "30" : "var(--border)"; }}
                       onClick={() => setSelectedProject(project)}
                     >
-                      {/* Cover image */}
-                      {project.cover_image && (
+                      {/* Cover image — lazy-loaded from dedicated endpoint, cached by browser */}
+                      {project.has_cover && (
                         <div className="w-full h-28 -mt-3 -mx-3 mb-2 overflow-hidden rounded-t-lg" style={{ width: "calc(100% + 24px)" }}>
-                          <img src={project.cover_image} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" />
+                          <img
+                            src={`/api/projects/${project.id}/cover`}
+                            alt=""
+                            className="w-full h-full object-cover"
+                            loading="lazy"
+                            decoding="async"
+                            onError={(e) => { (e.currentTarget.parentElement as HTMLElement).style.display = "none"; }}
+                          />
                         </div>
                       )}
                       <h3 className="text-sm font-medium truncate" style={{ color: "var(--text)" }}>

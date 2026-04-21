@@ -49,8 +49,9 @@ export interface Project {
   location?: string;
   capex?: number;
   demo_site_url?: string;
-  // Enriched for completed projects
+  // Enriched on list responses
   cover_image?: string | null;
+  has_cover?: boolean;
   tasks_total?: number;
   tasks_done?: number;
 }

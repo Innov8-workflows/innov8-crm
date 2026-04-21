@@ -659,9 +659,17 @@ function CardView({ clients, formatDate, isOverdue, onOpenProject, isLostView, o
             })()}
 
             {/* Cover Image */}
-            {client.cover_image ? (
+            {client.has_cover ? (
               <div className="w-full h-36 overflow-hidden" style={{ background: "var(--surface2)" }}>
-                <img src={client.cover_image} alt={client.business_name || ""} className="w-full h-full object-cover" style={isLostView ? { filter: "grayscale(60%)" } : {}} />
+                <img
+                  src={`/api/projects/${client.id}/cover`}
+                  alt={client.business_name || ""}
+                  className="w-full h-full object-cover"
+                  style={isLostView ? { filter: "grayscale(60%)" } : {}}
+                  loading="lazy"
+                  decoding="async"
+                  onError={(e) => { (e.currentTarget.parentElement as HTMLElement).style.display = "none"; }}
+                />
               </div>
             ) : (
               <div className="w-full h-20 flex items-center justify-center" style={{ background: "linear-gradient(135deg, var(--surface2) 0%, var(--border) 100%)" }}>

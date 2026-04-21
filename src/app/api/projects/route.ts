@@ -47,30 +47,20 @@ export async function GET(request: NextRequest) {
   const result = await db.execute({ sql, args: args as never[] });
   const projects = all(result);
 
-  // Enrich projects with cover images — ONE image per project maximum.
-  // Previously this pulled every image for every project (base64 blobs = massive payloads).
-  // Now we use a window-function-style query to get only the cover (or first image if none).
+  // Flag projects that HAVE a cover image, but don't include the base64 data.
+  // Images are served lazily via /api/projects/[id]/cover with browser caching.
   if (projects.length > 0) {
     const ids = projects.map((p: Record<string, unknown>) => p.id);
     const placeholders = ids.map(() => "?").join(",");
 
-    // Single query: pick one image per project — explicit cover wins, else oldest image.
-    // is_cover DESC sorts covers first (1 > 0), then created_at ASC picks oldest among non-covers.
-    const coverSql = `
-      SELECT project_id, url FROM (
-        SELECT project_id, url, is_cover,
-          ROW_NUMBER() OVER (PARTITION BY project_id ORDER BY is_cover DESC, created_at ASC) as rn
-        FROM project_files
-        WHERE project_id IN (${placeholders})
-          AND (file_type LIKE 'image/%' OR url LIKE 'data:image/%' OR is_cover = 1)
-      ) WHERE rn = 1
-    `;
-
     const batchQueries: Promise<unknown>[] = [
-      db.execute({ sql: coverSql, args: ids as never[] }),
+      // Just flag which projects have at least one image — no URL data transferred
+      db.execute({
+        sql: `SELECT DISTINCT project_id FROM project_files WHERE project_id IN (${placeholders}) AND (file_type LIKE 'image/%' OR url LIKE 'data:image/%' OR is_cover = 1)`,
+        args: ids as never[],
+      }),
     ];
 
-    // Task stats only needed for completed projects view
     if (completed === "true") {
       batchQueries.push(
         db.execute({ sql: `SELECT project_id, COUNT(*) as total, SUM(CASE WHEN completed = 1 THEN 1 ELSE 0 END) as done FROM project_tasks WHERE project_id IN (${placeholders}) GROUP BY project_id`, args: ids as never[] }),
@@ -78,16 +68,16 @@ export async function GET(request: NextRequest) {
     }
 
     const results = await Promise.all(batchQueries);
-    const coverResult = results[0] as import("@libsql/client").ResultSet;
+    const hasCoverResult = results[0] as import("@libsql/client").ResultSet;
 
-    const covers: Record<number, string> = {};
-    for (const row of all(coverResult)) {
-      covers[row.project_id as number] = row.url as string;
+    const hasCover: Record<number, boolean> = {};
+    for (const row of all(hasCoverResult)) {
+      hasCover[row.project_id as number] = true;
     }
 
     for (const p of projects) {
       const pid = p.id as number;
-      (p as Record<string, unknown>).cover_image = covers[pid] || null;
+      (p as Record<string, unknown>).has_cover = hasCover[pid] || false;
     }
 
     if (completed === "true") {
@@ -105,7 +95,7 @@ export async function GET(request: NextRequest) {
   }
 
   return NextResponse.json({ projects }, {
-    headers: { "Cache-Control": "private, max-age=5" },
+    headers: { "Cache-Control": "private, max-age=10" },
   });
 }
 
