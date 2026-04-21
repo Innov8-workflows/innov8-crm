@@ -19,12 +19,13 @@ export async function GET(request: NextRequest) {
     args.push(ownerParam);
   }
 
-  // Single query for all lead stats (was 12 separate queries)
+  // Single query for most stats. Top-of-funnel (emailed/messaged) are checkbox-based
+  // so they're cumulative — a lead that's been called still counts as "emailed".
+  // For "called" and fb-messenger we need to join the custom_field_values table below.
   const statsSQL = `SELECT
     COUNT(*) as total,
-    SUM(CASE WHEN status = 'emailed' THEN 1 ELSE 0 END) as emailed,
-    SUM(CASE WHEN status = 'messaged' THEN 1 ELSE 0 END) as messaged,
-    SUM(CASE WHEN status = 'called' THEN 1 ELSE 0 END) as called,
+    SUM(CASE WHEN emailed = 1 THEN 1 ELSE 0 END) as emailed,
+    SUM(CASE WHEN messaged = 1 THEN 1 ELSE 0 END) as messaged,
     SUM(CASE WHEN status = 'meeting_booked' THEN 1 ELSE 0 END) as meetingsBooked,
     SUM(CASE WHEN status = 'maybe' THEN 1 ELSE 0 END) as maybe,
     SUM(CASE WHEN status IN ('won','completed') THEN 1 ELSE 0 END) as won,
@@ -36,6 +37,23 @@ export async function GET(request: NextRequest) {
   FROM leads ${ownerWhere}`;
 
   const stats = first(await db.execute({ sql: statsSQL, args }));
+
+  // "Called" count comes from the custom_called checkbox (cumulative — once called, always counted)
+  let calledCount = 0;
+  try {
+    let calledSQL = `SELECT COUNT(DISTINCT cfv.lead_id) as v
+      FROM custom_field_values cfv JOIN leads l ON cfv.lead_id = l.id
+      WHERE cfv.field_id = 'custom_called' AND cfv.value = '1'`;
+    const calledArgs: InValue[] = [];
+    if (ownerParam === "__unassigned__") {
+      calledSQL += " AND (l.owner = '' OR l.owner IS NULL)";
+    } else if (ownerParam) {
+      calledSQL += " AND l.owner = ?";
+      calledArgs.push(ownerParam);
+    }
+    const r = first(await db.execute({ sql: calledSQL, args: calledArgs }));
+    calledCount = Number(r?.v) || 0;
+  } catch {}
 
   // Monthly total from custom fields (separate table, needs JOIN)
   let totalMonthly = 0;
@@ -79,7 +97,7 @@ export async function GET(request: NextRequest) {
     total: Number(stats?.total) || 0,
     emailed: Number(stats?.emailed) || 0,
     messaged: Number(stats?.messaged) || 0,
-    called: Number(stats?.called) || 0,
+    called: calledCount,
     meetingsBooked: Number(stats?.meetingsBooked) || 0,
     maybe: Number(stats?.maybe) || 0,
     won: Number(stats?.won) || 0,
