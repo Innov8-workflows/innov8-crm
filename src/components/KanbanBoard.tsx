@@ -13,20 +13,19 @@ export default function KanbanBoard({ ownerFilter = "" }: { ownerFilter?: string
   const [dragProject, setDragProject] = useState<number | null>(null);
 
   const fetchProjects = useCallback(async () => {
-    // Fetch both active incomplete and active completed projects for the kanban
-    // Cover images are now included in the API response (no extra requests needed)
-    const ownerParam = ownerFilter ? `&owner=${encodeURIComponent(ownerFilter)}` : "";
-    const [incRes, compRes] = await Promise.all([
-      fetch(`/api/projects?completed=false${ownerParam}`),
-      fetch(`/api/projects?completed=true${ownerParam}`),
-    ]);
-    const [incData, compData] = await Promise.all([incRes.json(), compRes.json()]);
-    const allProjs = [...(incData.projects || []), ...(compData.projects || [])];
+    // Single request for all kanban projects (active + completed) — halves roundtrips
+    // and lets the server share the cover-image query across the full set.
+    const ownerParam = ownerFilter ? `?owner=${encodeURIComponent(ownerFilter)}` : "";
+    const res = await fetch(`/api/projects${ownerParam}`);
+    const data = await res.json();
+    const allProjs = data.projects || [];
     // Mark completed projects with stage "completed" for display
-    const projs = allProjs.map((p: Project) => ({
-      ...p,
-      stage: p.completed_at ? "completed" : p.stage,
-    }));
+    const projs = allProjs
+      .filter((p: Project) => p.client_status !== "lost") // exclude lost clients from kanban
+      .map((p: Project) => ({
+        ...p,
+        stage: p.completed_at ? "completed" : p.stage,
+      }));
     setProjects(projs);
     setLoading(false);
   }, [ownerFilter]);

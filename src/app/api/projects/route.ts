@@ -47,16 +47,27 @@ export async function GET(request: NextRequest) {
   const result = await db.execute({ sql, args: args as never[] });
   const projects = all(result);
 
-  // Enrich ALL projects with cover images (single batch query instead of N+1)
+  // Enrich projects with cover images — ONE image per project maximum.
+  // Previously this pulled every image for every project (base64 blobs = massive payloads).
+  // Now we use a window-function-style query to get only the cover (or first image if none).
   if (projects.length > 0) {
     const ids = projects.map((p: Record<string, unknown>) => p.id);
     const placeholders = ids.map(() => "?").join(",");
 
+    // Single query: pick one image per project — explicit cover wins, else oldest image.
+    // is_cover DESC sorts covers first (1 > 0), then created_at ASC picks oldest among non-covers.
+    const coverSql = `
+      SELECT project_id, url FROM (
+        SELECT project_id, url, is_cover,
+          ROW_NUMBER() OVER (PARTITION BY project_id ORDER BY is_cover DESC, created_at ASC) as rn
+        FROM project_files
+        WHERE project_id IN (${placeholders})
+          AND (file_type LIKE 'image/%' OR url LIKE 'data:image/%' OR is_cover = 1)
+      ) WHERE rn = 1
+    `;
+
     const batchQueries: Promise<unknown>[] = [
-      // Explicitly set covers
-      db.execute({ sql: `SELECT project_id, url FROM project_files WHERE project_id IN (${placeholders}) AND is_cover = 1`, args: ids as never[] }),
-      // Fallback: first image file per project (for when no cover is set)
-      db.execute({ sql: `SELECT project_id, url FROM project_files WHERE project_id IN (${placeholders}) AND (file_type LIKE 'image/%' OR url LIKE 'data:image/%') ORDER BY created_at ASC`, args: ids as never[] }),
+      db.execute({ sql: coverSql, args: ids as never[] }),
     ];
 
     // Task stats only needed for completed projects view
@@ -68,16 +79,10 @@ export async function GET(request: NextRequest) {
 
     const results = await Promise.all(batchQueries);
     const coverResult = results[0] as import("@libsql/client").ResultSet;
-    const allImagesResult = results[1] as import("@libsql/client").ResultSet;
 
     const covers: Record<number, string> = {};
     for (const row of all(coverResult)) {
       covers[row.project_id as number] = row.url as string;
-    }
-    // Fallback to first image if no explicit cover
-    for (const row of all(allImagesResult)) {
-      const pid = row.project_id as number;
-      if (!covers[pid]) covers[pid] = row.url as string;
     }
 
     for (const p of projects) {
@@ -86,7 +91,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (completed === "true") {
-      const taskResult = results[2] as import("@libsql/client").ResultSet;
+      const taskResult = results[1] as import("@libsql/client").ResultSet;
       const taskStats: Record<number, { total: number; done: number }> = {};
       for (const row of all(taskResult)) {
         taskStats[row.project_id as number] = { total: row.total as number, done: row.done as number };
@@ -99,7 +104,9 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.json({ projects });
+  return NextResponse.json({ projects }, {
+    headers: { "Cache-Control": "private, max-age=5" },
+  });
 }
 
 // Create project from a won lead
