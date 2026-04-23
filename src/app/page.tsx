@@ -12,9 +12,10 @@ const KanbanBoard = lazy(() => import("@/components/KanbanBoard"));
 const LiveClients = lazy(() => import("@/components/LiveClients"));
 const Dashboard = lazy(() => import("@/components/Dashboard"));
 const Pricing = lazy(() => import("@/components/Pricing"));
+const Referrals = lazy(() => import("@/components/Referrals"));
 
 export default function Home() {
-  const [view, setView] = useState<"prospects" | "projects" | "clients" | "dashboard" | "pricing">("prospects");
+  const [view, setView] = useState<"prospects" | "projects" | "clients" | "dashboard" | "pricing" | "referrals">("prospects");
   const [projectCount, setProjectCount] = useState(0);
   const [clientCount, setClientCount] = useState(0);
   const [ownerFilter, setOwnerFilter] = useState(() => {
@@ -59,6 +60,9 @@ export default function Home() {
           </ErrorBoundary>
           <ErrorBoundary fallbackMessage="Pricing failed to load">
             {view === "pricing" && <Pricing />}
+          </ErrorBoundary>
+          <ErrorBoundary fallbackMessage="Referrals failed to load">
+            {view === "referrals" && <Referrals />}
           </ErrorBoundary>
         </Suspense>
       </div>
