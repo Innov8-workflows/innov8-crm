@@ -71,6 +71,59 @@ export default function Pricing() {
         </div>
       </div>
 
+      {/* Best Times to Call */}
+      <div className="rounded-xl p-6" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+        <h3 className="text-sm font-semibold uppercase tracking-wider mb-1" style={{ color: "var(--text-dim)" }}>Best Times to Call — UK Local Trades</h3>
+        <p className="text-xs mb-4" style={{ color: "var(--text-quaternary)" }}>Tradespeople are on-site most of the day. Target quiet windows when they can actually talk.</p>
+
+        {/* Time of day heatmap */}
+        <div className="mb-6">
+          <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--text-muted)" }}>Daily Windows</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <TimeSlot time="7:00 – 8:00 AM" rating="good" label="Early Brew" note="Before they leave for site. Caught in the van getting ready." />
+            <TimeSlot time="12:00 – 1:30 PM" rating="best" label="Lunch Break" note="Sat in the van eating a sandwich — prime window for a chat." />
+            <TimeSlot time="4:30 – 6:00 PM" rating="best" label="Wrapping Up" note="Job&apos;s winding down, driving home, admin mode on." />
+            <TimeSlot time="6:00 – 7:30 PM" rating="good" label="Home Hours" note="Done for the day, relaxed, more likely to listen properly." />
+          </div>
+        </div>
+
+        {/* Avoid times */}
+        <div className="mb-6">
+          <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--text-muted)" }}>Avoid These Windows</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <TimeSlot time="8:00 – 11:30 AM" rating="avoid" label="On Site" note="Deep in the job, tools out, won&apos;t answer or will be annoyed." />
+            <TimeSlot time="1:30 – 4:30 PM" rating="avoid" label="Afternoon Push" note="Racing to finish the day&apos;s work. Not the time." />
+            <TimeSlot time="After 8:00 PM" rating="avoid" label="Family Time" note="Disrespects their evening. Unprofessional — and they&apos;ll remember." />
+          </div>
+        </div>
+
+        {/* Days of the week */}
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--text-muted)" }}>Best Days of the Week</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+            <DayCard day="Mon" rating="poor" note="Mondays are chaos — enquiries pile up from weekend. Avoid before noon." />
+            <DayCard day="Tue" rating="good" note="Settled into the week. Lunch & evening calls land well." />
+            <DayCard day="Wed" rating="best" note="Midweek sweet spot. Most open to a chat, less rushed." />
+            <DayCard day="Thu" rating="best" note="Thinking about wrapping up the week. Receptive to new ideas." />
+            <DayCard day="Fri" rating="good" note="Good morning to lunch. Afternoons they bolt early — avoid." />
+            <DayCard day="Sat" rating="ok" note="Only 'til lunchtime. Family time after. Some trades work all day." />
+            <DayCard day="Sun" rating="avoid" note="Never. Only exception: pre-booked appointment." />
+          </div>
+        </div>
+
+        {/* Pro tips */}
+        <div className="mt-6 p-4 rounded-lg" style={{ background: "var(--accent-subtle)", border: "1px solid var(--accent)" }}>
+          <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--accent)" }}>💡 Pro Tips</p>
+          <ul className="text-sm space-y-1.5" style={{ color: "var(--text-secondary)" }}>
+            <li>• <span style={{ color: "var(--text)" }}>Rainy days</span> are golden — jobs get cancelled, they&apos;re stuck indoors, more chatty</li>
+            <li>• <span style={{ color: "var(--text)" }}>End of month</span> trades are chasing invoices. They understand &quot;I&apos;m helping you get more jobs&quot; instantly</li>
+            <li>• <span style={{ color: "var(--text)" }}>January &amp; post-summer lull</span> are prime — they want to know where next month&apos;s work is coming from</li>
+            <li>• <span style={{ color: "var(--text)" }}>Bank holidays</span> Tuesday after is worst day of the year. Skip it.</li>
+            <li>• If they say &quot;I&apos;m on a job&quot;, ask <span style={{ color: "var(--text)" }}>&quot;what time tonight works?&quot;</span> — 80% will give you a window</li>
+          </ul>
+        </div>
+      </div>
+
       {/* Discovery Questions */}
       <div className="rounded-xl p-6" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
         <h3 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: "var(--text-dim)" }}>Discovery Questions — Keep the Conversation Going</h3>
@@ -145,6 +198,40 @@ function BenefitItem({ text }: { text: string }) {
       <span className="mt-0.5 flex-shrink-0" style={{ color: "var(--accent)" }}>&#10003;</span>
       {text}
     </li>
+  );
+}
+
+function TimeSlot({ time, rating, label, note }: { time: string; rating: "best" | "good" | "avoid"; label: string; note: string }) {
+  const colors = {
+    best: { bg: "#22c55e20", border: "#22c55e", text: "#22c55e", badge: "BEST" },
+    good: { bg: "var(--accent-subtle)", border: "var(--accent)", text: "var(--accent)", badge: "GOOD" },
+    avoid: { bg: "#ef444420", border: "#ef4444", text: "#ef4444", badge: "AVOID" },
+  }[rating];
+  return (
+    <div className="rounded-lg p-3" style={{ background: colors.bg, border: `1px solid ${colors.border}` }}>
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-xs font-bold" style={{ color: colors.text }}>{colors.badge}</span>
+        <span className="text-[10px] font-mono" style={{ color: "var(--text-dim)" }}>{time}</span>
+      </div>
+      <p className="text-sm font-semibold mb-0.5" style={{ color: "var(--text)" }}>{label}</p>
+      <p className="text-xs" style={{ color: "var(--text-dim)" }}>{note}</p>
+    </div>
+  );
+}
+
+function DayCard({ day, rating, note }: { day: string; rating: "best" | "good" | "ok" | "poor" | "avoid"; note: string }) {
+  const colors = {
+    best: { bg: "#22c55e25", text: "#22c55e", label: "Best" },
+    good: { bg: "var(--accent-subtle)", text: "var(--accent)", label: "Good" },
+    ok: { bg: "var(--surface2)", text: "var(--text-muted)", label: "OK" },
+    poor: { bg: "#f59e0b20", text: "#f59e0b", label: "Poor" },
+    avoid: { bg: "#ef444420", text: "#ef4444", label: "Avoid" },
+  }[rating];
+  return (
+    <div className="rounded-lg p-3 text-center" style={{ background: colors.bg, border: `1px solid ${colors.text}40` }} title={note}>
+      <div className="text-sm font-bold mb-1" style={{ color: "var(--text)" }}>{day}</div>
+      <div className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: colors.text }}>{colors.label}</div>
+    </div>
   );
 }
 
