@@ -28,8 +28,8 @@ export async function geocodeUK(location: string): Promise<GeocodeResult | null>
   try {
     const res = await fetch(url, {
       headers: { "User-Agent": USER_AGENT, "Accept-Language": "en-GB" },
-      // 10s timeout via AbortController — Nominatim can be slow
-      signal: AbortSignal.timeout(10_000),
+      // 5s timeout — keeps the batch endpoint within Vercel's 60s budget
+      signal: AbortSignal.timeout(5_000),
     });
     if (!res.ok) return null;
 

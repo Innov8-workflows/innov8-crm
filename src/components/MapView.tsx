@@ -170,27 +170,38 @@ export default function MapView({ ownerFilter = "" }: { ownerFilter?: string }) 
 
   useEffect(() => { fetchMarkers(); }, [fetchMarkers]);
 
+  const [geocodeProgress, setGeocodeProgress] = useState({ done: 0, total: 0 });
+
   const runGeocode = async () => {
     if (geocoding) return;
     setGeocoding(true);
-    toast("Geocoding leads… this may take a minute", "info");
+    setGeocodeProgress({ done: 0, total: 0 });
+    toast("Geocoding leads… this may take a few minutes", "info");
     let totalGeocoded = 0;
     let totalFailed = 0;
     try {
-      // Loop calling the endpoint until nothing remains
-      for (let i = 0; i < 20; i++) {
+      // Loop calling the endpoint until nothing remains. Max 30 iterations as a safety cap.
+      for (let i = 0; i < 30; i++) {
         const res = await fetch("/api/leads/geocode", { method: "POST" });
+        if (!res.ok) throw new Error("geocode failed");
         const data = await res.json();
         totalGeocoded += data.geocoded || 0;
         totalFailed += data.failed || 0;
+        const processedThisRound = (data.geocoded || 0) + (data.failed || 0);
+        setGeocodeProgress((prev) => ({
+          done: prev.done + processedThisRound,
+          total: prev.done + processedThisRound + (data.remaining || 0),
+        }));
+        // Refresh the map after every batch so pins appear incrementally
+        fetchMarkers();
         if (!data.remaining) break;
       }
       toast(`Geocoded ${totalGeocoded} location${totalGeocoded === 1 ? "" : "s"}${totalFailed ? `, ${totalFailed} unresolvable` : ""}`, "success");
-      fetchMarkers();
     } catch {
       toast("Geocoding failed — please try again", "error");
     } finally {
       setGeocoding(false);
+      setGeocodeProgress({ done: 0, total: 0 });
     }
   };
 
@@ -235,8 +246,24 @@ export default function MapView({ ownerFilter = "" }: { ownerFilter?: string }) 
             {PIPELINE_STAGES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
           </select>
         </div>
-        <div className="ml-auto flex items-center gap-2">
-          {stats && stats.pending > 0 && (
+        <div className="ml-auto flex items-center gap-3">
+          {geocoding && geocodeProgress.total > 0 && (
+            <div className="flex items-center gap-2">
+              <div className="w-32 h-1.5 rounded-full overflow-hidden" style={{ background: "var(--surface3)" }}>
+                <div
+                  className="h-full transition-all"
+                  style={{
+                    width: `${Math.min(100, Math.round((geocodeProgress.done / geocodeProgress.total) * 100))}%`,
+                    background: "var(--accent)",
+                  }}
+                />
+              </div>
+              <span className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>
+                {geocodeProgress.done}/{geocodeProgress.total}
+              </span>
+            </div>
+          )}
+          {!geocoding && stats && stats.pending > 0 && (
             <span className="text-xs" style={{ color: "var(--text-muted)" }}>
               {stats.pending} lead{stats.pending === 1 ? "" : "s"} not yet on map
             </span>
@@ -269,7 +296,7 @@ export default function MapView({ ownerFilter = "" }: { ownerFilter?: string }) 
       </div>
 
       {/* Map */}
-      <div className="flex-1" style={{ background: "var(--bg)" }}>
+      <div className="flex-1 relative" style={{ background: "var(--bg)" }}>
         <MapContainer
           center={UK_CENTER}
           zoom={UK_ZOOM}
@@ -279,6 +306,31 @@ export default function MapView({ ownerFilter = "" }: { ownerFilter?: string }) 
           <TileLayer url={tileUrl} attribution={tileAttribution} />
           <ClusteredMarkers markers={markers} />
         </MapContainer>
+
+        {/* Empty state overlay — nothing geocoded yet */}
+        {markers.length === 0 && stats && stats.pending > 0 && !geocoding && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ zIndex: 500 }}>
+            <div className="pointer-events-auto max-w-md p-6 rounded-xl text-center" style={{
+              background: "var(--surface)",
+              border: "2px solid var(--accent)",
+              boxShadow: "0 10px 40px rgba(0,0,0,0.4)",
+            }}>
+              <div className="text-4xl mb-2">📍</div>
+              <h3 className="text-lg font-bold mb-2" style={{ color: "var(--text)" }}>No pins yet</h3>
+              <p className="text-sm mb-4" style={{ color: "var(--text-secondary)" }}>
+                You have <span style={{ color: "var(--accent)", fontWeight: 700 }}>{stats.pending}</span> leads waiting to be placed on the map.
+                Hit the button below to geocode them — takes about a minute.
+              </p>
+              <button
+                onClick={runGeocode}
+                className="text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+                style={{ background: "var(--accent)", color: "#fff" }}
+              >
+                🔄 Start Geocoding
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
