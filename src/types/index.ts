@@ -19,6 +19,8 @@ export interface Lead {
   demo_site_url: string;
   owner: string;
   stripe_customer_id: string;
+  lat?: number | null;
+  lng?: number | null;
   created_at: string;
   updated_at: string;
 }

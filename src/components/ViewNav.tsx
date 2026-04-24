@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 
-type ViewId = "prospects" | "projects" | "clients" | "dashboard" | "pricing" | "referrals";
+type ViewId = "prospects" | "projects" | "clients" | "dashboard" | "map" | "pricing" | "referrals";
 
 interface ViewNavProps {
   active: ViewId;
@@ -18,6 +18,7 @@ const views = [
   { id: "projects" as const, label: "Projects", emoji: "🔨" },
   { id: "clients" as const, label: "Live Clients", emoji: "✅" },
   { id: "dashboard" as const, label: "Dashboard", emoji: "📊" },
+  { id: "map" as const, label: "Scrape Map", emoji: "🗺️" },
   { id: "pricing" as const, label: "Pricing", emoji: "💷" },
   { id: "referrals" as const, label: "Referrals", emoji: "🤝" },
 ];

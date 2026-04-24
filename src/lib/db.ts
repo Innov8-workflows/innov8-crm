@@ -156,6 +156,8 @@ async function doInitDb() {
     "ALTER TABLE leads ADD COLUMN stripe_customer_id TEXT DEFAULT ''",
     "ALTER TABLE projects ADD COLUMN stripe_price_id TEXT DEFAULT ''",
     "ALTER TABLE projects ADD COLUMN invoice_status TEXT DEFAULT 'to_invoice'",
+    "ALTER TABLE leads ADD COLUMN lat REAL",
+    "ALTER TABLE leads ADD COLUMN lng REAL",
   ];
   for (const sql of migrations) {
     try { await db.execute(sql); } catch { /* column exists */ }
@@ -178,6 +180,7 @@ async function doInitDb() {
     CREATE INDEX IF NOT EXISTS idx_leads_business_type ON leads(business_type);
     CREATE INDEX IF NOT EXISTS idx_email_logs_gmail_msg ON email_logs(gmail_msg_id);
     CREATE INDEX IF NOT EXISTS idx_custom_field_values ON custom_field_values(lead_id, field_id);
+    CREATE INDEX IF NOT EXISTS idx_leads_lat ON leads(lat);
   `);
 }
 
