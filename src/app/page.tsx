@@ -14,9 +14,10 @@ const Dashboard = lazy(() => import("@/components/Dashboard"));
 const Pricing = lazy(() => import("@/components/Pricing"));
 const Referrals = lazy(() => import("@/components/Referrals"));
 const MapView = lazy(() => import("@/components/MapView"));
+const AISolutions = lazy(() => import("@/components/AISolutions"));
 
 export default function Home() {
-  const [view, setView] = useState<"prospects" | "projects" | "clients" | "dashboard" | "map" | "pricing" | "referrals">("prospects");
+  const [view, setView] = useState<"prospects" | "projects" | "clients" | "dashboard" | "map" | "ai_solutions" | "pricing" | "referrals">("prospects");
   const [projectCount, setProjectCount] = useState(0);
   const [clientCount, setClientCount] = useState(0);
   const [ownerFilter, setOwnerFilter] = useState(() => {
@@ -61,6 +62,9 @@ export default function Home() {
           </ErrorBoundary>
           <ErrorBoundary fallbackMessage="Map failed to load">
             {view === "map" && <MapView ownerFilter={ownerFilter} />}
+          </ErrorBoundary>
+          <ErrorBoundary fallbackMessage="AI Solutions failed to load">
+            {view === "ai_solutions" && <AISolutions />}
           </ErrorBoundary>
           <ErrorBoundary fallbackMessage="Pricing failed to load">
             {view === "pricing" && <Pricing />}

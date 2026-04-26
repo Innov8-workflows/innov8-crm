@@ -141,6 +141,40 @@ async function doInitDb() {
       created_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS solutions_catalogue (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      category TEXT DEFAULT '',
+      target_trades TEXT DEFAULT '',
+      upfront_price REAL DEFAULT 0,
+      monthly_price REAL DEFAULT 0,
+      install_days INTEGER DEFAULT 0,
+      pitch_angle TEXT DEFAULT '',
+      active INTEGER DEFAULT 1,
+      sort_order INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS entity_solutions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      entity_type TEXT NOT NULL,
+      entity_id INTEGER NOT NULL,
+      solution_id INTEGER NOT NULL,
+      status TEXT DEFAULT 'proposed',
+      upfront_charged REAL DEFAULT 0,
+      monthly_upcharge REAL DEFAULT 0,
+      notes TEXT DEFAULT '',
+      proposed_at TEXT DEFAULT '',
+      sold_at TEXT DEFAULT '',
+      delivered_at TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(entity_type, entity_id, solution_id),
+      FOREIGN KEY (solution_id) REFERENCES solutions_catalogue(id) ON DELETE CASCADE
+    );
   `);
 
   const migrations = [
@@ -181,7 +215,47 @@ async function doInitDb() {
     CREATE INDEX IF NOT EXISTS idx_email_logs_gmail_msg ON email_logs(gmail_msg_id);
     CREATE INDEX IF NOT EXISTS idx_custom_field_values ON custom_field_values(lead_id, field_id);
     CREATE INDEX IF NOT EXISTS idx_leads_lat ON leads(lat);
+    CREATE INDEX IF NOT EXISTS idx_entity_solutions_entity ON entity_solutions(entity_type, entity_id);
+    CREATE INDEX IF NOT EXISTS idx_entity_solutions_solution ON entity_solutions(solution_id);
+    CREATE INDEX IF NOT EXISTS idx_solutions_active ON solutions_catalogue(active);
   `);
+
+  // Seed the solutions catalogue if empty (first deploy only)
+  await seedSolutionsCatalogue(db);
+}
+
+async function seedSolutionsCatalogue(db: Client) {
+  try {
+    const r = await db.execute("SELECT COUNT(*) as c FROM solutions_catalogue");
+    const count = Number((r.rows[0] as unknown as { c: number })?.c) || 0;
+    if (count > 0) return;
+
+    const seeds = [
+      { name: "AI Voice Receptionist", description: "Answers missed calls 24/7, takes messages and books appointments. Never miss a job again.", category: "ai", target_trades: "Plumbing,Electrician,Driveway,Builder,Roofer", upfront: 299, monthly: 79, days: 7, pitch: "Tradies miss 30%+ of calls during job hours — this catches them all" },
+      { name: "WhatsApp Auto-Reply Bot", description: "Instant replies to FB Messenger / Instagram / WhatsApp enquiries with smart routing.", category: "automation", target_trades: "", upfront: 149, monthly: 35, days: 3, pitch: "First-to-reply wins — automate the response while you're on a job" },
+      { name: "Review Request Automation", description: "Auto-texts customers after a job to request a Google review. Build social proof on autopilot.", category: "automation", target_trades: "", upfront: 99, monthly: 25, days: 2, pitch: "Most trades have 5-10 reviews. With this they'll have 100+ in a year." },
+      { name: "Lead Capture Chatbot", description: "On-site AI chatbot that qualifies enquiries, captures contact details, and books quotes 24/7.", category: "ai", target_trades: "", upfront: 199, monthly: 40, days: 4, pitch: "Visitors at 11pm are leads — capture them while you sleep" },
+      { name: "AI Quote Generator from Photos", description: "Customer uploads a photo of the job, AI returns a ballpark estimate. Filters out tyre-kickers.", category: "ai", target_trades: "Plumbing,Electrician,Driveway,Builder,Roofer", upfront: 349, monthly: 60, days: 10, pitch: "Stop wasting hours on quotes for jobs that won't convert" },
+      { name: "Online Booking System", description: "Calendar widget with auto-confirmations, reminders, and deposit collection.", category: "integration", target_trades: "Beauty,Hairdresser,Dog Groomer,Personal Trainer,Photographer", upfront: 199, monthly: 30, days: 5, pitch: "No more DM ping-pong — they book themselves" },
+      { name: "Quote Follow-Up Drip", description: "Automatic email/SMS sequence if a quote isn't accepted within 48hrs. Recovers ~30% of cold quotes.", category: "automation", target_trades: "Plumbing,Electrician,Driveway,Builder,Roofer", upfront: 79, monthly: 20, days: 2, pitch: "30% of 'maybe' quotes can be recovered with the right follow-up" },
+      { name: "Social Media Auto-Poster", description: "Posts before/afters from a Drive folder weekly across FB, IG, and TikTok. Stays top of mind.", category: "marketing", target_trades: "", upfront: 149, monthly: 35, days: 4, pitch: "They have brilliant photos and zero time to post them" },
+      { name: "Customer Re-engagement SMS", description: "Seasonal touchpoints to old customers — boiler service, garden tidy-up, summer body, etc.", category: "marketing", target_trades: "", upfront: 99, monthly: 30, days: 3, pitch: "Their customer list is gold — most never get contacted twice" },
+      { name: "Stripe + Invoice Reminders", description: "Auto-send invoices via Stripe with chase-up reminders for overdue payments.", category: "integration", target_trades: "Plumbing,Electrician,Driveway,Builder,Roofer", upfront: 79, monthly: 15, days: 2, pitch: "Trades with cashflow problems love this — paid 40% faster on average" },
+      { name: "Instagram Reel Generator", description: "AI cuts before/after clips into 30-second Reels with trending audio. Posts auto.", category: "marketing", target_trades: "Beauty,Hairdresser,Dog Groomer,Personal Trainer,Photographer", upfront: 199, monthly: 45, days: 5, pitch: "Reels = exposure. They don't have time to make them. We do." },
+      { name: "Birthday / Loyalty SMS", description: "Auto-sends birthday discount codes and loyalty stamps via SMS. Drives repeat bookings.", category: "marketing", target_trades: "Beauty,Hairdresser,Dog Groomer,Personal Trainer", upfront: 79, monthly: 20, days: 2, pitch: "Repeat customers are 5x cheaper than new — automate the love" },
+    ];
+
+    for (let i = 0; i < seeds.length; i++) {
+      const s = seeds[i];
+      await db.execute({
+        sql: `INSERT INTO solutions_catalogue (name, description, category, target_trades, upfront_price, monthly_price, install_days, pitch_angle, active, sort_order)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
+        args: [s.name, s.description, s.category, s.target_trades, s.upfront, s.monthly, s.days, s.pitch, i],
+      });
+    }
+  } catch (e) {
+    console.error("seedSolutionsCatalogue failed:", e);
+  }
 }
 
 // Helper: get all rows as objects

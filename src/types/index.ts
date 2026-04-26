@@ -106,6 +106,56 @@ export interface LeadNote {
 
 export type LeadUpdate = Partial<Omit<Lead, "id" | "created_at" | "updated_at">>;
 
+export interface Solution {
+  id: number;
+  name: string;
+  description: string;
+  category: string;
+  target_trades: string;
+  upfront_price: number;
+  monthly_price: number;
+  install_days: number;
+  pitch_angle: string;
+  active: number;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EntitySolution {
+  id: number;
+  entity_type: "lead" | "project";
+  entity_id: number;
+  solution_id: number;
+  status: "proposed" | "sold" | "delivered" | "declined";
+  upfront_charged: number;
+  monthly_upcharge: number;
+  notes: string;
+  proposed_at: string;
+  sold_at: string;
+  delivered_at: string;
+  created_at: string;
+  updated_at: string;
+  // Joined fields
+  solution_name?: string;
+  business_name?: string;
+  category?: string;
+}
+
+export const SOLUTION_STATUSES = [
+  { value: "proposed", label: "Proposed", color: "#f59e0b", icon: "💡" },
+  { value: "sold", label: "Sold", color: "#22c55e", icon: "£" },
+  { value: "delivered", label: "Delivered", color: "#059669", icon: "✓" },
+  { value: "declined", label: "Declined", color: "#9CA3AF", icon: "✕" },
+] as const;
+
+export const SOLUTION_CATEGORIES = [
+  { value: "ai", label: "AI", color: "#8b5cf6" },
+  { value: "automation", label: "Automation", color: "#3b82f6" },
+  { value: "marketing", label: "Marketing", color: "#ec4899" },
+  { value: "integration", label: "Integration", color: "#10b981" },
+] as const;
+
 export const PIPELINE_STAGES = [
   { value: "new", label: "New", color: "#6B7280" },
   { value: "emailed", label: "Emailed", color: "#3B82F6" },
