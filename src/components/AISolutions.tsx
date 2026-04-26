@@ -335,12 +335,20 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 // ─────────────────────────────────────────────────────────────────
 type EntityFilter = "all" | "lead" | "project";
 
+interface CellEditorState {
+  row: MatrixRow;
+  solution: Solution;
+  x: number;
+  y: number;
+}
+
 function MatrixView({ solutions }: { solutions: Solution[] }) {
   const { toast } = useToast();
   const [filter, setFilter] = useState<EntityFilter>("all");
   const [matrixRows, setMatrixRows] = useState<MatrixRow[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [editor, setEditor] = useState<CellEditorState | null>(null);
 
   const fetchMatrix = useCallback(async () => {
     setLoading(true);
@@ -381,31 +389,41 @@ function MatrixView({ solutions }: { solutions: Solution[] }) {
     });
   }, [matrixRows, filter, search]);
 
-  const cycleStatus = async (row: MatrixRow, solution: Solution) => {
-    const existing = row.solutions[solution.id];
-    const order: Array<EntitySolution["status"] | null> = [null, "proposed", "sold", "delivered"];
-    const idx = existing ? order.indexOf(existing.status) : 0;
-    const nextStatus = order[(idx + 1) % order.length];
-
-    if (nextStatus === null) {
-      // Remove
-      if (existing) {
-        await fetch(`/api/entity-solutions?id=${existing.id}`, { method: "DELETE" });
-      }
-    } else {
-      await fetch("/api/entity-solutions", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          entity_type: row.entity_type,
-          entity_id: row.entity_id,
-          solution_id: solution.id,
-          status: nextStatus,
-        }),
-      });
-    }
-    toast(`${row.business_name}: ${solution.name} → ${nextStatus || "removed"}`, "info");
+  const setCellStatus = async (row: MatrixRow, solution: Solution, status: EntitySolution["status"], extras?: { monthly_upcharge?: number; upfront_charged?: number; notes?: string }) => {
+    await fetch("/api/entity-solutions", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        entity_type: row.entity_type,
+        entity_id: row.entity_id,
+        solution_id: solution.id,
+        status,
+        ...extras,
+      }),
+    });
+    toast(`${row.business_name}: ${solution.name} → ${status}`, "success");
     fetchMatrix();
+  };
+
+  const removeCell = async (row: MatrixRow, solution: Solution) => {
+    const existing = row.solutions[solution.id];
+    if (!existing) return;
+    await fetch(`/api/entity-solutions?id=${existing.id}`, { method: "DELETE" });
+    toast(`${row.business_name}: ${solution.name} → removed`, "info");
+    fetchMatrix();
+  };
+
+  const openCellEditor = (e: React.MouseEvent, row: MatrixRow, solution: Solution) => {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    // Anchor popover beneath the cell, but flip up if too close to viewport bottom
+    const popoverHeight = 380;
+    const flipUp = rect.bottom + popoverHeight + 16 > window.innerHeight;
+    setEditor({
+      row,
+      solution,
+      x: Math.min(rect.left, window.innerWidth - 340),
+      y: flipUp ? rect.top - popoverHeight - 8 : rect.bottom + 8,
+    });
   };
 
   if (loading) return <LoadingAI message="Building matrix" />;
@@ -438,7 +456,7 @@ function MatrixView({ solutions }: { solutions: Solution[] }) {
           {filtered.length} {filter === "all" ? "businesses" : filter === "lead" ? "prospects" : "clients"}
         </span>
         <div className="ml-auto text-xs flex items-center gap-3" style={{ color: "var(--text-dim)" }}>
-          <span>Click cells to cycle status:</span>
+          <span>Click any cell to set status, edit price, or add notes:</span>
           {SOLUTION_STATUSES.map((s) => (
             <span key={s.value} className="flex items-center gap-1">
               <span className="inline-block w-3 h-3 rounded-full" style={{ background: s.color }} />
@@ -482,11 +500,13 @@ function MatrixView({ solutions }: { solutions: Solution[] }) {
                 {solutions.map((s) => {
                   const es = row.solutions[s.id];
                   const status = SOLUTION_STATUSES.find((st) => st.value === es?.status);
+                  const isEditing = editor && editor.row.entity_type === row.entity_type && editor.row.entity_id === row.entity_id && editor.solution.id === s.id;
                   return (
                     <td key={s.id} className="px-2 py-1 text-center cursor-pointer transition-colors"
-                      onClick={() => cycleStatus(row, s)}
-                      onMouseEnter={(e) => e.currentTarget.style.background = "var(--surface2)"}
-                      onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
+                      onClick={(e) => openCellEditor(e, row, s)}
+                      onMouseEnter={(e) => { if (!isEditing) e.currentTarget.style.background = "var(--surface2)"; }}
+                      onMouseLeave={(e) => { if (!isEditing) e.currentTarget.style.background = "transparent"; }}
+                      style={{ background: isEditing ? "var(--accent-subtle)" : "transparent" }}>
                       {status ? (
                         <span className="inline-flex items-center justify-center w-7 h-7 rounded-full font-bold text-xs"
                           style={{ background: `${status.color}30`, color: status.color, border: `1px solid ${status.color}` }}>
@@ -505,6 +525,137 @@ function MatrixView({ solutions }: { solutions: Solution[] }) {
         {filtered.length === 0 && (
           <div className="p-12 text-center text-sm" style={{ color: "var(--text-dim)" }}>No businesses match the current filters.</div>
         )}
+      </div>
+
+      {/* Cell editor popover */}
+      {editor && (
+        <CellEditor
+          state={editor}
+          onClose={() => setEditor(null)}
+          onSetStatus={(status, extras) => { setCellStatus(editor.row, editor.solution, status, extras); setEditor(null); }}
+          onRemove={() => { removeCell(editor.row, editor.solution); setEditor(null); }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Cell editor popover — clean status + price + notes UI
+// ─────────────────────────────────────────────────────────────────
+function CellEditor({ state, onClose, onSetStatus, onRemove }: {
+  state: CellEditorState;
+  onClose: () => void;
+  onSetStatus: (status: EntitySolution["status"], extras?: { monthly_upcharge?: number; upfront_charged?: number; notes?: string }) => void;
+  onRemove: () => void;
+}) {
+  const existing = state.row.solutions[state.solution.id];
+  const [monthlyUpcharge, setMonthlyUpcharge] = useState<number>(existing?.monthly_upcharge ?? state.solution.monthly_price);
+  const [upfront, setUpfront] = useState<number>(existing?.upfront_charged ?? state.solution.upfront_price);
+  const [notes, setNotes] = useState<string>(existing?.notes ?? "");
+
+  // Click outside to close
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest("[data-cell-editor]")) onClose();
+    };
+    // Defer attach so the same click that opened doesn't close it
+    const t = setTimeout(() => document.addEventListener("mousedown", handler), 50);
+    return () => { clearTimeout(t); document.removeEventListener("mousedown", handler); };
+  }, [onClose]);
+
+  // Esc to close
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", h);
+    return () => document.removeEventListener("keydown", h);
+  }, [onClose]);
+
+  const apply = (status: EntitySolution["status"]) => {
+    onSetStatus(status, { monthly_upcharge: monthlyUpcharge, upfront_charged: upfront, notes });
+  };
+
+  return (
+    <div data-cell-editor className="fixed z-50 rounded-xl shadow-2xl"
+      style={{
+        left: state.x,
+        top: state.y,
+        width: 320,
+        background: "var(--surface)",
+        border: "2px solid var(--accent)",
+      }}>
+      <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--border)" }}>
+        <p className="text-xs font-semibold uppercase tracking-wider mb-0.5" style={{ color: "var(--text-dim)" }}>
+          {state.row.business_name || "(unnamed)"}
+        </p>
+        <p className="text-sm font-bold" style={{ color: "var(--text)" }}>{state.solution.name}</p>
+      </div>
+
+      <div className="p-4 space-y-3">
+        {/* Status buttons */}
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "var(--text-muted)" }}>Set Status</p>
+          <div className="grid grid-cols-2 gap-1.5">
+            {SOLUTION_STATUSES.map((s) => {
+              const isCurrent = existing?.status === s.value;
+              return (
+                <button key={s.value} onClick={() => apply(s.value)}
+                  className="flex items-center justify-center gap-1.5 text-xs font-semibold py-1.5 rounded-lg transition-all"
+                  style={{
+                    background: isCurrent ? `${s.color}30` : "var(--surface2)",
+                    color: isCurrent ? s.color : "var(--text-secondary)",
+                    border: `1px solid ${isCurrent ? s.color : "var(--border)"}`,
+                  }}>
+                  <span>{s.icon}</span>
+                  {s.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Price overrides */}
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: "var(--text-muted)" }}>Upfront £</p>
+            <input type="number" min="0" step="1" value={upfront}
+              onChange={(e) => setUpfront(Number(e.target.value))}
+              className="w-full px-2 py-1.5 rounded-lg text-sm"
+              style={inputStyle} />
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: "var(--text-muted)" }}>Monthly £</p>
+            <input type="number" min="0" step="1" value={monthlyUpcharge}
+              onChange={(e) => setMonthlyUpcharge(Number(e.target.value))}
+              className="w-full px-2 py-1.5 rounded-lg text-sm"
+              style={inputStyle} />
+          </div>
+        </div>
+
+        {/* Notes */}
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: "var(--text-muted)" }}>Notes</p>
+          <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)}
+            placeholder="Free-text — anything to remember about this pitch"
+            className="w-full px-2 py-1.5 rounded-lg text-sm resize-none"
+            style={inputStyle} />
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between gap-2 px-4 py-3" style={{ borderTop: "1px solid var(--border)" }}>
+        {existing ? (
+          <button onClick={onRemove}
+            className="text-xs font-semibold px-2.5 py-1.5 rounded-lg"
+            style={{ background: "transparent", color: "#ef4444", border: "1px solid #ef4444" }}>
+            🗑 Remove
+          </button>
+        ) : <span />}
+        <button onClick={onClose}
+          className="text-xs font-semibold px-2.5 py-1.5 rounded-lg"
+          style={{ background: "var(--surface2)", color: "var(--text-secondary)" }}>
+          Close
+        </button>
       </div>
     </div>
   );
