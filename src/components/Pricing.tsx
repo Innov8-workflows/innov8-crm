@@ -1,6 +1,17 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import type { Solution } from "@/types";
+import { SOLUTION_CATEGORIES } from "@/types";
+
 export default function Pricing() {
+  const [solutions, setSolutions] = useState<Solution[]>([]);
+  const [selected, setSelected] = useState<Solution | null>(null);
+
+  useEffect(() => {
+    fetch("/api/solutions").then((r) => r.json()).then((d) => setSolutions(d.solutions || []));
+  }, []);
+
   return (
     <div className="flex-1 overflow-auto p-6 space-y-8">
       {/* Header */}
@@ -36,6 +47,73 @@ export default function Pricing() {
           &#9888; T3 at £20/pm is your absolute floor — any lower and support becomes unviable.
         </div>
       </div>
+
+      {/* AI Solutions Catalogue — quick reference for upsells */}
+      {solutions.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: "var(--text-dim)" }}>Add-On Catalogue</p>
+          <h2 className="text-lg font-bold mb-0.5" style={{ color: "var(--text)" }}>🤖 AI Solutions &amp; Automations</h2>
+          <p className="text-xs mb-4" style={{ color: "var(--text-quaternary)" }}>Quick reference for upsells on calls. Tap any card to see the pitch angle.</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            {solutions.map((s) => {
+              const cat = SOLUTION_CATEGORIES.find((c) => c.value === s.category);
+              return (
+                <button key={s.id} onClick={() => setSelected(s)}
+                  className="text-left rounded-lg p-3 transition-colors"
+                  style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+                  onMouseEnter={(e) => e.currentTarget.style.borderColor = "var(--accent)"}
+                  onMouseLeave={(e) => e.currentTarget.style.borderColor = "var(--border)"}>
+                  <div className="flex items-start justify-between gap-2 mb-1">
+                    <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>{s.name}</p>
+                    {cat && (
+                      <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full flex-shrink-0"
+                        style={{ background: `${cat.color}25`, color: cat.color }}>{cat.label}</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 text-xs">
+                    <span style={{ color: "var(--text-dim)" }}>£{s.upfront_price}</span>
+                    <span style={{ color: "var(--text-quaternary)" }}>+</span>
+                    <span style={{ color: "#22c55e", fontWeight: 600 }}>£{s.monthly_price}/mo</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Drawer for selected solution */}
+          {selected && (
+            <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.6)" }} onClick={() => setSelected(null)}>
+              <div className="w-full max-w-lg rounded-xl p-6" style={{ background: "var(--surface)", border: "1px solid var(--border)" }} onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-start justify-between mb-3">
+                  <h3 className="text-xl font-bold" style={{ color: "var(--text)" }}>{selected.name}</h3>
+                  <button onClick={() => setSelected(null)} className="text-sm px-2" style={{ color: "var(--text-muted)" }}>✕</button>
+                </div>
+                <p className="text-sm mb-4" style={{ color: "var(--text-secondary)" }}>{selected.description}</p>
+                <div className="grid grid-cols-3 gap-2 mb-4">
+                  <div className="rounded-lg p-2 text-center" style={{ background: "var(--surface2)" }}>
+                    <div className="text-[10px] uppercase tracking-wider" style={{ color: "var(--text-dim)" }}>Upfront</div>
+                    <div className="text-base font-bold" style={{ color: "var(--text)" }}>£{selected.upfront_price}</div>
+                  </div>
+                  <div className="rounded-lg p-2 text-center" style={{ background: "var(--surface2)" }}>
+                    <div className="text-[10px] uppercase tracking-wider" style={{ color: "var(--text-dim)" }}>Monthly</div>
+                    <div className="text-base font-bold" style={{ color: "#22c55e" }}>£{selected.monthly_price}</div>
+                  </div>
+                  <div className="rounded-lg p-2 text-center" style={{ background: "var(--surface2)" }}>
+                    <div className="text-[10px] uppercase tracking-wider" style={{ color: "var(--text-dim)" }}>Install</div>
+                    <div className="text-base font-bold" style={{ color: "var(--text)" }}>{selected.install_days}d</div>
+                  </div>
+                </div>
+                {selected.pitch_angle && (
+                  <div className="p-3 rounded-lg mb-3" style={{ background: "var(--accent-subtle)", border: "1px solid var(--accent)" }}>
+                    <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: "var(--accent)" }}>💬 Pitch Angle</p>
+                    <p className="text-sm" style={{ color: "var(--text)" }}>{selected.pitch_angle}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Sales Script */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

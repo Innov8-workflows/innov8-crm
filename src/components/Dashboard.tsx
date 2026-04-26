@@ -19,23 +19,32 @@ interface ClientStats {
   mrr: number; capex: number; clientCount: number; overdueRenewals: number; lostClients: number;
 }
 
+interface SolutionsStats {
+  total: number; proposed: number; sold: number; delivered: number; declined: number;
+  mrr: number; one_off_revenue: number;
+  per_solution: Array<{ id: number; name: string; sold: number; delivered: number; proposed: number; total: number; conversion_pct: number }>;
+}
+
 export default function Dashboard({ ownerFilter = "" }: { ownerFilter?: string }) {
   const [prospects, setProspects] = useState<ProspectStats | null>(null);
   const [clients, setClients] = useState<ClientStats | null>(null);
   const [activeProjects, setActiveProjects] = useState(0);
+  const [solutions, setSolutions] = useState<SolutionsStats | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchAll = useCallback(async () => {
     const ownerParam = ownerFilter ? `?owner=${encodeURIComponent(ownerFilter)}` : "";
-    const [pRes, cRes, projRes] = await Promise.all([
+    const [pRes, cRes, projRes, solRes] = await Promise.all([
       fetch(`/api/leads/stats${ownerParam}`),
       fetch(`/api/clients/stats${ownerParam}`),
       fetch(`/api/projects?completed=false${ownerParam ? `&owner=${encodeURIComponent(ownerFilter)}` : ""}`),
+      fetch(`/api/solutions/stats`),
     ]);
-    const [pData, cData, projData] = await Promise.all([pRes.json(), cRes.json(), projRes.json()]);
+    const [pData, cData, projData, solData] = await Promise.all([pRes.json(), cRes.json(), projRes.json(), solRes.json()]);
     setProspects(pData);
     setClients(cData);
     setActiveProjects(projData.projects?.length || 0);
+    setSolutions(solData);
     setLoading(false);
   }, [ownerFilter]);
 
@@ -83,7 +92,7 @@ export default function Dashboard({ ownerFilter = "" }: { ownerFilter?: string }
       {/* Section 1: Revenue Overview */}
       <div>
         <h2 className="text-sm font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--text-dim)" }}>Revenue Overview</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-4">
           <RevenueCard label="Client MRR" value={`\u00A3${(clients?.mrr || 0).toFixed(2)}`} color="#22c55e"
             icon="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           <RevenueCard label="Client CAPEX" value={`\u00A3${(clients?.capex || 0).toFixed(2)}`} color="#3b82f6"
@@ -96,8 +105,37 @@ export default function Dashboard({ ownerFilter = "" }: { ownerFilter?: string }
             icon="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
           <RevenueCard label="Active Projects" value={String(activeProjects)} color="#ea580c"
             icon="M6 6.878V6a2.25 2.25 0 012.25-2.25h7.5A2.25 2.25 0 0118 6v.878m-12 0c.235-.083.487-.128.75-.128h10.5c.263 0 .515.045.75.128m-12 0A2.25 2.25 0 004.5 9v.878m13.5-3A2.25 2.25 0 0119.5 9v.878m0 0a2.246 2.246 0 00-.75-.128H5.25c-.263 0-.515.045-.75.128m15 0A2.25 2.25 0 0121 12v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18v-6c0-1.007.662-1.858 1.574-2.144z" />
+          <RevenueCard label="Upsell MRR" value={`£${(solutions?.mrr || 0).toFixed(2)}`} color="#8b5cf6"
+            icon="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
         </div>
       </div>
+
+      {/* Section: Top AI Solutions (only shows if any sold) */}
+      {solutions && (solutions.sold + solutions.delivered) > 0 && (
+        <div>
+          <h2 className="text-sm font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--text-dim)" }}>Top AI Solutions</h2>
+          <div className="rounded-xl p-5" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+            <div className="space-y-2">
+              {(() => {
+                const top = [...solutions.per_solution].sort((a, b) => (b.sold + b.delivered) - (a.sold + a.delivered)).slice(0, 5);
+                const max = Math.max(1, ...top.map((s) => s.sold + s.delivered));
+                return top.map((s) => {
+                  const won = s.sold + s.delivered;
+                  return (
+                    <div key={s.id} className="flex items-center gap-3">
+                      <div className="w-48 text-sm truncate" style={{ color: "var(--text)" }}>{s.name}</div>
+                      <div className="flex-1 h-6 rounded-lg overflow-hidden flex items-center" style={{ background: "var(--surface2)" }}>
+                        <div className="h-full transition-all" style={{ width: `${(won / max) * 100}%`, background: "linear-gradient(90deg, #8b5cf6, #a855f7)" }} />
+                      </div>
+                      <div className="w-20 text-right text-sm" style={{ color: "#a855f7", fontWeight: 700 }}>{won} sold</div>
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Section 2: Sales Pipeline Cards */}
       <div>
