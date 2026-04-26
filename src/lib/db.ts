@@ -224,7 +224,11 @@ async function doInitDb() {
   await seedSolutionsCatalogue(db);
 }
 
+// Module-level flag — seed runs once per lambda lifetime, not per request
+let seedsChecked = false;
+
 async function seedSolutionsCatalogue(db: Client) {
+  if (seedsChecked) return;
   try {
     const seeds = [
       { name: "AI Voice Receptionist", description: "Answers missed calls 24/7, takes messages and books appointments. Never miss a job again.", category: "ai", target_trades: "Plumbing,Electrician,Driveway,Builder,Roofer", upfront: 299, monthly: 79, days: 7, pitch: "Tradies miss 30%+ of calls during job hours — this catches them all" },
@@ -263,6 +267,7 @@ async function seedSolutionsCatalogue(db: Client) {
         args: [s.name, s.description, s.category, s.target_trades, s.upfront, s.monthly, s.days, s.pitch, i],
       });
     }
+    seedsChecked = true;
   } catch (e) {
     console.error("seedSolutionsCatalogue failed:", e);
   }

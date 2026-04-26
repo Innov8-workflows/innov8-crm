@@ -29,15 +29,22 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     const match = url.match(/^data:([^;]+);base64,(.+)$/);
     if (match) {
       const [, contentType, b64] = match;
-      const buf = Buffer.from(b64, "base64");
-      return new NextResponse(new Uint8Array(buf), {
-        headers: {
-          "Content-Type": contentType,
-          "Cache-Control": "private, max-age=86400, immutable",
-          "Content-Length": buf.length.toString(),
-        },
-      });
+      try {
+        const buf = Buffer.from(b64, "base64");
+        if (buf.length === 0) return new NextResponse("Empty image data", { status: 400 });
+        return new NextResponse(new Uint8Array(buf), {
+          headers: {
+            "Content-Type": contentType,
+            "Cache-Control": "private, max-age=86400, immutable",
+            "Content-Length": buf.length.toString(),
+          },
+        });
+      } catch {
+        return new NextResponse("Invalid image data", { status: 400 });
+      }
     }
+    // data: URL but not base64 (e.g., data:image/svg+xml,...) — return as-is
+    return new NextResponse("Unsupported data URL format", { status: 400 });
   }
 
   // Otherwise it's a regular URL — redirect the browser to it

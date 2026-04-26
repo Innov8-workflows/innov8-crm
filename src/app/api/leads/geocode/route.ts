@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getClient, initDb, all } from "@/lib/db";
-import { geocodeUK, sleep, GEOCODE_FAILED_SENTINEL } from "@/lib/geocode";
+import { geocodeUK, sleep, GEOCODE_FAILED_SENTINEL, TransientGeocodeError } from "@/lib/geocode";
 
 // Extend Vercel timeout to 60s (Hobby plan max). Default 10s is too short
 // for bulk geocoding with Nominatim's 1 req/sec limit.
@@ -34,6 +34,7 @@ export async function POST(_request: NextRequest) {
 
   let geocoded = 0;
   let failed = 0;
+  let transient = 0; // 429s / timeouts — leave for retry next call
 
   // Hard deadline to abort before Vercel kills us (leave 5s safety margin)
   const startTime = Date.now();
@@ -46,27 +47,40 @@ export async function POST(_request: NextRequest) {
     // Respect 1 req/sec limit
     if (i > 0) await sleep(1050);
 
-    const result = await geocodeUK(location);
-    if (result) {
-      await db.execute({
-        sql: "UPDATE leads SET lat = ?, lng = ? WHERE location = ? AND lat IS NULL",
-        args: [result.lat, result.lng, location],
-      });
-      geocoded++;
-    } else {
-      // Mark as failed with sentinel so we don't retry this specific location
-      await db.execute({
-        sql: "UPDATE leads SET lat = ?, lng = ? WHERE location = ? AND lat IS NULL",
-        args: [GEOCODE_FAILED_SENTINEL, GEOCODE_FAILED_SENTINEL, location],
-      });
-      failed++;
+    try {
+      const result = await geocodeUK(location);
+      if (result) {
+        await db.execute({
+          sql: "UPDATE leads SET lat = ?, lng = ? WHERE location = ? AND lat IS NULL",
+          args: [result.lat, result.lng, location],
+        });
+        geocoded++;
+      } else {
+        // Definitively unresolvable — sentinel write so we don't retry forever
+        await db.execute({
+          sql: "UPDATE leads SET lat = ?, lng = ? WHERE location = ? AND lat IS NULL",
+          args: [GEOCODE_FAILED_SENTINEL, GEOCODE_FAILED_SENTINEL, location],
+        });
+        failed++;
+      }
+    } catch (err) {
+      if (err instanceof TransientGeocodeError) {
+        // Don't write sentinel — leave NULL so it'll be retried next call
+        transient++;
+        // Back off slightly when we hit transient errors
+        await sleep(2000);
+      } else {
+        // Unknown error — treat as failed to avoid infinite loops
+        failed++;
+      }
     }
   }
 
-  const processed = geocoded + failed;
+  const processed = geocoded + failed; // transient locations stay pending
   return NextResponse.json({
     geocoded,
     failed,
+    transient,
     remaining: Math.max(0, locations.length - processed),
     total_pending: locations.length,
   });

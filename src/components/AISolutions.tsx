@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import type { Solution, EntitySolution } from "@/types";
 import { SOLUTION_STATUSES, SOLUTION_CATEGORIES } from "@/types";
 import LoadingAI from "./LoadingAI";
@@ -390,27 +390,75 @@ function MatrixView({ solutions }: { solutions: Solution[] }) {
   }, [matrixRows, filter, search]);
 
   const setCellStatus = async (row: MatrixRow, solution: Solution, status: EntitySolution["status"], extras?: { monthly_upcharge?: number; upfront_charged?: number; notes?: string }) => {
-    await fetch("/api/entity-solutions", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        entity_type: row.entity_type,
-        entity_id: row.entity_id,
-        solution_id: solution.id,
-        status,
-        ...extras,
-      }),
-    });
-    toast(`${row.business_name}: ${solution.name} → ${status}`, "success");
-    fetchMatrix();
+    // Optimistic update — no full refetch (was reloading 250+ leads + 100+ projects per click)
+    const now = new Date().toISOString();
+    const existing = row.solutions[solution.id];
+    const optimistic: EntitySolution = {
+      id: existing?.id ?? -1,
+      entity_type: row.entity_type,
+      entity_id: row.entity_id,
+      solution_id: solution.id,
+      status,
+      monthly_upcharge: extras?.monthly_upcharge ?? existing?.monthly_upcharge ?? solution.monthly_price,
+      upfront_charged: extras?.upfront_charged ?? existing?.upfront_charged ?? solution.upfront_price,
+      notes: extras?.notes ?? existing?.notes ?? "",
+      proposed_at: existing?.proposed_at || now,
+      sold_at: (status === "sold" || status === "delivered") ? (existing?.sold_at || now) : (existing?.sold_at || ""),
+      delivered_at: status === "delivered" ? (existing?.delivered_at || now) : (existing?.delivered_at || ""),
+      created_at: existing?.created_at || now,
+      updated_at: now,
+    };
+    setMatrixRows((prev) => prev.map((r) =>
+      r.entity_type === row.entity_type && r.entity_id === row.entity_id
+        ? { ...r, solutions: { ...r.solutions, [solution.id]: optimistic } }
+        : r
+    ));
+
+    try {
+      await fetch("/api/entity-solutions", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          entity_type: row.entity_type,
+          entity_id: row.entity_id,
+          solution_id: solution.id,
+          status,
+          ...extras,
+        }),
+      });
+      toast(`${row.business_name}: ${solution.name} → ${status}`, "success");
+    } catch {
+      // Rollback on failure
+      setMatrixRows((prev) => prev.map((r) =>
+        r.entity_type === row.entity_type && r.entity_id === row.entity_id
+          ? { ...r, solutions: existing ? { ...r.solutions, [solution.id]: existing } : Object.fromEntries(Object.entries(r.solutions).filter(([k]) => Number(k) !== solution.id)) }
+          : r
+      ));
+      toast("Update failed — please retry", "error");
+    }
   };
 
   const removeCell = async (row: MatrixRow, solution: Solution) => {
     const existing = row.solutions[solution.id];
     if (!existing) return;
-    await fetch(`/api/entity-solutions?id=${existing.id}`, { method: "DELETE" });
-    toast(`${row.business_name}: ${solution.name} → removed`, "info");
-    fetchMatrix();
+    // Optimistic remove
+    setMatrixRows((prev) => prev.map((r) =>
+      r.entity_type === row.entity_type && r.entity_id === row.entity_id
+        ? { ...r, solutions: Object.fromEntries(Object.entries(r.solutions).filter(([k]) => Number(k) !== solution.id)) }
+        : r
+    ));
+    try {
+      await fetch(`/api/entity-solutions?id=${existing.id}`, { method: "DELETE" });
+      toast(`${row.business_name}: ${solution.name} → removed`, "info");
+    } catch {
+      // Rollback
+      setMatrixRows((prev) => prev.map((r) =>
+        r.entity_type === row.entity_type && r.entity_id === row.entity_id
+          ? { ...r, solutions: { ...r.solutions, [solution.id]: existing } }
+          : r
+      ));
+      toast("Remove failed — please retry", "error");
+    }
   };
 
   const openCellEditor = (e: React.MouseEvent, row: MatrixRow, solution: Solution) => {
@@ -554,15 +602,22 @@ function CellEditor({ state, onClose, onSetStatus, onRemove }: {
   const [upfront, setUpfront] = useState<number>(existing?.upfront_charged ?? state.solution.upfront_price);
   const [notes, setNotes] = useState<string>(existing?.notes ?? "");
 
-  // Click outside to close
+  // Click outside to close — ref-based to avoid leaked listeners if onClose re-creates
+  const mountedRef = useRef(true);
   useEffect(() => {
+    mountedRef.current = true;
     const handler = (e: MouseEvent) => {
+      if (!mountedRef.current) return;
       const target = e.target as HTMLElement;
       if (!target.closest("[data-cell-editor]")) onClose();
     };
     // Defer attach so the same click that opened doesn't close it
     const t = setTimeout(() => document.addEventListener("mousedown", handler), 50);
-    return () => { clearTimeout(t); document.removeEventListener("mousedown", handler); };
+    return () => {
+      mountedRef.current = false;
+      clearTimeout(t);
+      document.removeEventListener("mousedown", handler);
+    };
   }, [onClose]);
 
   // Esc to close

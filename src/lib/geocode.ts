@@ -14,6 +14,10 @@ export interface GeocodeResult {
   lng: number;
 }
 
+// Thrown for transient errors (rate limits, timeouts, 5xx) so callers can
+// skip the FAILED_SENTINEL write and retry on the next batch.
+export class TransientGeocodeError extends Error {}
+
 export async function geocodeUK(location: string): Promise<GeocodeResult | null> {
   const trimmed = location.trim();
   if (!trimmed) return null;
@@ -31,6 +35,10 @@ export async function geocodeUK(location: string): Promise<GeocodeResult | null>
       // 5s timeout — keeps the batch endpoint within Vercel's 60s budget
       signal: AbortSignal.timeout(5_000),
     });
+    // Distinguish transient (retry-worthy) from definitive failure
+    if (res.status === 429 || res.status >= 500) {
+      throw new TransientGeocodeError(`Nominatim ${res.status}`);
+    }
     if (!res.ok) return null;
 
     const data = (await res.json()) as Array<{ lat: string; lon: string }>;
@@ -42,7 +50,17 @@ export async function geocodeUK(location: string): Promise<GeocodeResult | null>
     if (!isFinite(latNum) || !isFinite(lngNum)) return null;
 
     return { lat: latNum, lng: lngNum };
-  } catch {
+  } catch (err) {
+    // Re-throw transient errors so the batch endpoint can skip the sentinel write
+    if (err instanceof TransientGeocodeError) throw err;
+    // Network errors, abort/timeout — also treat as transient (don't burn the location)
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new TransientGeocodeError("Nominatim timeout");
+    }
+    if (err instanceof TypeError) {
+      // Network failure (fetch typeerror) — transient
+      throw new TransientGeocodeError("Nominatim network error");
+    }
     return null;
   }
 }

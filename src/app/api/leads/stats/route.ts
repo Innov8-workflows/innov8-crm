@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
   // Single query for most stats. Top-of-funnel (emailed/messaged) are checkbox-based
   // so they're cumulative — a lead that's been called still counts as "emailed".
   // For "called" and fb-messenger we need to join the custom_field_values table below.
+  // Parameterised: today is bound twice for the overdue/dueToday CASE branches.
   const statsSQL = `SELECT
     COUNT(*) as total,
     SUM(CASE WHEN emailed = 1 THEN 1 ELSE 0 END) as emailed,
@@ -31,12 +32,13 @@ export async function GET(request: NextRequest) {
     SUM(CASE WHEN status IN ('won','completed') THEN 1 ELSE 0 END) as won,
     SUM(CASE WHEN status = 'lost' THEN 1 ELSE 0 END) as lost,
     SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected,
-    SUM(CASE WHEN follow_up_date != '' AND follow_up_date < '${today}' AND status NOT IN ('won','lost','completed','rejected') THEN 1 ELSE 0 END) as overdue,
-    SUM(CASE WHEN follow_up_date = '${today}' THEN 1 ELSE 0 END) as dueToday,
+    SUM(CASE WHEN follow_up_date != '' AND follow_up_date < ? AND status NOT IN ('won','lost','completed','rejected') THEN 1 ELSE 0 END) as overdue,
+    SUM(CASE WHEN follow_up_date = ? THEN 1 ELSE 0 END) as dueToday,
     COALESCE(SUM(CASE WHEN capex > 0 THEN capex ELSE 0 END), 0) as totalCapex
   FROM leads ${ownerWhere}`;
 
-  const stats = first(await db.execute({ sql: statsSQL, args }));
+  // Today bindings come first because they appear first in the SELECT
+  const stats = first(await db.execute({ sql: statsSQL, args: [today, today, ...args] }));
 
   // "Called" count comes from the custom_called checkbox (cumulative — once called, always counted)
   // "Messaged" needs to include both the WhatsApp column (messaged=1) and the FB Messenger custom field
