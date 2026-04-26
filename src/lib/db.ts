@@ -220,8 +220,99 @@ async function doInitDb() {
     CREATE INDEX IF NOT EXISTS idx_solutions_active ON solutions_catalogue(active);
   `);
 
-  // Seed the solutions catalogue if empty (first deploy only)
+  // Clean up any duplicate solutions left behind by the previous buggy seed check.
+  // Must run BEFORE the unique index gets created and BEFORE seeding new entries.
+  await dedupSolutionsCatalogue(db);
+
+  // After dedup, enforce uniqueness on name to prevent any future duplicates.
+  try {
+    await db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_solutions_catalogue_name ON solutions_catalogue(name)");
+  } catch (e) {
+    // Index creation can fail if dedup somehow missed something — log and continue
+    console.error("Failed to create unique index on solutions_catalogue.name:", e);
+  }
+
+  // Seed the solutions catalogue (idempotent — adds missing names, leaves existing untouched)
   await seedSolutionsCatalogue(db);
+}
+
+// Module-level flag — dedup runs once per lambda lifetime
+let dedupRan = false;
+
+// One-time cleanup of duplicate solutions_catalogue rows.
+// For each name with duplicates: keeps the row with the MIN(id), repoints any
+// entity_solutions referencing duplicates to the canonical id, and deletes
+// the duplicate catalogue rows. Safe to run repeatedly — no-op when clean.
+async function dedupSolutionsCatalogue(db: Client) {
+  if (dedupRan) return;
+  try {
+    const dupRes = await db.execute(`
+      SELECT name, MIN(id) as canonical_id, COUNT(*) as cnt
+      FROM solutions_catalogue
+      GROUP BY name
+      HAVING cnt > 1
+    `);
+    const duplicates = all(dupRes);
+    if (duplicates.length === 0) {
+      dedupRan = true;
+      return;
+    }
+
+    let removed = 0;
+    for (const dup of duplicates) {
+      const name = dup.name as string;
+      const canonicalId = dup.canonical_id as number;
+
+      // All non-canonical IDs for this name
+      const idsRes = await db.execute({
+        sql: "SELECT id FROM solutions_catalogue WHERE name = ? AND id != ?",
+        args: [name, canonicalId],
+      });
+      const dupIds = all(idsRes).map((r) => r.id as number);
+      if (dupIds.length === 0) continue;
+
+      // For each entity_solution row pointing to a duplicate id, decide:
+      //   - canonical row already exists for this entity → DELETE the duplicate row
+      //   - else → UPDATE to point at canonical
+      // This avoids violating the UNIQUE(entity_type, entity_id, solution_id) constraint.
+      for (const dupId of dupIds) {
+        const esRows = all(await db.execute({
+          sql: "SELECT id, entity_type, entity_id FROM entity_solutions WHERE solution_id = ?",
+          args: [dupId],
+        }));
+
+        for (const es of esRows) {
+          const conflict = all(await db.execute({
+            sql: "SELECT id FROM entity_solutions WHERE entity_type = ? AND entity_id = ? AND solution_id = ?",
+            args: [es.entity_type as string, es.entity_id as number, canonicalId],
+          }));
+
+          if (conflict.length > 0) {
+            await db.execute({ sql: "DELETE FROM entity_solutions WHERE id = ?", args: [es.id as number] });
+          } else {
+            await db.execute({
+              sql: "UPDATE entity_solutions SET solution_id = ? WHERE id = ?",
+              args: [canonicalId, es.id as number],
+            });
+          }
+        }
+      }
+
+      // Now delete the duplicate catalogue rows
+      const placeholders = dupIds.map(() => "?").join(",");
+      const result = await db.execute({
+        sql: `DELETE FROM solutions_catalogue WHERE id IN (${placeholders})`,
+        args: dupIds,
+      });
+      removed += Number(result.rowsAffected) || dupIds.length;
+    }
+
+    console.log(`[dedupSolutionsCatalogue] Removed ${removed} duplicate rows across ${duplicates.length} names`);
+    dedupRan = true;
+  } catch (e) {
+    console.error("dedupSolutionsCatalogue failed:", e);
+    // Don't set dedupRan so it can retry next request
+  }
 }
 
 // Module-level flag — seed runs once per lambda lifetime, not per request
@@ -254,9 +345,11 @@ async function seedSolutionsCatalogue(db: Client) {
       { name: "Custom Branded Mobile PWA", description: "Their own logo on the home screen. Push notifications. Works offline. Their customers feel like they're using a £1m brand.", category: "custom", target_trades: "", upfront: 699, monthly: 70, days: 21, pitch: "App-store-quality experience without the £20k development cost" },
     ];
 
-    // Idempotent seed: insert only solutions whose name doesn't already exist
+    // Idempotent seed: insert only solutions whose name doesn't already exist.
+    // Use the `all()` helper because libsql returns rows as positional arrays —
+    // the previous `r.name` cast silently produced undefined, causing duplicates.
     const existing = await db.execute("SELECT name FROM solutions_catalogue");
-    const existingNames = new Set(existing.rows.map((r) => (r as unknown as { name: string }).name));
+    const existingNames = new Set(all(existing).map((r) => r.name as string));
 
     for (let i = 0; i < seeds.length; i++) {
       const s = seeds[i];
