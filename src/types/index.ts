@@ -154,6 +154,7 @@ export const SOLUTION_CATEGORIES = [
   { value: "automation", label: "Automation", color: "#3b82f6" },
   { value: "marketing", label: "Marketing", color: "#ec4899" },
   { value: "integration", label: "Integration", color: "#10b981" },
+  { value: "custom", label: "Custom Build", color: "#ea580c" },
 ] as const;
 
 export const PIPELINE_STAGES = [

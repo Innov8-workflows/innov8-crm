@@ -226,10 +226,6 @@ async function doInitDb() {
 
 async function seedSolutionsCatalogue(db: Client) {
   try {
-    const r = await db.execute("SELECT COUNT(*) as c FROM solutions_catalogue");
-    const count = Number((r.rows[0] as unknown as { c: number })?.c) || 0;
-    if (count > 0) return;
-
     const seeds = [
       { name: "AI Voice Receptionist", description: "Answers missed calls 24/7, takes messages and books appointments. Never miss a job again.", category: "ai", target_trades: "Plumbing,Electrician,Driveway,Builder,Roofer", upfront: 299, monthly: 79, days: 7, pitch: "Tradies miss 30%+ of calls during job hours — this catches them all" },
       { name: "WhatsApp Auto-Reply Bot", description: "Instant replies to FB Messenger / Instagram / WhatsApp enquiries with smart routing.", category: "automation", target_trades: "", upfront: 149, monthly: 35, days: 3, pitch: "First-to-reply wins — automate the response while you're on a job" },
@@ -243,10 +239,24 @@ async function seedSolutionsCatalogue(db: Client) {
       { name: "Stripe + Invoice Reminders", description: "Auto-send invoices via Stripe with chase-up reminders for overdue payments.", category: "integration", target_trades: "Plumbing,Electrician,Driveway,Builder,Roofer", upfront: 79, monthly: 15, days: 2, pitch: "Trades with cashflow problems love this — paid 40% faster on average" },
       { name: "Instagram Reel Generator", description: "AI cuts before/after clips into 30-second Reels with trending audio. Posts auto.", category: "marketing", target_trades: "Beauty,Hairdresser,Dog Groomer,Personal Trainer,Photographer", upfront: 199, monthly: 45, days: 5, pitch: "Reels = exposure. They don't have time to make them. We do." },
       { name: "Birthday / Loyalty SMS", description: "Auto-sends birthday discount codes and loyalty stamps via SMS. Drives repeat bookings.", category: "marketing", target_trades: "Beauty,Hairdresser,Dog Groomer,Personal Trainer", upfront: 79, monthly: 20, days: 2, pitch: "Repeat customers are 5x cheaper than new — automate the love" },
+      // Custom builds — bespoke software powered by Claude Code
+      { name: "Custom CRM", description: "Bespoke CRM tailored exactly to their workflow — pipelines, custom fields, dashboards. No bloat, only what they need.", category: "custom", target_trades: "", upfront: 499, monthly: 80, days: 14, pitch: "Off-the-shelf CRMs are bloated. Theirs will fit like a glove and they'll actually use it." },
+      { name: "Custom Job Management App", description: "Mobile-first job tracker for the field. Photos, customer signatures, GPS check-in, materials list, time tracking.", category: "custom", target_trades: "Plumbing,Electrician,Driveway,Builder,Roofer", upfront: 799, monthly: 100, days: 21, pitch: "Their crew will stop scribbling on paper — and the office finally knows what's happening on each job in real time" },
+      { name: "Custom Customer Portal", description: "Branded portal where their customers log in to view quotes, jobs, invoices, photos, and service history.", category: "custom", target_trades: "", upfront: 599, monthly: 60, days: 14, pitch: "Stops the 'when are you coming?' calls dead — customers self-serve everything" },
+      { name: "Custom Quote / Estimate Builder", description: "Generate beautiful branded PDF quotes in 60 seconds from a simple form. Versioned, e-signable, auto follow-up.", category: "custom", target_trades: "Plumbing,Electrician,Driveway,Builder,Roofer", upfront: 349, monthly: 50, days: 10, pitch: "They're using Word docs and screenshots. This makes them look £100k bigger than they are." },
+      { name: "Custom Internal KPI Dashboard", description: "Owner-only command centre: revenue per crew, conversion rate, jobs by stage, debtors. Pulls from their existing tools.", category: "custom", target_trades: "", upfront: 399, monthly: 50, days: 10, pitch: "Owners run blind. Give them numbers that actually drive decisions." },
+      { name: "Bespoke AI Workflow Automation", description: "Custom AI agent built for their exact pain point — inbox triage, lead scoring, content generation, you name it. Built with Claude.", category: "custom", target_trades: "", upfront: 499, monthly: 75, days: 10, pitch: "Anything they wish a person could do but can't afford — we automate it" },
+      { name: "Custom Booking + Resource Scheduler", description: "Schedules people, vans, and materials together — not just appointments. Catches double-bookings before they happen.", category: "custom", target_trades: "Plumbing,Electrician,Driveway,Builder,Roofer", upfront: 449, monthly: 55, days: 12, pitch: "Off-the-shelf calendars don't track if the van is free. This does." },
+      { name: "Custom Branded Mobile PWA", description: "Their own logo on the home screen. Push notifications. Works offline. Their customers feel like they're using a £1m brand.", category: "custom", target_trades: "", upfront: 699, monthly: 70, days: 21, pitch: "App-store-quality experience without the £20k development cost" },
     ];
+
+    // Idempotent seed: insert only solutions whose name doesn't already exist
+    const existing = await db.execute("SELECT name FROM solutions_catalogue");
+    const existingNames = new Set(existing.rows.map((r) => (r as unknown as { name: string }).name));
 
     for (let i = 0; i < seeds.length; i++) {
       const s = seeds[i];
+      if (existingNames.has(s.name)) continue;
       await db.execute({
         sql: `INSERT INTO solutions_catalogue (name, description, category, target_trades, upfront_price, monthly_price, install_days, pitch_angle, active, sort_order)
               VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
