@@ -35,7 +35,7 @@ interface Stats {
   }>;
 }
 
-const TRADE_OPTIONS = ["Plumbing", "Electrician", "Driveway", "Builder", "Roofer", "Beauty", "Hairdresser", "Dog Groomer", "Personal Trainer", "Photographer", "LinkedIn SME", "Other"];
+const TRADE_OPTIONS = ["Plumbing", "Electrician", "Driveway", "Builder", "Roofer", "Scaffolder", "Beauty", "Hairdresser", "Dog Groomer", "Personal Trainer", "Photographer", "LinkedIn SME", "Other"];
 
 export default function AISolutions() {
   const [subView, setSubView] = useState<SubView>("catalogue");

@@ -117,7 +117,7 @@ function DraggableColumnHeader({ header, onColumnDrop }: { header: Header<Lead, 
   );
 }
 
-const TABS = ["All", "Plumbing", "Electrician", "Driveway", "Builder", "Roofer", "Beauty", "Hairdresser", "Dog Groomer", "Personal Trainer", "Photographer", "LinkedIn SME", "Other"];
+const TABS = ["All", "Plumbing", "Electrician", "Driveway", "Builder", "Roofer", "Scaffolder", "Beauty", "Hairdresser", "Dog Groomer", "Personal Trainer", "Photographer", "LinkedIn SME", "Other"];
 
 const columnHelper = createColumnHelper<Lead>();
 
