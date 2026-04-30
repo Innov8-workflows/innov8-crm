@@ -15,36 +15,93 @@ export default function Pricing() {
   return (
     <div className="flex-1 overflow-auto p-6 space-y-8">
       {/* Header */}
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: "var(--accent)" }}>Innov8 Workflows</p>
-        <h1 className="text-3xl font-bold mb-1">Pricing <span style={{ color: "var(--accent)" }}>Structure</span></h1>
-        <p className="text-sm" style={{ color: "var(--text-dim)" }}>Website product — all tiers include hosting &amp; support</p>
-      </div>
-
-      {/* Tier 1 Market: Blue Collar Trades */}
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: "var(--text-dim)" }}>Tier 1 Market</p>
-        <h2 className="text-lg font-bold mb-0.5" style={{ color: "var(--text)" }}>Blue Collar Trades</h2>
-        <p className="text-xs mb-4" style={{ color: "var(--text-quaternary)" }}>Plumbers &middot; Electricians &middot; Construction &middot; Heating engineers</p>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <PricingCard tier="T1" upfront="£0" monthly="£85/pm" color="#22c55e" label="No upfront cost" popular={false} />
-          <PricingCard tier="T2" upfront="£299" monthly="£50/pm" color="var(--accent)" label="Mid-range" popular={true} />
-          <PricingCard tier="T3" upfront="£499" monthly="£30/pm" color="#ef4444" label="Best value long-term" popular={false} />
+      <div className="flex flex-col lg:flex-row items-start lg:items-end gap-4 lg:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: "var(--accent)" }}>Innov8 Workflows</p>
+          <h1 className="text-3xl font-bold mb-1">Pricing <span style={{ color: "var(--accent)" }}>Structure</span></h1>
+          <p className="text-sm" style={{ color: "var(--text-dim)" }}>Website product — all tiers include hosting &amp; support</p>
+        </div>
+        {/* Trophy callout */}
+        <div className="rounded-xl px-4 py-3 flex items-center gap-3" style={{ border: "1px solid var(--accent)", background: "var(--accent-subtle)" }}>
+          <div className="text-2xl">🏆</div>
+          <div className="text-xs leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+            Most businesses pay <span style={{ color: "var(--accent)", fontWeight: 700 }}>£2,000+ upfront</span><br/>
+            Our model gives you everything you need for a <span style={{ color: "var(--accent)", fontWeight: 700 }}>fraction of the typical cost</span>
+          </div>
         </div>
       </div>
 
-      {/* Tier 2 Market: Social / Lifestyle */}
+      {/* Tier 1 Market: Local Businesses (Trades) */}
       <div>
-        <p className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: "var(--text-dim)" }}>Tier 2 Market</p>
-        <h2 className="text-lg font-bold mb-0.5" style={{ color: "var(--text)" }}>Social / Lifestyle</h2>
-        <p className="text-xs mb-4" style={{ color: "var(--text-quaternary)" }}>Dog groomers &middot; Beauticians &middot; Hairdressers &middot; Barbers</p>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <PricingCard tier="T1" upfront="£0" monthly="£50/pm" color="#22c55e" label="No upfront cost" popular={false} />
-          <PricingCard tier="T2" upfront="£149" monthly="£35/pm" color="var(--accent)" label="Mid-range" popular={true} />
-          <PricingCard tier="T3" upfront="£299" monthly="£20/pm" color="#ef4444" label="Best value long-term" popular={false} />
+        <p className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: "#22c55e" }}>Tier 1 Market</p>
+        <h2 className="text-lg font-bold mb-0.5" style={{ color: "var(--text)" }}>Local Businesses</h2>
+        <p className="text-xs mb-4" style={{ color: "var(--text-quaternary)" }}>Plumbers &middot; Electricians &middot; Roofers &middot; Builders &middot; Driveways &middot; Scaffolders &middot; Heating engineers</p>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <FullPricingCard
+            tier="T1"
+            tierLabel="Essential"
+            tierSub="Website Foundation"
+            upfront="FREE"
+            monthly="£85"
+            tierColor="#22c55e"
+            features={ESSENTIAL_FEATURES}
+            timeline="1-3 business days"
+          />
+          <FullPricingCard
+            tier="T2"
+            tierLabel="Growth"
+            tierSub="Automations - For Scaling Your Business"
+            upfront="FREE"
+            monthly="£150"
+            tierColor="var(--accent)"
+            popular
+            inheritsFromT1
+            features={GROWTH_FEATURES}
+            timeline="1 week"
+          />
+          <AddOnCard />
         </div>
-        <div className="mt-3 px-4 py-2 rounded-lg text-xs" style={{ background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-dim)" }}>
-          &#9888; T3 at £20/pm is your absolute floor — any lower and support becomes unviable.
+      </div>
+
+      {/* Tier 2 Market: Social Businesses */}
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: "#22c55e" }}>Tier 2 Market</p>
+        <h2 className="text-lg font-bold mb-0.5" style={{ color: "var(--text)" }}>Social Businesses</h2>
+        <p className="text-xs mb-4" style={{ color: "var(--text-quaternary)" }}>Dog groomers &middot; Beauticians &middot; Hairdressers &middot; Barbers &middot; Personal trainers &middot; Photographers</p>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <FullPricingCard
+            tier="T1"
+            tierLabel="Essential"
+            tierSub="Website Foundation"
+            upfront="FREE"
+            monthly="£45"
+            tierColor="#22c55e"
+            features={ESSENTIAL_FEATURES}
+            timeline="1-3 business days"
+          />
+          <FullPricingCard
+            tier="T2"
+            tierLabel="Growth"
+            tierSub="Automations - For Scaling Your Business"
+            upfront="FREE"
+            monthly="£85"
+            tierColor="var(--accent)"
+            popular
+            inheritsFromT1
+            features={GROWTH_FEATURES}
+            timeline="1 week"
+          />
+          <AddOnCard />
+        </div>
+      </div>
+
+      {/* Trust badges row */}
+      <div className="rounded-xl p-5" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <TrustBadge icon="🛡" title="No Long-Term Contracts" subtitle="Cancel anytime" />
+          <TrustBadge icon="🔒" title="Secure & Reliable" subtitle="Your data is safe with us" />
+          <TrustBadge icon="🇬🇧" title="UK Based Support" subtitle="Real people, real support" />
+          <TrustBadge icon="🚀" title="Built to Grow" subtitle="Scalable as your business grows" />
         </div>
       </div>
 
@@ -235,27 +292,157 @@ export default function Pricing() {
   );
 }
 
-function PricingCard({ tier, upfront, monthly, color, label, popular }: { tier: string; upfront: string; monthly: string; color: string; label: string; popular: boolean }) {
+// ─── Pricing constants — single source of truth for both markets ───
+const ESSENTIAL_FEATURES = [
+  "Professional Branded Website",
+  "Click-to-Call",
+  "Before & Afters Slider",
+  "Google Reviews",
+  "Contact Forms",
+  "Mobile Optimised",
+  "WhatsApp/Messenger Widget",
+  "Organic SEO",
+  "Socials Linked",
+];
+
+const GROWTH_FEATURES = [
+  "Review Submissions",
+  "Scannable Google Review Cards",
+  "Missed Call Text Back",
+  "CRM App",
+  "Email Automation",
+  "Booking Calendar",
+  "Automated Lead Follow Up",
+  "5-Star Magic Review Funnel",
+];
+
+function FullPricingCard({
+  tier, tierLabel, tierSub, upfront, monthly, tierColor, features, timeline, popular = false, inheritsFromT1 = false,
+}: {
+  tier: string;
+  tierLabel: string;
+  tierSub: string;
+  upfront: string;
+  monthly: string;
+  tierColor: string;
+  features: string[];
+  timeline: string;
+  popular?: boolean;
+  inheritsFromT1?: boolean;
+}) {
   return (
-    <div className="rounded-xl p-5 relative" style={{
+    <div className="rounded-2xl p-6 relative flex flex-col" style={{
       background: "var(--surface)",
-      border: popular ? `2px solid ${color}` : "1px solid var(--border)",
-      boxShadow: popular ? `0 0 20px ${color}20` : "none",
+      border: popular ? `2px solid ${tierColor}` : "1px solid var(--border)",
+      boxShadow: popular ? `0 0 24px ${tierColor}30` : "none",
     }}>
       {popular && (
-        <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full text-xs font-bold"
-          style={{ background: color, color: "#fff" }}>Most Popular</span>
+        <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full text-xs font-bold whitespace-nowrap"
+          style={{ background: tierColor, color: "#fff" }}>Most Popular</span>
       )}
-      <div className="text-center mb-4">
-        <span className="text-lg font-bold" style={{ color }}>{tier}</span>
-        <p className="text-xs mt-1" style={{ color: "var(--text-dim)" }}>{label}</p>
+
+      {/* Tier title */}
+      <div className="text-center mb-3">
+        <p className="text-sm font-semibold mb-1" style={{ color: tierColor }}>{tier}</p>
+        <h3 className="text-2xl font-bold" style={{ color: "var(--text)" }}>{tierLabel}</h3>
+        <p className="text-xs" style={{ color: "var(--text-dim)" }}>{tierSub}</p>
       </div>
-      <div className="text-center space-y-1 mb-4">
-        <div className="text-3xl font-bold" style={{ color: "var(--text)" }}>{upfront}</div>
+
+      {/* Divider */}
+      <div className="my-3" style={{ borderTop: "1px solid var(--border)" }} />
+
+      {/* Price block */}
+      <div className="text-center mb-3">
+        <div className="text-3xl font-bold" style={{ color: "#22c55e" }}>{upfront}</div>
         <div className="text-xs" style={{ color: "var(--text-dim)" }}>upfront</div>
       </div>
-      <div className="text-center py-3 rounded-lg" style={{ background: "var(--surface2)", border: "1px solid var(--border)" }}>
-        <span className="text-xl font-bold" style={{ color }}>{monthly}</span>
+      <div className="text-center mb-4">
+        <div className="text-4xl font-bold" style={{ color: tierColor }}>{monthly}<span className="text-2xl">/pm</span></div>
+        <div className="text-xs" style={{ color: "var(--text-dim)" }}>per month</div>
+      </div>
+
+      {/* Inherits banner */}
+      {inheritsFromT1 && (
+        <p className="text-xs font-semibold mb-2" style={{ color: "var(--text-secondary)" }}>Everything in T1, plus:</p>
+      )}
+
+      {/* Features */}
+      <ul className="space-y-1.5 mb-4 flex-1">
+        {features.map((f) => (
+          <li key={f} className="flex items-start gap-2 text-sm" style={{ color: "var(--text-secondary)" }}>
+            <span className="flex-shrink-0 mt-0.5" style={{ color: popular ? tierColor : "#22c55e" }}>✓</span>
+            <span>{f}</span>
+          </li>
+        ))}
+      </ul>
+
+      {/* Divider */}
+      <div className="my-2" style={{ borderTop: "1px solid var(--border)" }} />
+
+      {/* Timeline footer */}
+      <div className="flex items-center gap-2 text-sm pt-1" style={{ color: "var(--text-secondary)" }}>
+        <span>🕒</span>
+        <span>Live within <span style={{ color: "#22c55e", fontWeight: 700 }}>{timeline}</span></span>
+      </div>
+    </div>
+  );
+}
+
+function AddOnCard() {
+  return (
+    <div className="rounded-2xl p-6 flex flex-col" style={{
+      background: "var(--surface)",
+      border: "1px solid var(--border)",
+    }}>
+      {/* Title */}
+      <div className="text-center mb-3">
+        <p className="text-sm font-semibold mb-1" style={{ color: "#22c55e" }}>ADD-ON</p>
+        <h3 className="text-2xl font-bold" style={{ color: "var(--text)" }}>AI Tools</h3>
+        <p className="text-xs" style={{ color: "var(--text-dim)" }}>Optional</p>
+      </div>
+
+      <div className="my-3" style={{ borderTop: "1px solid var(--border)" }} />
+
+      {/* Pricing range */}
+      <div className="text-center mb-5">
+        <div className="text-4xl font-bold" style={{ color: "#22c55e" }}>£30-£60<span className="text-2xl">/pm</span></div>
+      </div>
+
+      {/* Tools list */}
+      <ul className="space-y-2 mb-4">
+        <li className="flex items-start gap-2 text-sm" style={{ color: "var(--text-secondary)" }}>
+          <span className="flex-shrink-0 mt-0.5" style={{ color: "#22c55e" }}>✓</span>
+          <span>AI Chatbot <span style={{ color: "var(--text-dim)" }}>(£30/mo)</span></span>
+        </li>
+        <li className="flex items-start gap-2 text-sm" style={{ color: "var(--text-secondary)" }}>
+          <span className="flex-shrink-0 mt-0.5" style={{ color: "#22c55e" }}>✓</span>
+          <span>AI Voice Call Handler <span style={{ color: "var(--text-dim)" }}>(£60/mo)</span></span>
+        </li>
+      </ul>
+
+      <div className="my-2" style={{ borderTop: "1px solid var(--border)" }} />
+
+      {/* Description */}
+      <p className="text-sm flex-1 mb-3" style={{ color: "var(--text-secondary)" }}>
+        Streamline your business by boosting conversion and saving admin time all connected through to the <span style={{ color: "var(--accent)", fontWeight: 600 }}>Innov8 Workflow App</span> to manage.
+      </p>
+
+      {/* Timeline footer */}
+      <div className="flex items-center gap-2 text-sm pt-1" style={{ color: "var(--text-secondary)" }}>
+        <span>🕒</span>
+        <span>Live within <span style={{ color: "#22c55e", fontWeight: 700 }}>3-5 business days</span></span>
+      </div>
+    </div>
+  );
+}
+
+function TrustBadge({ icon, title, subtitle }: { icon: string; title: string; subtitle: string }) {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="text-3xl flex-shrink-0" style={{ color: "var(--accent)" }}>{icon}</div>
+      <div>
+        <p className="text-sm font-bold" style={{ color: "var(--text)" }}>{title}</p>
+        <p className="text-xs" style={{ color: "var(--text-dim)" }}>{subtitle}</p>
       </div>
     </div>
   );
