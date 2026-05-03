@@ -63,6 +63,25 @@ export default function KanbanBoard({ ownerFilter = "" }: { ownerFilter?: string
     setSelectedProject(null);
   }, []);
 
+  const deleteProject = useCallback(async (project: Project, e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const confirmed = window.confirm(
+      `Delete project "${project.business_name}"?\n\nThis permanently removes the project AND its associated lead, tasks, files, notes, and activity. This cannot be undone.`
+    );
+    if (!confirmed) return;
+    // Optimistic remove
+    setProjects((prev) => prev.filter((p) => p.id !== project.id));
+    try {
+      const res = await fetch(`/api/projects/${project.id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("delete failed");
+    } catch {
+      // Rollback on failure
+      fetchProjects();
+      window.alert("Delete failed — please try again.");
+    }
+  }, [fetchProjects]);
+
   const getProjectsByStage = (stage: string) => projects.filter((p) => p.stage === stage);
 
   if (loading) {
@@ -139,7 +158,7 @@ export default function KanbanBoard({ ownerFilter = "" }: { ownerFilter?: string
                       draggable
                       onDragStart={() => setDragProject(project.id)}
                       onDragEnd={() => setDragProject(null)}
-                      className="rounded-lg p-3 cursor-pointer transition-all"
+                      className="rounded-lg p-3 cursor-pointer transition-all relative group"
                       style={{
                         background: isCompleted ? "#132613" : "var(--surface2)",
                         border: `1px solid ${dragProject === project.id ? stage.color : isCompleted ? "#059669" + "30" : "var(--border)"}`,
@@ -149,6 +168,24 @@ export default function KanbanBoard({ ownerFilter = "" }: { ownerFilter?: string
                       onMouseLeave={(e) => { if (dragProject !== project.id) e.currentTarget.style.borderColor = isCompleted ? "#059669" + "30" : "var(--border)"; }}
                       onClick={() => setSelectedProject(project)}
                     >
+                      {/* Bin icon — appears on hover */}
+                      <button
+                        onClick={(e) => deleteProject(project, e)}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        title="Delete project"
+                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity rounded-md p-1.5 z-10"
+                        style={{
+                          background: "rgba(0,0,0,0.6)",
+                          border: "1px solid rgba(255,255,255,0.1)",
+                          backdropFilter: "blur(4px)",
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = "#ef4444"; e.currentTarget.style.borderColor = "#ef4444"; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(0,0,0,0.6)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)"; }}
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="#fff" strokeWidth={2} viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                        </svg>
+                      </button>
                       {/* Cover image — lazy-loaded from dedicated endpoint, cached by browser */}
                       {project.has_cover && (
                         <div className="w-full h-28 -mt-3 -mx-3 mb-2 overflow-hidden rounded-t-lg" style={{ width: "calc(100% + 24px)" }}>
