@@ -87,6 +87,27 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
     fetchTasks();
   };
 
+  const [syncing, setSyncing] = useState(false);
+  const syncDefaultTasks = async () => {
+    if (syncing) return;
+    setSyncing(true);
+    try {
+      const res = await fetch(`/api/projects/${project.id}/sync-tasks`, { method: "POST" });
+      const data = await res.json();
+      if (data.added > 0) {
+        await fetchTasks();
+      }
+      // Brief inline feedback via window alert (lightweight, modal context)
+      if (data.added === 0) {
+        window.alert("All default tasks are already on this project.");
+      } else {
+        window.alert(`Added ${data.added} default task${data.added === 1 ? "" : "s"} (security, functionality, before & afters, etc).`);
+      }
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const deleteTask = async (id: number) => {
     setTasks((prev) => prev.filter((t) => t.id !== id));
     await fetch("/api/project-tasks", {
@@ -263,6 +284,26 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
                 <button onClick={addTask} className="px-3 py-1.5 text-sm rounded-md font-medium"
                   style={{ background: "var(--accent)", color: "#fff" }}>Add</button>
               </div>
+
+              {/* Sync default tasks — adds any missing ones from the master checklist */}
+              <button
+                onClick={syncDefaultTasks}
+                disabled={syncing}
+                className="w-full px-3 py-2 text-xs font-semibold rounded-md transition-colors flex items-center justify-center gap-2"
+                style={{
+                  background: "var(--surface2)",
+                  border: "1px dashed var(--border-light)",
+                  color: "var(--text-muted)",
+                  opacity: syncing ? 0.6 : 1,
+                  cursor: syncing ? "wait" : "pointer",
+                }}
+                onMouseEnter={(e) => { if (!syncing) { e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.color = "var(--accent)"; } }}
+                onMouseLeave={(e) => { if (!syncing) { e.currentTarget.style.borderColor = "var(--border-light)"; e.currentTarget.style.color = "var(--text-muted)"; } }}
+                title="Adds any missing default tasks (security, functionality, before & afters, etc) without touching existing ones"
+              >
+                <span>＋</span>
+                <span>{syncing ? "Adding..." : "Add missing default tasks (security, functionality, before & afters, etc)"}</span>
+              </button>
 
               {/* Tasks grouped by stage */}
               {tasksByStage.filter((s) => s.tasks.length > 0).map((stageGroup) => (

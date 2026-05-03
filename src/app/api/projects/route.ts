@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getClient, initDb, all, first } from "@/lib/db";
+import { DEFAULT_PROJECT_TASKS } from "@/lib/projectTasks";
 
 export async function GET(request: NextRequest) {
   await initDb();
@@ -123,28 +124,12 @@ export async function POST(request: NextRequest) {
   // Update lead status to won
   await db.execute({ sql: "UPDATE leads SET status = 'won', updated_at = ? WHERE id = ?", args: [now, lead_id] });
 
-  // Create default tasks
-  const defaultTasks = [
-    { title: "Initial client meeting", stage: "onboarding" },
-    { title: "Collect brand assets (logo, colours, photos)", stage: "onboarding" },
-    { title: "Domain registration / transfer", stage: "onboarding" },
-    { title: "Design mockup / wireframe", stage: "design_content" },
-    { title: "Client design approval", stage: "design_content" },
-    { title: "Collect page content / copy", stage: "design_content" },
-    { title: "Collect product/service photos", stage: "design_content" },
-    { title: "Build website", stage: "build" },
-    { title: "Mobile responsive check", stage: "build" },
-    { title: "SEO setup (meta, sitemap)", stage: "build" },
-    { title: "Client review & feedback", stage: "review" },
-    { title: "Final revisions", stage: "review" },
-    { title: "Go live / DNS switch", stage: "launch" },
-    { title: "Client handover & training", stage: "launch" },
-  ];
-
-  for (let i = 0; i < defaultTasks.length; i++) {
+  // Create default tasks (shared list — see src/lib/projectTasks.ts)
+  for (let i = 0; i < DEFAULT_PROJECT_TASKS.length; i++) {
+    const t = DEFAULT_PROJECT_TASKS[i];
     await db.execute({
       sql: "INSERT INTO project_tasks (project_id, title, stage, sort_order, created_at) VALUES (?, ?, ?, ?, ?)",
-      args: [result.lastInsertRowid!, defaultTasks[i].title, defaultTasks[i].stage, i, now],
+      args: [result.lastInsertRowid!, t.title, t.stage, i, now],
     });
   }
 
