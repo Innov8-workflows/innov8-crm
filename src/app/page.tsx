@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, lazy, Suspense } from "react";
+import { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import ViewNav from "@/components/ViewNav";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { ToastProvider } from "@/components/Toast";
@@ -28,7 +28,7 @@ export default function Home() {
   });
 
   // Lightweight count fetch — uses fast stats API instead of loading all projects
-  useEffect(() => {
+  const refreshCounts = useCallback(() => {
     fetch("/api/clients/stats").then((r) => r.json()).then((d) => {
       setClientCount(d.clientCount || 0);
     });
@@ -36,6 +36,16 @@ export default function Home() {
       setProjectCount(d.projects?.length || 0);
     });
   }, []);
+
+  useEffect(() => { refreshCounts(); }, [refreshCounts]);
+
+  // Re-fetch counts whenever the user navigates back to a count-bearing view
+  // (catches deletions/additions made in other views without a full refresh)
+  useEffect(() => {
+    if (view === "projects" || view === "clients" || view === "dashboard") {
+      refreshCounts();
+    }
+  }, [view, refreshCounts]);
 
   const handleOwnerChange = (owner: string) => {
     setOwnerFilter(owner);
@@ -52,10 +62,10 @@ export default function Home() {
             {view === "prospects" && <LeadGrid ownerFilter={ownerFilter} />}
           </ErrorBoundary>
           <ErrorBoundary fallbackMessage="Projects failed to load">
-            {view === "projects" && <KanbanBoard ownerFilter={ownerFilter} />}
+            {view === "projects" && <KanbanBoard ownerFilter={ownerFilter} onCountsChanged={refreshCounts} />}
           </ErrorBoundary>
           <ErrorBoundary fallbackMessage="Clients failed to load">
-            {view === "clients" && <LiveClients ownerFilter={ownerFilter} />}
+            {view === "clients" && <LiveClients ownerFilter={ownerFilter} onCountsChanged={refreshCounts} />}
           </ErrorBoundary>
           <ErrorBoundary fallbackMessage="Dashboard failed to load">
             {view === "dashboard" && <Dashboard ownerFilter={ownerFilter} />}

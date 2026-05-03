@@ -6,7 +6,7 @@ import { PROJECT_STAGES } from "@/types";
 import ProjectDetailModal from "./ProjectDetailModal";
 import LoadingAI from "./LoadingAI";
 
-export default function KanbanBoard({ ownerFilter = "" }: { ownerFilter?: string }) {
+export default function KanbanBoard({ ownerFilter = "", onCountsChanged }: { ownerFilter?: string; onCountsChanged?: () => void }) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -33,9 +33,13 @@ export default function KanbanBoard({ ownerFilter = "" }: { ownerFilter?: string
   useEffect(() => { fetchProjects(); }, [fetchProjects]);
 
   const moveProject = useCallback(async (projectId: number, newStage: string) => {
+    const project = projects.find((p) => p.id === projectId);
+    const wasCompleted = !!project?.completed_at;
+    const willBeCompleted = newStage === "completed";
+
     setProjects((prev) => prev.map((p) => (p.id === projectId ? { ...p, stage: newStage } : p)));
 
-    if (newStage === "completed") {
+    if (willBeCompleted) {
       // Moving to completed — set completed_at
       await fetch(`/api/projects/${projectId}`, {
         method: "PUT", headers: { "Content-Type": "application/json" },
@@ -43,15 +47,17 @@ export default function KanbanBoard({ ownerFilter = "" }: { ownerFilter?: string
       });
     } else {
       // Moving to a non-completed stage — clear completed_at if it was completed
-      const project = projects.find((p) => p.id === projectId);
       const updates: Record<string, string> = { stage: newStage };
-      if (project?.completed_at) updates.completed_at = "";
+      if (wasCompleted) updates.completed_at = "";
       await fetch(`/api/projects/${projectId}`, {
         method: "PUT", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updates),
       });
     }
-  }, [projects]);
+
+    // Refresh nav counts when active/completed status flips
+    if (wasCompleted !== willBeCompleted) onCountsChanged?.();
+  }, [projects, onCountsChanged]);
 
   const completeProject = useCallback(async (projectId: number) => {
     const now = new Date().toISOString();
@@ -61,7 +67,8 @@ export default function KanbanBoard({ ownerFilter = "" }: { ownerFilter?: string
     });
     setProjects((prev) => prev.map((p) => (p.id === projectId ? { ...p, stage: "completed", completed_at: now } : p)));
     setSelectedProject(null);
-  }, []);
+    onCountsChanged?.();
+  }, [onCountsChanged]);
 
   const deleteProject = useCallback(async (project: Project, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -75,12 +82,13 @@ export default function KanbanBoard({ ownerFilter = "" }: { ownerFilter?: string
     try {
       const res = await fetch(`/api/projects/${project.id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("delete failed");
+      onCountsChanged?.();
     } catch {
       // Rollback on failure
       fetchProjects();
       window.alert("Delete failed — please try again.");
     }
-  }, [fetchProjects]);
+  }, [fetchProjects, onCountsChanged]);
 
   const getProjectsByStage = (stage: string) => projects.filter((p) => p.stage === stage);
 

@@ -18,7 +18,7 @@ type SortDir = "asc" | "desc";
 type ViewMode = "grid" | "card";
 type ClientFilter = "active" | "lost";
 
-export default function LiveClients({ ownerFilter = "" }: { ownerFilter?: string }) {
+export default function LiveClients({ ownerFilter = "", onCountsChanged }: { ownerFilter?: string; onCountsChanged?: () => void }) {
   const [clients, setClients] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<ClientStats | null>(null);
@@ -126,7 +126,8 @@ export default function LiveClients({ ownerFilter = "" }: { ownerFilter?: string
     setClients((prev) => prev.filter((c) => c.id !== id));
     setConfirmDelete(null);
     fetchStats();
-  }, [fetchStats]);
+    onCountsChanged?.();
+  }, [fetchStats, onCountsChanged]);
 
   const filtered = useMemo(() => {
     let list = clients;
