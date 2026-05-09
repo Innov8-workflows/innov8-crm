@@ -5,7 +5,7 @@ const SECRET = new TextEncoder().encode(
   process.env.SESSION_SECRET || "innov8-crm-default-secret-change-me"
 );
 
-const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/auth/setup", "/api/webhook/gmail", "/api/webhook/prospects", "/api/invoices/auto"];
+const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/auth/setup", "/api/webhook/gmail", "/api/webhook/prospects", "/api/invoices/auto", "/api/track", "/track.js"];
 
 // In-memory cache for verified JWTs. Cold-start safe (cache resets on new lambda).
 // 60s TTL — short enough that revocation via logout still takes effect quickly.

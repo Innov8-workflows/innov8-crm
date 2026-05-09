@@ -158,6 +158,19 @@ async function doInitDb() {
       updated_at TEXT DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS site_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      project_id INTEGER NOT NULL,
+      event_type TEXT NOT NULL,
+      path TEXT DEFAULT '',
+      referrer TEXT DEFAULT '',
+      user_agent TEXT DEFAULT '',
+      ip_hash TEXT DEFAULT '',
+      metadata TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+    );
+
     CREATE TABLE IF NOT EXISTS entity_solutions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       entity_type TEXT NOT NULL,
@@ -192,6 +205,7 @@ async function doInitDb() {
     "ALTER TABLE projects ADD COLUMN invoice_status TEXT DEFAULT 'to_invoice'",
     "ALTER TABLE leads ADD COLUMN lat REAL",
     "ALTER TABLE leads ADD COLUMN lng REAL",
+    "ALTER TABLE projects ADD COLUMN tracking_id TEXT DEFAULT ''",
   ];
   for (const sql of migrations) {
     try { await db.execute(sql); } catch { /* column exists */ }
@@ -218,6 +232,9 @@ async function doInitDb() {
     CREATE INDEX IF NOT EXISTS idx_entity_solutions_entity ON entity_solutions(entity_type, entity_id);
     CREATE INDEX IF NOT EXISTS idx_entity_solutions_solution ON entity_solutions(solution_id);
     CREATE INDEX IF NOT EXISTS idx_solutions_active ON solutions_catalogue(active);
+    CREATE INDEX IF NOT EXISTS idx_site_events_project ON site_events(project_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_site_events_type ON site_events(event_type);
+    CREATE INDEX IF NOT EXISTS idx_projects_tracking ON projects(tracking_id);
   `);
 
   // Clean up any duplicate solutions left behind by the previous buggy seed check.
