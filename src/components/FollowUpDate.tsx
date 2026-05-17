@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { memo, useState } from "react";
 
 interface FollowUpDateProps {
   value: string;
   onChange: (value: string) => void;
 }
 
-export default function FollowUpDate({ value, onChange }: FollowUpDateProps) {
+function FollowUpDateBase({ value, onChange }: FollowUpDateProps) {
   const [editing, setEditing] = useState(false);
   const today = new Date().toISOString().split("T")[0];
   const isOverdue = value && value < today;
@@ -50,3 +50,6 @@ export default function FollowUpDate({ value, onChange }: FollowUpDateProps) {
     </button>
   );
 }
+
+const FollowUpDate = memo(FollowUpDateBase, (prev, next) => prev.value === next.value);
+export default FollowUpDate;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { memo, useState, useRef, useEffect } from "react";
 import { PIPELINE_STAGES } from "@/types";
 
 interface PipelineBadgeProps {
@@ -8,7 +8,7 @@ interface PipelineBadgeProps {
   onChange: (value: string) => void;
 }
 
-export default function PipelineBadge({ value, onChange }: PipelineBadgeProps) {
+function PipelineBadgeBase({ value, onChange }: PipelineBadgeProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -51,3 +51,6 @@ export default function PipelineBadge({ value, onChange }: PipelineBadgeProps) {
     </div>
   );
 }
+
+const PipelineBadge = memo(PipelineBadgeBase, (prev, next) => prev.value === next.value);
+export default PipelineBadge;

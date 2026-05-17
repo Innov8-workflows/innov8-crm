@@ -345,18 +345,11 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
   useEffect(() => { leadsRef.current = leads; }, [leads]);
   useEffect(() => { customFieldValuesRef.current = customFieldValues; }, [customFieldValues]);
 
-  // O(1) lookups via Map (was leads.find — linear O(n) per call)
-  const leadsMap = useMemo(() => {
-    const m = new Map<number, Lead>();
-    for (const l of leads) m.set(l.id, l);
-    return m;
-  }, [leads]);
-
-  // Stable update: only update local state, no re-fetch
-  // Determine the correct auto-stage based on all checkbox states.
-  // Reads from refs so its identity is stable — won't bust column memoisation.
+  // getAutoStage must be 100% stable (empty deps) so updateLead/updateCustomField
+  // don't recreate → renderCell doesn't recreate → columns memo doesn't bust.
+  // Reads everything from refs that hold the latest state.
   const getAutoStage = useCallback((leadId: number, overrideField?: string, overrideValue?: number | string) => {
-    const lead = leadsMap.get(leadId);
+    const lead = leadsRef.current.find((l) => l.id === leadId);
     if (!lead) return null;
     const s = lead.status || "new";
     // Don't touch manually-set advanced stages
@@ -377,7 +370,7 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
     if (messaged) return "messaged";
     if (emailed) return "emailed";
     return "new";
-  }, [leadsMap]);
+  }, []);
 
   const updateLead = useCallback(async (id: number, field: string, value: string | number | null) => {
     // Auto-set stage when checkbox changes (forward or backward)

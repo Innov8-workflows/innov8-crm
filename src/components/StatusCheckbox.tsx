@@ -1,5 +1,7 @@
 "use client";
 
+import { memo } from "react";
+
 interface StatusCheckboxProps {
   checked: boolean;
   onChange: (checked: boolean) => void;
@@ -13,7 +15,7 @@ const colorMap = {
   orange: "#f97316",
 };
 
-export default function StatusCheckbox({ checked, onChange, color = "green" }: StatusCheckboxProps) {
+function StatusCheckboxBase({ checked, onChange, color = "green" }: StatusCheckboxProps) {
   return (
     <button
       className="w-full flex justify-center py-1 transition-opacity hover:opacity-80"
@@ -31,3 +33,8 @@ export default function StatusCheckbox({ checked, onChange, color = "green" }: S
     </button>
   );
 }
+
+// Memo with custom comparator — ignore onChange (closure recreated each parent render
+// but stable in behaviour). Only re-render when checked / color actually change.
+const StatusCheckbox = memo(StatusCheckboxBase, (prev, next) => prev.checked === next.checked && prev.color === next.color);
+export default StatusCheckbox;
