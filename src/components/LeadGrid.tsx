@@ -337,19 +337,35 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
 
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
 
+  // Refs hold latest leads + customFieldValues so handlers don't need them as deps.
+  // Keeps useCallback stable — without this, every keystroke recreates updateLead
+  // and re-memoises the entire columns array (=> re-renders all 298 rows × 30 cells).
+  const leadsRef = useRef<Lead[]>(leads);
+  const customFieldValuesRef = useRef(customFieldValues);
+  useEffect(() => { leadsRef.current = leads; }, [leads]);
+  useEffect(() => { customFieldValuesRef.current = customFieldValues; }, [customFieldValues]);
+
+  // O(1) lookups via Map (was leads.find — linear O(n) per call)
+  const leadsMap = useMemo(() => {
+    const m = new Map<number, Lead>();
+    for (const l of leads) m.set(l.id, l);
+    return m;
+  }, [leads]);
+
   // Stable update: only update local state, no re-fetch
-  // Determine the correct auto-stage based on all checkbox states
+  // Determine the correct auto-stage based on all checkbox states.
+  // Reads from refs so its identity is stable — won't bust column memoisation.
   const getAutoStage = useCallback((leadId: number, overrideField?: string, overrideValue?: number | string) => {
-    const lead = leads.find((l) => l.id === leadId);
+    const lead = leadsMap.get(leadId);
     if (!lead) return null;
     const s = lead.status || "new";
     // Don't touch manually-set advanced stages
     if (["meeting_booked", "maybe", "won", "lost", "rejected"].includes(s)) return null;
 
-    // Gather current checkbox states, applying the override for the field being changed
+    const cfv = customFieldValuesRef.current;
     const get = (field: string, customId?: string) => {
       if (overrideField === field || overrideField === customId) return overrideValue === 1 || overrideValue === "1";
-      if (customId) return customFieldValues[String(leadId)]?.[customId] === "1";
+      if (customId) return cfv[String(leadId)]?.[customId] === "1";
       return !!(lead as unknown as Record<string, unknown>)[field];
     };
 
@@ -357,12 +373,11 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
     const messaged = get("messaged") || get("", "custom_fb_messenger");
     const emailed = get("emailed");
 
-    // Return the highest applicable stage
     if (called) return "called";
     if (messaged) return "messaged";
     if (emailed) return "emailed";
     return "new";
-  }, [leads, customFieldValues]);
+  }, [leadsMap]);
 
   const updateLead = useCallback(async (id: number, field: string, value: string | number | null) => {
     // Auto-set stage when checkbox changes (forward or backward)
@@ -389,7 +404,7 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
     });
 
     if (autoStage) {
-      const lead = leads.find((l) => l.id === id);
+      const lead = leadsRef.current.find((l) => l.id === id);
       if (autoStage !== (lead?.status || "new")) toast(`Stage → ${autoStage}`);
     }
 
@@ -401,7 +416,7 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
       });
       toast("Lead won — project created!");
     }
-  }, [leads, toast, getAutoStage]);
+  }, [toast, getAutoStage]);
 
   // Update custom field value
   const updateCustomField = useCallback(async (leadId: number, fieldId: string, value: string) => {
@@ -411,14 +426,21 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
       autoStage = getAutoStage(leadId, fieldId, value);
     }
 
-    setCustomFieldValues((prev) => ({
-      ...prev,
-      [String(leadId)]: { ...(prev[String(leadId)] || {}), [fieldId]: value },
-    }));
+    // Update ref synchronously so the cell's next render reads the new value.
+    const nextCfv = {
+      ...customFieldValuesRef.current,
+      [String(leadId)]: { ...(customFieldValuesRef.current[String(leadId)] || {}), [fieldId]: value },
+    };
+    customFieldValuesRef.current = nextCfv;
+    setCustomFieldValues(nextCfv);
+
+    // Bump only this lead's updated_at — triggers a re-render of *just this row*
+    // (DraggableRow is memoised on lead-field equality including updated_at).
+    setLeads((prev) => prev.map((l) => l.id === leadId ? { ...l, updated_at: new Date().toISOString() } : l));
 
     // If stage should change, update lead status too
     if (autoStage) {
-      const lead = leads.find((l) => l.id === leadId);
+      const lead = leadsRef.current.find((l) => l.id === leadId);
       if (autoStage !== (lead?.status || "new")) {
         setLeads((prev) => prev.map((l) => l.id === leadId ? { ...l, status: autoStage! } : l));
         skipNextFetch.current = true;
@@ -434,7 +456,7 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
       method: "PUT", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ lead_id: leadId, field_id: fieldId, value }),
     });
-  }, [leads, toast, getAutoStage]);
+  }, [toast, getAutoStage]);
 
   // Add custom column
   const addCustomColumn = useCallback(async () => {
@@ -645,7 +667,11 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
           enableResizing: true,
           cell: (info) => {
             const leadId = info.row.original.id;
-            const val = customFieldValues[String(leadId)]?.[cc.id] || "";
+            // Read from ref (always current) — the row re-renders when its
+            // updated_at bumps inside updateCustomField, so the value is fresh.
+            // Avoids putting customFieldValues in the columns dep array, which
+            // would bust the memo and re-render every cell on every keystroke.
+            const val = customFieldValuesRef.current[String(leadId)]?.[cc.id] || "";
             if (cc.col_type === "checkbox") {
               return <StatusCheckbox checked={val === "1"} onChange={(v) => updateCustomField(leadId, cc.id, v ? "1" : "0")} color="green" />;
             }
@@ -693,7 +719,7 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
         ),
       }),
     ],
-    [editableFields, customColumns, customFieldValues, getLabel, getColType, saveColConfig, deleteColumn, renderCell, deleteLead, updateCustomField]
+    [editableFields, customColumns, getLabel, getColType, saveColConfig, deleteColumn, renderCell, deleteLead, updateCustomField]
   );
 
   const table = useReactTable({

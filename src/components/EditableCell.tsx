@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, memo } from "react";
 
 interface EditableCellProps {
   value: string | number;
@@ -37,7 +37,7 @@ function pasteText(): Promise<string> {
   return Promise.resolve("");
 }
 
-export default function EditableCell({ value, onSave, type = "text" }: EditableCellProps) {
+function EditableCellBase({ value, onSave, type = "text" }: EditableCellProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(String(value ?? ""));
   const [copied, setCopied] = useState(false);
@@ -144,3 +144,8 @@ export default function EditableCell({ value, onSave, type = "text" }: EditableC
     />
   );
 }
+
+// Memoise so sibling row mutations don't re-render every cell on the page.
+// Compare by value + type — onSave is a stable useCallback in the parent.
+const EditableCell = memo(EditableCellBase, (prev, next) => prev.value === next.value && prev.type === next.type);
+export default EditableCell;

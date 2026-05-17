@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { flexRender, type Row } from "@tanstack/react-table";
@@ -19,7 +20,7 @@ interface DraggableRowProps {
   row: Row<Lead>;
 }
 
-export default function DraggableRow({ row }: DraggableRowProps) {
+function DraggableRowBase({ row }: DraggableRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: row.original.id });
 
   const style = {
@@ -53,3 +54,32 @@ export default function DraggableRow({ row }: DraggableRowProps) {
     </tr>
   );
 }
+
+// Memoise so a single row update doesn't re-render all 298 sibling rows.
+// Re-render only when the row's actual data fields or columns change.
+const DraggableRow = memo(DraggableRowBase, (prev, next) => {
+  const a = prev.row.original;
+  const b = next.row.original;
+  if (a.id !== b.id) return false;
+  if (a.status !== b.status) return false;
+  if (a.emailed !== b.emailed) return false;
+  if (a.messaged !== b.messaged) return false;
+  if (a.responded !== b.responded) return false;
+  if (a.followed_up !== b.followed_up) return false;
+  if (a.business_name !== b.business_name) return false;
+  if (a.contact_name !== b.contact_name) return false;
+  if (a.email !== b.email) return false;
+  if (a.phone !== b.phone) return false;
+  if (a.business_type !== b.business_type) return false;
+  if (a.location !== b.location) return false;
+  if (a.capex !== b.capex) return false;
+  if (a.follow_up_date !== b.follow_up_date) return false;
+  if (a.demo_site_url !== b.demo_site_url) return false;
+  if (a.owner !== b.owner) return false;
+  if (a.updated_at !== b.updated_at) return false;
+  // Column structure could have shifted — compare visible cell count
+  if (prev.row.getVisibleCells().length !== next.row.getVisibleCells().length) return false;
+  return true;
+});
+
+export default DraggableRow;
