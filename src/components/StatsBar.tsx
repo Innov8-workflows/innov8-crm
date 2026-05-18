@@ -66,6 +66,10 @@ export default function StatsBar({ ownerFilter = "" }: { ownerFilter?: string })
             <span className="text-xs" style={{ color: "var(--text-dim)" }}>Prospect Monthly</span>
             <span className="text-sm font-bold" style={{ color: "#22c55e" }}>{"\u00A3"}{(stats.totalMonthly || 0).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo</span>
           </div>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg" style={{ background: "var(--surface2)", border: "1px solid var(--border)" }}>
+            <span className="text-xs" style={{ color: "var(--text-dim)" }}>Prospect ARR</span>
+            <span className="text-sm font-bold" style={{ color: "#ea580c" }}>{"\u00A3"}{((stats.totalMonthly || 0) * 12).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/yr</span>
+          </div>
         </div>
         <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 gap-2 px-4 pb-3">
           {cards.map((card) => (
