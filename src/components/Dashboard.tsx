@@ -380,31 +380,48 @@ function TopAISolutionsPanel({ solutions, onRefresh }: { solutions: SolutionsSta
             const won = s.sold + s.delivered;
             const expanded = expandedId === s.id;
             const buyers = s.buyers || [];
+            const clickable = won > 0;
             return (
-              <div key={s.id} className="rounded-lg" style={{ background: expanded ? "var(--surface2)" : "transparent", border: expanded ? "1px solid var(--border)" : "1px solid transparent" }}>
+              <div key={s.id} className="rounded-lg transition-colors" style={{
+                background: expanded ? "var(--surface2)" : "transparent",
+                border: expanded ? "1px solid var(--accent)" : "1px solid transparent",
+              }}>
                 <button
                   onClick={() => setExpandedId(expanded ? null : s.id)}
-                  disabled={won === 0}
-                  className="w-full flex items-center gap-3 p-2 transition-colors text-left"
-                  style={{ cursor: won === 0 ? "default" : "pointer", opacity: won === 0 ? 0.7 : 1 }}>
-                  <div className="w-48 text-sm truncate flex items-center gap-1.5" style={{ color: "var(--text)" }}>
-                    {won > 0 && (
-                      <svg className="w-3 h-3 transition-transform flex-shrink-0" style={{ transform: expanded ? "rotate(90deg)" : "rotate(0deg)", color: "var(--text-dim)" }} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                      </svg>
+                  disabled={!clickable}
+                  className="w-full flex items-center gap-3 p-2 transition-colors text-left rounded-lg"
+                  style={{ cursor: clickable ? "pointer" : "default", opacity: clickable ? 1 : 0.55 }}
+                  onMouseEnter={(e) => { if (clickable && !expanded) e.currentTarget.style.background = "var(--surface2)"; }}
+                  onMouseLeave={(e) => { if (clickable && !expanded) e.currentTarget.style.background = "transparent"; }}>
+                  <div className="w-48 text-sm truncate flex items-center gap-2" style={{ color: "var(--text)" }}>
+                    {clickable ? (
+                      <span className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 transition-transform"
+                        style={{ background: expanded ? "var(--accent)" : "var(--accent-subtle)", color: expanded ? "#fff" : "var(--accent)", transform: expanded ? "rotate(90deg)" : "rotate(0deg)" }}>
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                        </svg>
+                      </span>
+                    ) : (
+                      <span className="w-5 h-5 flex-shrink-0" />
                     )}
-                    {won === 0 && <span className="w-3 h-3 flex-shrink-0" />}
                     <span className="truncate">{s.name}</span>
                   </div>
                   <div className="flex-1 h-6 rounded-lg overflow-hidden flex items-center" style={{ background: "var(--surface3)" }}>
                     <div className="h-full transition-all" style={{ width: `${(won / max) * 100}%`, background: "linear-gradient(90deg, #8b5cf6, #a855f7)" }} />
                   </div>
-                  <div className="w-20 text-right text-sm" style={{ color: won > 0 ? "#a855f7" : "var(--text-dim)", fontWeight: 700 }}>{won} sold</div>
+                  <div className="w-28 text-right text-sm flex items-center justify-end gap-1.5" style={{ color: won > 0 ? "#a855f7" : "var(--text-dim)", fontWeight: 700 }}>
+                    {won} sold
+                    {clickable && <span className="text-[10px] uppercase tracking-wider" style={{ color: "var(--accent)" }}>view →</span>}
+                  </div>
                 </button>
 
-                {expanded && buyers.length > 0 && (
-                  <div className="px-3 pb-2 pt-1 space-y-1">
-                    {buyers.map((b) => (
+                {expanded && (
+                  <div className="px-3 pb-3 pt-1 space-y-1">
+                    {buyers.length === 0 ? (
+                      <p className="text-xs text-center py-2" style={{ color: "var(--text-dim)" }}>
+                        Loading buyers… hard-refresh (Ctrl+Shift+R) if this stays empty.
+                      </p>
+                    ) : buyers.map((b) => (
                       <div key={b.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm" style={{ background: "var(--surface)" }}>
                         <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded flex-shrink-0"
                           style={{
@@ -419,12 +436,12 @@ function TopAISolutionsPanel({ solutions, onRefresh }: { solutions: SolutionsSta
                         <button
                           onClick={() => removeEntry(b.id, b.business_name, s.name)}
                           disabled={removing === b.id}
-                          className="text-xs px-2 py-0.5 rounded transition-colors flex-shrink-0"
+                          className="text-xs font-semibold px-2 py-0.5 rounded transition-colors flex-shrink-0"
                           style={{ color: "#ef4444", border: "1px solid #ef444430", opacity: removing === b.id ? 0.5 : 1 }}
                           onMouseEnter={(e) => { e.currentTarget.style.background = "#ef444420"; }}
                           onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                           title="Reset status — removes the sold/delivered mark">
-                          {removing === b.id ? "..." : "Reset"}
+                          {removing === b.id ? "..." : "🗑 Reset"}
                         </button>
                       </div>
                     ))}
