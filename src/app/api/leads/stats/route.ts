@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
     SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected,
     SUM(CASE WHEN follow_up_date != '' AND follow_up_date < ? AND status NOT IN ('won','lost','completed','rejected') THEN 1 ELSE 0 END) as overdue,
     SUM(CASE WHEN follow_up_date = ? THEN 1 ELSE 0 END) as dueToday,
-    COALESCE(SUM(CASE WHEN capex > 0 THEN capex ELSE 0 END), 0) as totalCapex
+    COALESCE(SUM(CASE WHEN capex > 0 AND status NOT IN ('won','completed') THEN capex ELSE 0 END), 0) as totalCapex
   FROM leads ${ownerWhere}`;
 
   // Today bindings come first because they appear first in the SELECT
@@ -66,9 +66,11 @@ export async function GET(request: NextRequest) {
   // Monthly total from custom fields (separate table, needs JOIN)
   let totalMonthly = 0;
   try {
+    // Exclude won/completed — those are live clients, their revenue belongs in /api/clients/stats
     let monthlySQL = `SELECT COALESCE(SUM(CAST(cfv.value AS REAL)), 0) as v
       FROM custom_field_values cfv JOIN leads l ON cfv.lead_id = l.id
-      WHERE cfv.field_id = 'custom_monthly' AND cfv.value != ''`;
+      WHERE cfv.field_id = 'custom_monthly' AND cfv.value != ''
+        AND l.status NOT IN ('won','completed')`;
     const monthlyArgs: InValue[] = [];
     if (ownerParam === "__unassigned__") {
       monthlySQL += " AND (l.owner = '' OR l.owner IS NULL)";
