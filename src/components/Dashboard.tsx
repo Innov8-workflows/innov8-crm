@@ -22,7 +22,10 @@ interface ClientStats {
 interface SolutionsStats {
   total: number; proposed: number; sold: number; delivered: number; declined: number;
   mrr: number; one_off_revenue: number;
-  per_solution: Array<{ id: number; name: string; sold: number; delivered: number; proposed: number; total: number; conversion_pct: number }>;
+  per_solution: Array<{
+    id: number; name: string; sold: number; delivered: number; proposed: number; total: number; conversion_pct: number;
+    buyers?: Array<{ id: number; entity_type: string; entity_id: number; business_name: string; status: string }>;
+  }>;
 }
 
 export default function Dashboard({ ownerFilter = "" }: { ownerFilter?: string }) {
@@ -116,29 +119,7 @@ export default function Dashboard({ ownerFilter = "" }: { ownerFilter?: string }
 
       {/* Section: Top AI Solutions (only shows if any sold) */}
       {solutions && (solutions.sold + solutions.delivered) > 0 && (
-        <div>
-          <h2 className="text-sm font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--text-dim)" }}>Top AI Solutions</h2>
-          <div className="rounded-xl p-5" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-            <div className="space-y-2">
-              {(() => {
-                const top = [...solutions.per_solution].sort((a, b) => (b.sold + b.delivered) - (a.sold + a.delivered)).slice(0, 5);
-                const max = Math.max(1, ...top.map((s) => s.sold + s.delivered));
-                return top.map((s) => {
-                  const won = s.sold + s.delivered;
-                  return (
-                    <div key={s.id} className="flex items-center gap-3">
-                      <div className="w-48 text-sm truncate" style={{ color: "var(--text)" }}>{s.name}</div>
-                      <div className="flex-1 h-6 rounded-lg overflow-hidden flex items-center" style={{ background: "var(--surface2)" }}>
-                        <div className="h-full transition-all" style={{ width: `${(won / max) * 100}%`, background: "linear-gradient(90deg, #8b5cf6, #a855f7)" }} />
-                      </div>
-                      <div className="w-20 text-right text-sm" style={{ color: "#a855f7", fontWeight: 700 }}>{won} sold</div>
-                    </div>
-                  );
-                });
-              })()}
-            </div>
-          </div>
-        </div>
+        <TopAISolutionsPanel solutions={solutions} onRefresh={fetchAll} />
       )}
 
       {/* Section 2: Sales Pipeline Cards */}
@@ -366,6 +347,95 @@ function AlertRow({ label, value, danger }: { label: string; value: number; dang
     }}>
       <span className="text-sm" style={{ color: isActive ? "var(--text-secondary)" : "var(--text-tertiary)" }}>{label}</span>
       <span className="text-sm font-bold" style={{ color }}>{value}</span>
+    </div>
+  );
+}
+
+// Top AI Solutions panel — bars now expandable to show *which* business has each sale.
+// Click the chevron to drill in and remove accidental status toggles right from here.
+function TopAISolutionsPanel({ solutions, onRefresh }: { solutions: SolutionsStats; onRefresh: () => void }) {
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [removing, setRemoving] = useState<number | null>(null);
+
+  const top = [...solutions.per_solution].sort((a, b) => (b.sold + b.delivered) - (a.sold + a.delivered)).slice(0, 5);
+  const max = Math.max(1, ...top.map((s) => s.sold + s.delivered));
+
+  const removeEntry = async (entryId: number, businessName: string, solutionName: string) => {
+    if (!confirm(`Reset "${solutionName}" status for ${businessName}? This removes the sold/delivered mark — useful if it was clicked by accident.`)) return;
+    setRemoving(entryId);
+    try {
+      await fetch(`/api/entity-solutions?id=${entryId}`, { method: "DELETE" });
+      onRefresh();
+    } finally {
+      setRemoving(null);
+    }
+  };
+
+  return (
+    <div>
+      <h2 className="text-sm font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--text-dim)" }}>Top AI Solutions</h2>
+      <div className="rounded-xl p-5" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+        <div className="space-y-2">
+          {top.map((s) => {
+            const won = s.sold + s.delivered;
+            const expanded = expandedId === s.id;
+            const buyers = s.buyers || [];
+            return (
+              <div key={s.id} className="rounded-lg" style={{ background: expanded ? "var(--surface2)" : "transparent", border: expanded ? "1px solid var(--border)" : "1px solid transparent" }}>
+                <button
+                  onClick={() => setExpandedId(expanded ? null : s.id)}
+                  disabled={won === 0}
+                  className="w-full flex items-center gap-3 p-2 transition-colors text-left"
+                  style={{ cursor: won === 0 ? "default" : "pointer", opacity: won === 0 ? 0.7 : 1 }}>
+                  <div className="w-48 text-sm truncate flex items-center gap-1.5" style={{ color: "var(--text)" }}>
+                    {won > 0 && (
+                      <svg className="w-3 h-3 transition-transform flex-shrink-0" style={{ transform: expanded ? "rotate(90deg)" : "rotate(0deg)", color: "var(--text-dim)" }} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                      </svg>
+                    )}
+                    {won === 0 && <span className="w-3 h-3 flex-shrink-0" />}
+                    <span className="truncate">{s.name}</span>
+                  </div>
+                  <div className="flex-1 h-6 rounded-lg overflow-hidden flex items-center" style={{ background: "var(--surface3)" }}>
+                    <div className="h-full transition-all" style={{ width: `${(won / max) * 100}%`, background: "linear-gradient(90deg, #8b5cf6, #a855f7)" }} />
+                  </div>
+                  <div className="w-20 text-right text-sm" style={{ color: won > 0 ? "#a855f7" : "var(--text-dim)", fontWeight: 700 }}>{won} sold</div>
+                </button>
+
+                {expanded && buyers.length > 0 && (
+                  <div className="px-3 pb-2 pt-1 space-y-1">
+                    {buyers.map((b) => (
+                      <div key={b.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm" style={{ background: "var(--surface)" }}>
+                        <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded flex-shrink-0"
+                          style={{
+                            background: b.entity_type === "project" ? "#22c55e25" : "var(--surface2)",
+                            color: b.entity_type === "project" ? "#22c55e" : "var(--text-dim)",
+                          }}>{b.entity_type === "project" ? "Client" : "Lead"}</span>
+                        <span className="flex-1 truncate" style={{ color: "var(--text)" }}>{b.business_name}</span>
+                        <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded flex-shrink-0"
+                          style={{ background: b.status === "delivered" ? "#05966925" : "#22c55e25", color: b.status === "delivered" ? "#059669" : "#22c55e" }}>
+                          {b.status}
+                        </span>
+                        <button
+                          onClick={() => removeEntry(b.id, b.business_name, s.name)}
+                          disabled={removing === b.id}
+                          className="text-xs px-2 py-0.5 rounded transition-colors flex-shrink-0"
+                          style={{ color: "#ef4444", border: "1px solid #ef444430", opacity: removing === b.id ? 0.5 : 1 }}
+                          onMouseEnter={(e) => { e.currentTarget.style.background = "#ef444420"; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                          title="Reset status — removes the sold/delivered mark">
+                          {removing === b.id ? "..." : "Reset"}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <p className="text-xs mt-3" style={{ color: "var(--text-quaternary)" }}>Click a row to see which business has it sold. Reset removes an accidental status toggle.</p>
+      </div>
     </div>
   );
 }

@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import { getClient, initDb, all, first } from "@/lib/db";
 
 // Aggregate stats across the upsell programme.
-// Returns: per-status counts, MRR/ARR, top-selling solutions, conversion %.
+// Returns: per-status counts, MRR/ARR, top-selling solutions, conversion %,
+// plus a `buyers` list per solution (who has it sold/delivered) so the dashboard
+// can show *which* business is behind each count — vital for catching accidental
+// status toggles in the matrix.
 export async function GET() {
   await initDb();
   const db = getClient();
@@ -54,6 +57,43 @@ export async function GET() {
     };
   });
 
+  // For solutions with at least one sold/delivered, fetch the business names behind those rows.
+  // Polymorphic join: entity_solutions.entity_type can be 'lead' or 'project'.
+  const buyersBySolution: Record<number, Array<{ id: number; entity_type: string; entity_id: number; business_name: string; status: string }>> = {};
+  const soldIds = perSolution.filter((s) => s.sold + s.delivered > 0).map((s) => s.id);
+  if (soldIds.length > 0) {
+    const placeholders = soldIds.map(() => "?").join(",");
+    const buyersSQL = `
+      SELECT es.id, es.solution_id, es.entity_type, es.entity_id, es.status,
+        CASE
+          WHEN es.entity_type = 'lead' THEN l.business_name
+          WHEN es.entity_type = 'project' THEN pl.business_name
+        END as business_name
+      FROM entity_solutions es
+      LEFT JOIN leads l ON es.entity_type = 'lead' AND l.id = es.entity_id
+      LEFT JOIN projects p ON es.entity_type = 'project' AND p.id = es.entity_id
+      LEFT JOIN leads pl ON p.lead_id = pl.id
+      WHERE es.status IN ('sold','delivered') AND es.solution_id IN (${placeholders})`;
+    const buyersRows = all(await db.execute({ sql: buyersSQL, args: soldIds as never[] }));
+    for (const row of buyersRows) {
+      const sid = Number(row.solution_id);
+      if (!buyersBySolution[sid]) buyersBySolution[sid] = [];
+      buyersBySolution[sid].push({
+        id: Number(row.id),
+        entity_type: row.entity_type as string,
+        entity_id: Number(row.entity_id),
+        business_name: (row.business_name as string) || "(unknown)",
+        status: row.status as string,
+      });
+    }
+  }
+
+  // Attach buyers to each per_solution entry
+  const perSolutionWithBuyers = perSolution.map((s) => ({
+    ...s,
+    buyers: buyersBySolution[s.id] || [],
+  }));
+
   return NextResponse.json({
     total: Number(totals?.total) || 0,
     proposed: Number(totals?.proposed) || 0,
@@ -62,7 +102,7 @@ export async function GET() {
     declined: Number(totals?.declined) || 0,
     mrr: Number(totals?.mrr) || 0,
     one_off_revenue: Number(totals?.one_off_revenue) || 0,
-    per_solution: perSolution,
+    per_solution: perSolutionWithBuyers,
   }, {
     headers: { "Cache-Control": "private, max-age=10" },
   });
