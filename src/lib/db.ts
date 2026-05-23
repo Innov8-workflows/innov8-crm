@@ -142,6 +142,15 @@ async function doInitDb() {
       FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS schedule_completions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      slot_id TEXT NOT NULL,
+      date TEXT NOT NULL,
+      completed_at TEXT DEFAULT (datetime('now')),
+      notes TEXT DEFAULT '',
+      UNIQUE(slot_id, date)
+    );
+
     CREATE TABLE IF NOT EXISTS solutions_catalogue (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
@@ -235,6 +244,7 @@ async function doInitDb() {
     CREATE INDEX IF NOT EXISTS idx_site_events_project ON site_events(project_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_site_events_type ON site_events(event_type);
     CREATE INDEX IF NOT EXISTS idx_projects_tracking ON projects(tracking_id);
+    CREATE INDEX IF NOT EXISTS idx_schedule_date ON schedule_completions(date);
   `);
 
   // Clean up any duplicate solutions left behind by the previous buggy seed check.
