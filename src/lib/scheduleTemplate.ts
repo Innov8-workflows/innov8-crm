@@ -59,9 +59,9 @@ export const ACTIVITY_META: Record<Activity, { label: string; emoji: string; col
 // Headline targets used by the progress strip.
 // Sum of all `target.count` for a given activity should equal these.
 export const WEEKLY_TARGETS: Partial<Record<Activity, number>> = {
-  cold_calls:   90,
-  warm_calls:   10, // lunch follow-ups to leads who showed traction
-  fb_messenger: 25, // dropped from 50 — lunch slot reclaimed for warm calls
+  cold_calls:   100, // Mon 15 + Tue 15 + Wed 20 + Thu 20 + Fri 10 + Sat 20 = 100
+  warm_calls:   12,  // 2/day Mon-Fri + 2 Saturday lunch
+  fb_messenger: 25,  // lunch sends moved to warm calls
   demo_build:   15,
   lead_gen:     2,
   onboarding:   2,
@@ -103,12 +103,12 @@ export const SCHEDULE_SLOTS: ScheduleSlot[] = [
   { id: "fri-late-review",   day: "fri", start: "21:00", end: "22:00", activity: "admin",        title: "Weekly review + plan Sat",                          rationale: "Honest hour: KPIs vs targets, who's been pitched, what to push next week. Plan Saturday's batch." },
   { id: "fri-late-rest",     day: "fri", start: "22:00", end: "23:00", activity: "admin",        title: "STOP — protect Friday night", protectedRest: true,  rationale: "Hard stop after the weekly review. Friday night is decompress. Going past this burns out within a month." },
 
-  // ═════════════ SATURDAY (deep work — later start) ═════════════
-  { id: "sat-am-coffee",     day: "sat", start: "09:30", end: "10:30", activity: "admin",        title: "Coffee + CRM warmup",                                rationale: "Slow start. Review yesterday's wins, check overnight FB replies, queue the demo batch." },
-  { id: "sat-am-demos",      day: "sat", start: "10:30", end: "13:30", activity: "demo_build",   title: "6-DEMO BATCH — deep work",   target: { count: 6 },   rationale: "Best 3 hours of the week. No interruptions = fastest output. Build 6 demos in a row, queue for Mon outreach." },
-  { id: "sat-pm-calls",      day: "sat", start: "13:30", end: "15:00", activity: "cold_calls",   title: "Saturday trades calls",      target: { count: 10 }, rationale: "Beauticians/groomers/hairdressers work Saturday mornings — catch them on lunch break. Different niche from weekday trades." },
-  { id: "sat-pm-content",    day: "sat", start: "15:00", end: "18:00", activity: "content",      title: "Content batch — Reels + posts",                     rationale: "Batch 7 days of content for own socials + 1-2 client sites. Reels, before/afters, testimonial posts." },
-  { id: "sat-eve-rest",      day: "sat", start: "18:00", end: "23:00", activity: "admin",        title: "STOP — family time",         protectedRest: true,    rationale: "Hard stop. Saturday evening protected. Non-negotiable." },
+  // ═════════════ SATURDAY (trade cold-call peak + deep work) ═════════════
+  { id: "sat-am-calls",      day: "sat", start: "09:00", end: "12:00", activity: "cold_calls",   title: "🔨 PRIME — Trade cold calls", target: { count: 20 }, rationale: "Roofers / driveway / construction / builders / scaffolders are at the yard, merchants or doing admin Saturday AM — accessible in a way they're never accessible on a weekday. Biggest cold-call window of the week. Bring coffee." },
+  { id: "sat-lunch-warm",    day: "sat", start: "12:00", end: "13:00", activity: "warm_calls",   title: "Lunch warm follow-ups",      target: { count: 2 },  mobile: true, rationale: "Quick lunch + dog walk. Ring 1-2 leads who reacted to demos this week. Phone in hand while walking." },
+  { id: "sat-pm-demos",      day: "sat", start: "13:00", end: "16:00", activity: "demo_build",   title: "6-DEMO BATCH — deep work",   target: { count: 6 },  rationale: "Best 3 uninterrupted hours of the week for building. 6 demos in a row, queue for Mon outreach push." },
+  { id: "sat-pm-content",    day: "sat", start: "16:00", end: "17:30", activity: "content",      title: "Content batch — Reels + posts",                     rationale: "Batch 7 days of content for own socials + 1-2 client sites. Reels, before/afters, testimonials." },
+  { id: "sat-eve-rest",      day: "sat", start: "17:30", end: "23:00", activity: "admin",        title: "STOP — family time",         protectedRest: true,    rationale: "Hard stop. Saturday evening protected. Non-negotiable — the grind needs a hard ceiling somewhere." },
 
   // ═════════════ SUNDAY (lighter, strategic — later start) ═════════════
   { id: "sun-am-strategy",   day: "sun", start: "11:00", end: "13:00", activity: "learning",     title: "Strategy + learning + community",                   rationale: "Read, watch, engage in trade groups. Long-term moat: better at pitching, sharper offers, deeper niche knowledge." },
