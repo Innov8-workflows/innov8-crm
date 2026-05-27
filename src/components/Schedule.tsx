@@ -254,7 +254,7 @@ const SlotCard = memo(function SlotCardBase({ slot, completed, onToggle }: { slo
           }}>{slot.title}</p>
           {slot.target && !isRest && (
             <p className="text-[10px] mt-1 font-bold" style={{ color: completed ? meta.color : meta.color }}>
-              Target: {slot.target.count} {slot.activity === "cold_calls" ? "calls" : slot.activity === "fb_messenger" ? "msgs" : slot.activity === "demo_build" ? "demos" : slot.activity === "lead_gen" ? "scan" : slot.activity === "onboarding" ? "call" : ""}
+              Target: {slot.target.count} {slot.activity === "cold_calls" || slot.activity === "warm_calls" ? "calls" : slot.activity === "closing_call" ? "close" : slot.activity === "fb_messenger" ? "msgs" : slot.activity === "demo_build" ? "demos" : slot.activity === "lead_gen" ? "scan" : slot.activity === "onboarding" ? "session" : ""}
             </p>
           )}
           <p className="text-[10px] mt-1 italic leading-snug" style={{ color: "var(--text-dim)" }}>{slot.rationale}</p>
