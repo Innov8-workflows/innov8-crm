@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback, lazy, Suspense } from "react";
+import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react";
 import ViewNav from "@/components/ViewNav";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { ToastProvider } from "@/components/Toast";
 import LoadingAI from "@/components/LoadingAI";
 
-// Lazy load heavy view components — only loaded when tab is clicked
+// Lazy load heavy view components — only loaded when tab is first visited
 const LeadGrid = lazy(() => import("@/components/LeadGrid"));
 const KanbanBoard = lazy(() => import("@/components/KanbanBoard"));
 const LiveClients = lazy(() => import("@/components/LiveClients"));
@@ -17,8 +17,10 @@ const MapView = lazy(() => import("@/components/MapView"));
 const AISolutions = lazy(() => import("@/components/AISolutions"));
 const Schedule = lazy(() => import("@/components/Schedule"));
 
+type ViewId = "prospects" | "projects" | "clients" | "dashboard" | "map" | "ai_solutions" | "schedule" | "pricing" | "referrals";
+
 export default function Home() {
-  const [view, setView] = useState<"prospects" | "projects" | "clients" | "dashboard" | "map" | "ai_solutions" | "schedule" | "pricing" | "referrals">("prospects");
+  const [view, setView] = useState<ViewId>("prospects");
   const [projectCount, setProjectCount] = useState(0);
   const [clientCount, setClientCount] = useState(0);
   const [ownerFilter, setOwnerFilter] = useState(() => {
@@ -27,6 +29,19 @@ export default function Home() {
     }
     return "";
   });
+
+  // Track which views have been visited at least once. Heavy views (LeadGrid,
+  // KanbanBoard, LiveClients) mount on first visit and stay mounted-but-hidden
+  // afterwards, so switching tabs no longer triggers a full unmount → remount →
+  // re-fetch cycle. Trade memory for snappy navigation — single-user CRM, fine.
+  const visitedRef = useRef<Set<ViewId>>(new Set([view]));
+  const [, forceRerender] = useState(0);
+  useEffect(() => {
+    if (!visitedRef.current.has(view)) {
+      visitedRef.current.add(view);
+      forceRerender((n) => n + 1);
+    }
+  }, [view]);
 
   // Lightweight count fetch — uses fast stats API instead of loading all projects
   const refreshCounts = useCallback(() => {
@@ -41,7 +56,6 @@ export default function Home() {
   useEffect(() => { refreshCounts(); }, [refreshCounts]);
 
   // Re-fetch counts whenever the user navigates back to a count-bearing view
-  // (catches deletions/additions made in other views without a full refresh)
   useEffect(() => {
     if (view === "projects" || view === "clients" || view === "dashboard") {
       refreshCounts();
@@ -53,39 +67,33 @@ export default function Home() {
     try { localStorage.setItem("crm_ownerFilter", owner); } catch {}
   };
 
+  // Helper: render a view container that mounts on first visit, then stays
+  // mounted but hidden. Avoids the costly unmount/remount/re-fetch cycle.
+  const persistedView = (id: ViewId, fallbackMessage: string, render: () => React.ReactNode) => {
+    const isVisited = visitedRef.current.has(id);
+    if (!isVisited) return null;
+    return (
+      <div className="flex-1 flex flex-col min-h-0" style={{ display: view === id ? "flex" : "none" }}>
+        <ErrorBoundary fallbackMessage={fallbackMessage}>{render()}</ErrorBoundary>
+      </div>
+    );
+  };
+
   return (
     <ToastProvider>
       <div className="flex flex-col h-screen" style={{ background: "var(--bg)" }}>
         <ViewNav active={view} onChange={setView} projectCount={projectCount} clientCount={clientCount}
           ownerFilter={ownerFilter} onOwnerChange={handleOwnerChange} />
         <Suspense fallback={<LoadingAI message="Loading" />}>
-          <ErrorBoundary fallbackMessage="Prospects failed to load">
-            {view === "prospects" && <LeadGrid ownerFilter={ownerFilter} />}
-          </ErrorBoundary>
-          <ErrorBoundary fallbackMessage="Projects failed to load">
-            {view === "projects" && <KanbanBoard ownerFilter={ownerFilter} onCountsChanged={refreshCounts} />}
-          </ErrorBoundary>
-          <ErrorBoundary fallbackMessage="Clients failed to load">
-            {view === "clients" && <LiveClients ownerFilter={ownerFilter} onCountsChanged={refreshCounts} />}
-          </ErrorBoundary>
-          <ErrorBoundary fallbackMessage="Dashboard failed to load">
-            {view === "dashboard" && <Dashboard ownerFilter={ownerFilter} />}
-          </ErrorBoundary>
-          <ErrorBoundary fallbackMessage="Map failed to load">
-            {view === "map" && <MapView ownerFilter={ownerFilter} />}
-          </ErrorBoundary>
-          <ErrorBoundary fallbackMessage="AI Solutions failed to load">
-            {view === "ai_solutions" && <AISolutions />}
-          </ErrorBoundary>
-          <ErrorBoundary fallbackMessage="Schedule failed to load">
-            {view === "schedule" && <Schedule />}
-          </ErrorBoundary>
-          <ErrorBoundary fallbackMessage="Pricing failed to load">
-            {view === "pricing" && <Pricing />}
-          </ErrorBoundary>
-          <ErrorBoundary fallbackMessage="Referrals failed to load">
-            {view === "referrals" && <Referrals />}
-          </ErrorBoundary>
+          {persistedView("prospects",    "Prospects failed to load",    () => <LeadGrid ownerFilter={ownerFilter} />)}
+          {persistedView("projects",     "Projects failed to load",     () => <KanbanBoard ownerFilter={ownerFilter} onCountsChanged={refreshCounts} />)}
+          {persistedView("clients",      "Clients failed to load",      () => <LiveClients ownerFilter={ownerFilter} onCountsChanged={refreshCounts} />)}
+          {persistedView("dashboard",    "Dashboard failed to load",    () => <Dashboard ownerFilter={ownerFilter} />)}
+          {persistedView("map",          "Map failed to load",          () => <MapView ownerFilter={ownerFilter} />)}
+          {persistedView("ai_solutions", "AI Solutions failed to load", () => <AISolutions />)}
+          {persistedView("schedule",     "Schedule failed to load",     () => <Schedule />)}
+          {persistedView("pricing",      "Pricing failed to load",      () => <Pricing />)}
+          {persistedView("referrals",    "Referrals failed to load",    () => <Referrals />)}
         </Suspense>
       </div>
     </ToastProvider>
