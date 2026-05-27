@@ -59,9 +59,11 @@ export const ACTIVITY_META: Record<Activity, { label: string; emoji: string; col
 // Headline targets used by the progress strip.
 // Sum of all `target.count` for a given activity should equal these.
 export const WEEKLY_TARGETS: Partial<Record<Activity, number>> = {
-  cold_calls:   100, // Mon 15 + Tue 15 + Wed 20 + Thu 20 + Fri 10 + Sat 20 = 100
-  warm_calls:   12,  // 2/day Mon-Fri + 2 Saturday lunch
-  fb_messenger: 25,  // lunch sends moved to warm calls
+  // SOP: FB Messenger → Warm Call (lunch) → Close. Cold calls now only for
+  // Saturday trade outbound where in-yard / merchants window beats DM cadence.
+  cold_calls:   20,  // Sat AM trade push only
+  warm_calls:   12,  // 2/day Mon-Fri lunch + 2 Saturday lunch
+  fb_messenger: 140, // Mon-Thu 30 each + Fri 20 = 140 evening DMs
   demo_build:   15,
   lead_gen:     2,
   onboarding:   2,
@@ -74,32 +76,32 @@ export const WEEKLY_TARGETS: Partial<Record<Activity, number>> = {
 export const SCHEDULE_SLOTS: ScheduleSlot[] = [
   // ═════════════ MONDAY ═════════════
   { id: "mon-lunch-warm",    day: "mon", start: "12:30", end: "13:30", activity: "warm_calls",   title: "Warm follow-up calls",       target: { count: 2 },  mobile: true, rationale: "Trade lunch window (per Pricing intel = BEST). Ring 1-3 leads who replied/opened the demo you sent on Messenger. Way higher conversion than any cold outreach this week. Drop to 5 FB DMs if no warm leads queued." },
-  { id: "mon-eve-calls",     day: "mon", start: "18:30", end: "20:00", activity: "cold_calls",   title: "Cold Calls — T1 leads",      target: { count: 15 }, rationale: "Trades home & relaxed. Hit leads who said 'send it over' last week — easiest reopens of the week." },
+  { id: "mon-eve-calls",     day: "mon", start: "18:30", end: "20:00", activity: "fb_messenger", title: "FB Messenger blast",         target: { count: 30 }, rationale: "Top of the SOP funnel: DM 30 local businesses with personalised hooks. Engagement layer — replies queue up tomorrow's warm-call lunch list. Volume over voice — automation does the prospecting, you handle the conversions." },
   { id: "mon-eve-demos",     day: "mon", start: "20:00", end: "21:30", activity: "demo_build",   title: "Build 2 demos",              target: { count: 2 },  rationale: "Bank 2 demos for outbound this week. ~30 min/site, doable in 90 min batch." },
   { id: "mon-late-leadgen",  day: "mon", start: "21:30", end: "23:00", activity: "lead_gen",     title: "Lead-Gen Scan + follow-ups", target: { count: 1 },  rationale: "Queue 25-30 fresh prospects for the week via /prospect-leadgen-warm. Clear today's overdue follow-ups before bed." },
 
   // ═════════════ TUESDAY ═════════════
   { id: "tue-lunch-warm",    day: "tue", start: "12:30", end: "13:30", activity: "warm_calls",   title: "Warm follow-up calls",       target: { count: 2 },  mobile: true, rationale: "Ring 1-3 leads who reacted to yesterday's demo sends. Lunch = trade peak window. Drop to FB DMs if pipeline's dry." },
-  { id: "tue-eve-calls",     day: "tue", start: "18:30", end: "20:00", activity: "cold_calls",   title: "Cold Calls — T2 leads",      target: { count: 15 }, rationale: "Tuesday's settled. Push T2 (£299/£50) — mid-tier sweet spot." },
-  { id: "tue-eve-fb",        day: "tue", start: "20:00", end: "21:30", activity: "fb_messenger", title: "FB Messenger blast",         target: { count: 20 }, rationale: "Biggest FB-send window of the week. 20 personalised DMs to leads from yesterday's lead-gen scan." },
-  { id: "tue-late-demos",    day: "tue", start: "21:30", end: "23:00", activity: "demo_build",   title: "Build 2 demos",              target: { count: 2 },  rationale: "Replenish demo pipeline for Wed/Thu hot calls." },
+  { id: "tue-eve-calls",     day: "tue", start: "18:30", end: "20:00", activity: "fb_messenger", title: "FB Messenger blast",         target: { count: 30 }, rationale: "30 DMs to fresh leads from Mon's lead-gen scan. SOP: opener + curiosity hook + soft CTA. Don't pitch in the first message — engagement first." },
+  { id: "tue-eve-fb",        day: "tue", start: "20:00", end: "21:30", activity: "demo_build",   title: "Build 2 demos",              target: { count: 2 },  rationale: "Replenish demo pipeline so Wed/Thu warm-call follow-ups have something to send mid-call." },
+  { id: "tue-late-demos",    day: "tue", start: "21:30", end: "23:00", activity: "follow_up",    title: "Email follow-up sweep",                              rationale: "Long-form email follow-ups for FB no-replies + email-only leads. Different channel often unsticks a quiet thread." },
 
   // ═════════════ WEDNESDAY (peak day) ═════════════
   { id: "wed-lunch-warm",    day: "wed", start: "12:30", end: "13:30", activity: "warm_calls",   title: "Warm follow-up calls",       target: { count: 2 },  mobile: true, rationale: "Mid-week prime. Demo sent Mon-Tue = call them now while it's still fresh in their head. Highest-converting hour of your week." },
-  { id: "wed-eve-calls",     day: "wed", start: "18:30", end: "20:00", activity: "cold_calls",   title: "PUSH NIGHT — Cold Calls",    target: { count: 20 }, rationale: "Per Pricing > Best Times intel: Wed evening = peak conversion. Higher quota, bigger push." },
+  { id: "wed-eve-calls",     day: "wed", start: "18:30", end: "20:00", activity: "fb_messenger", title: "PUSH NIGHT — FB Messenger",  target: { count: 30 }, rationale: "Wednesday's the peak engagement night per the SOP — businesses respond on phones in the evening. Push 30 fresh DMs + reply to everything that came in earlier." },
   { id: "wed-eve-onboard",   day: "wed", start: "20:00", end: "21:30", activity: "onboarding",   title: "Onboarding call window",     target: { count: 1 },  rationale: "Pre-book new-client onboarding calls into this slot. Evening = client comfortable on their sofa." },
   { id: "wed-late-admin",    day: "wed", start: "21:30", end: "23:00", activity: "admin",        title: "CRM admin + 1 demo",         target: { count: 1 },  rationale: "Mid-week CRM hygiene — update stages, fix drift. Build 1 demo for Thursday morning sends." },
 
   // ═════════════ THURSDAY (peak day) ═════════════
   { id: "thu-lunch-warm",    day: "thu", start: "12:30", end: "13:30", activity: "warm_calls",   title: "Warm follow-up calls",       target: { count: 2 },  mobile: true, rationale: "Thursday lunch — last great call window before the weekend lull. Ring anyone who said 'send me more info' earlier this week." },
-  { id: "thu-eve-calls",     day: "thu", start: "18:30", end: "20:00", activity: "cold_calls",   title: "Cold Calls — push night #2", target: { count: 20 }, rationale: "Thursday equals Wednesday for conversion. Trades thinking about the weekend — receptive." },
+  { id: "thu-eve-calls",     day: "thu", start: "18:30", end: "20:00", activity: "fb_messenger", title: "FB Messenger blast",         target: { count: 30 }, rationale: "Pre-weekend window — trades planning their Sat job list. Catch them on the sofa scrolling. SOP plays especially well Thursday because the demo can be delivered before they need it Monday." },
   { id: "thu-eve-fbseq",     day: "thu", start: "20:00", end: "21:30", activity: "fb_messenger", title: "FB follow-up sequence",                              rationale: "Sweep the week's no-reply DMs with a softer second touch. Many trades reply on the second nudge." },
   { id: "thu-late-leadgen",  day: "thu", start: "21:30", end: "23:00", activity: "lead_gen",     title: "Mid-week lead-gen refill",   target: { count: 1 },  rationale: "Top up the prospect pool — keep next week loaded. Aim for 25-30 fresh." },
 
   // ═════════════ FRIDAY (wind down) ═════════════
   { id: "fri-lunch-warm",    day: "fri", start: "12:30", end: "13:30", activity: "warm_calls",   title: "Warm follow-up calls",       target: { count: 2 },  mobile: true, rationale: "Last warm-call slot of the week. Hit anyone who went quiet — Friday lunch they're more relaxed than mid-week. Sometimes you get a 'go on then' close from a procrastinator." },
-  { id: "fri-eve-calls",     day: "fri", start: "18:30", end: "19:30", activity: "cold_calls",   title: "Cold Calls — lifestyle types", target: { count: 10 }, rationale: "Fri evenings trades bolt early — keep quota lower and target lifestyle businesses (Beauty/Groomers) who work Saturdays." },
-  { id: "fri-eve-demos",     day: "fri", start: "19:30", end: "21:00", activity: "demo_build",   title: "Clear demo backlog",                                rationale: "Burn through any deferred demos so Saturday's batch is fresh leads only, not catch-up." },
+  { id: "fri-eve-calls",     day: "fri", start: "18:30", end: "20:00", activity: "fb_messenger", title: "FB Messenger — lighter pass", target: { count: 20 }, rationale: "Lighter Friday quota — most reply rates dip past 8pm Friday. Focus on lifestyle businesses (Beauty/Groomers/Hair) who'll see it Saturday morning before their first client." },
+  { id: "fri-eve-demos",     day: "fri", start: "20:00", end: "21:00", activity: "demo_build",   title: "Clear demo backlog",                                rationale: "Burn through any deferred demos so Saturday's batch is fresh leads only, not catch-up." },
   { id: "fri-late-review",   day: "fri", start: "21:00", end: "22:00", activity: "admin",        title: "Weekly review + plan Sat",                          rationale: "Honest hour: KPIs vs targets, who's been pitched, what to push next week. Plan Saturday's batch." },
   { id: "fri-late-rest",     day: "fri", start: "22:00", end: "23:00", activity: "admin",        title: "STOP — protect Friday night", protectedRest: true,  rationale: "Hard stop after the weekly review. Friday night is decompress. Going past this burns out within a month." },
 
