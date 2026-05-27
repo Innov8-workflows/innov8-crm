@@ -48,12 +48,13 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     args: [projectId, cutoff],
   }));
 
-  // Daily breakdown for sparkline
+  // Daily breakdown for sparkline. LIMIT cap protects us if days param ever
+  // explodes via querystring tampering or future config changes — max 366 days.
   const daily = all(await db.execute({
     sql: `SELECT date(created_at) as day, COUNT(*) as total,
             SUM(CASE WHEN event_type = 'page_view' THEN 1 ELSE 0 END) as page_views
           FROM site_events WHERE project_id = ? AND created_at >= ?
-          GROUP BY date(created_at) ORDER BY day ASC`,
+          GROUP BY date(created_at) ORDER BY day ASC LIMIT 366`,
     args: [projectId, cutoff],
   }));
 

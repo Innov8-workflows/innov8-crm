@@ -74,6 +74,15 @@ export async function POST(request: NextRequest) {
       ],
     });
 
+    // Opportunistic prune — every ~100th insert, drop events older than 180 days.
+    // Cheap one-shot guard against the table growing unbounded as clients scale.
+    if (Math.random() < 0.01) {
+      const cutoff = new Date(Date.now() - 180 * 86400000).toISOString();
+      try {
+        await db.execute({ sql: "DELETE FROM site_events WHERE created_at < ?", args: [cutoff] });
+      } catch { /* swallow — prune is best-effort */ }
+    }
+
     return NextResponse.json({ ok: true }, { headers: CORS });
   } catch {
     return NextResponse.json({ ok: false }, { status: 500, headers: CORS });

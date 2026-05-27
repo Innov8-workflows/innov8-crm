@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, memo } from "react";
 import {
   SCHEDULE_SLOTS,
   ACTIVITY_META,
@@ -209,7 +209,9 @@ export default function Schedule() {
 }
 
 // ─── Slot card ──────────────────────────────────────────────────────────
-function SlotCard({ slot, completed, onToggle }: { slot: ScheduleSlot; completed: boolean; onToggle: () => void }) {
+// Memoised — re-renders only when this slot's completion state changes,
+// not when sibling slots are toggled (was 210 re-renders per click before).
+const SlotCard = memo(function SlotCardBase({ slot, completed, onToggle }: { slot: ScheduleSlot; completed: boolean; onToggle: () => void }) {
   const meta = ACTIVITY_META[slot.activity];
   const isRest = slot.protectedRest;
 
@@ -260,4 +262,4 @@ function SlotCard({ slot, completed, onToggle }: { slot: ScheduleSlot; completed
       </div>
     </button>
   );
-}
+}, (prev, next) => prev.completed === next.completed && prev.slot.id === next.slot.id);

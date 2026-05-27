@@ -104,6 +104,6 @@ export async function GET() {
     one_off_revenue: Number(totals?.one_off_revenue) || 0,
     per_solution: perSolutionWithBuyers,
   }, {
-    headers: { "Cache-Control": "private, max-age=10" },
+    headers: { "Cache-Control": "private, max-age=60" },
   });
 }

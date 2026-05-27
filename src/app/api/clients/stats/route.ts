@@ -38,6 +38,6 @@ export async function GET(request: NextRequest) {
     overdueRenewals: Number(stats?.overdueRenewals) || 0,
     lostClients: Number(stats?.lostClients) || 0,
   });
-  response.headers.set("Cache-Control", "private, max-age=5");
+  response.headers.set("Cache-Control", "private, max-age=30");
   return response;
 }
