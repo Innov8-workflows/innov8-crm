@@ -120,6 +120,6 @@ export async function GET(request: NextRequest) {
     totalMonthly,
     byType,
   });
-  response.headers.set("Cache-Control", "private, max-age=30");
+  response.headers.set("Cache-Control", "private, max-age=5");
   return response;
 }
