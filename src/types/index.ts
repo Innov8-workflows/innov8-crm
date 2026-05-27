@@ -168,6 +168,7 @@ export const PIPELINE_STAGES = [
   { value: "maybe", label: "Maybe", color: "#ea580c" },
   { value: "lost", label: "Lost", color: "#EF4444" },
   { value: "rejected", label: "Rejected", color: "#9CA3AF" },
+  { value: "dead", label: "Dead", color: "#4B5563" },
 ] as const;
 
 export const PROJECT_STAGES = [
