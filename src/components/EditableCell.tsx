@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, memo } from "react";
+import { useToast } from "./Toast";
 
 interface EditableCellProps {
   value: string | number;
@@ -38,9 +39,9 @@ function pasteText(): Promise<string> {
 }
 
 function EditableCellBase({ value, onSave, type = "text" }: EditableCellProps) {
+  const { toast } = useToast();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(String(value ?? ""));
-  const [copied, setCopied] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { if (editing) inputRef.current?.focus(); }, [editing]);
@@ -52,14 +53,15 @@ function EditableCellBase({ value, onSave, type = "text" }: EditableCellProps) {
     if (newVal !== value) onSave(newVal);
   };
 
+  // Fire-and-forget copy — uses the global toast so the cell never re-renders.
+  // Previous version had a local `copied` state + setTimeout, which forced the
+  // cell to re-render twice per copy. With 1000+ EditableCells on the grid,
+  // every copy was kicking off enough work to feel laggy.
   const doCopy = useCallback(() => {
     const text = String(value ?? "");
     if (!text) return;
-    copyText(text).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1200);
-    });
-  }, [value]);
+    copyText(text).then(() => toast("Copied", "success"));
+  }, [value, toast]);
 
   const doPaste = useCallback(() => {
     pasteText().then((text) => {
@@ -105,25 +107,6 @@ function EditableCellBase({ value, onSave, type = "text" }: EditableCellProps) {
         title={String(value ?? "")}
       >
         {value ?? ""}
-        {copied && (
-          <span style={{
-            position: "fixed",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            background: "var(--accent)",
-            color: "#fff",
-            fontSize: 13,
-            fontWeight: 600,
-            padding: "8px 16px",
-            borderRadius: 8,
-            zIndex: 9999,
-            pointerEvents: "none",
-            boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
-          }}>
-            Copied!
-          </span>
-        )}
       </div>
     );
   }
