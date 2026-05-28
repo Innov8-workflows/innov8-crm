@@ -7,6 +7,7 @@ export async function GET(request: NextRequest) {
   const db = getClient();
   const stage = request.nextUrl.searchParams.get("stage");
   const completed = request.nextUrl.searchParams.get("completed");
+  const paying = request.nextUrl.searchParams.get("paying");
   const clientStatus = request.nextUrl.searchParams.get("client_status");
 
   const ownerFilter = request.nextUrl.searchParams.get("owner");
@@ -15,7 +16,11 @@ export async function GET(request: NextRequest) {
     FROM projects p JOIN leads l ON p.lead_id = l.id`;
   const args: unknown[] = [];
 
-  if (completed === "true") {
+  // ?paying=true → everything past onboarding (subscription has started)
+  // ?completed=true → just completed projects (live site delivered)
+  if (paying === "true") {
+    sql += " WHERE p.stage != 'onboarding'";
+  } else if (completed === "true") {
     sql += " WHERE p.completed_at != ''";
   } else if (completed === "false") {
     sql += " WHERE p.completed_at = ''";
@@ -31,7 +36,7 @@ export async function GET(request: NextRequest) {
     sql += (sql.includes("WHERE") ? " AND" : " WHERE") + " p.client_status = 'lost'";
   } else if (clientStatus === "active") {
     sql += (sql.includes("WHERE") ? " AND" : " WHERE") + " (p.client_status IN ('active', 'refine') OR p.client_status IS NULL)";
-  } else if (completed === "true") {
+  } else if (completed === "true" || paying === "true") {
     sql += " AND (p.client_status IN ('active', 'refine') OR p.client_status IS NULL)";
   }
 
@@ -62,7 +67,7 @@ export async function GET(request: NextRequest) {
       }),
     ];
 
-    if (completed === "true") {
+    if (completed === "true" || paying === "true") {
       batchQueries.push(
         db.execute({ sql: `SELECT project_id, COUNT(*) as total, SUM(CASE WHEN completed = 1 THEN 1 ELSE 0 END) as done FROM project_tasks WHERE project_id IN (${placeholders}) GROUP BY project_id`, args: ids as never[] }),
       );
@@ -81,7 +86,7 @@ export async function GET(request: NextRequest) {
       (p as Record<string, unknown>).has_cover = hasCover[pid] || false;
     }
 
-    if (completed === "true") {
+    if (completed === "true" || paying === "true") {
       const taskResult = results[1] as import("@libsql/client").ResultSet;
       const taskStats: Record<number, { total: number; done: number }> = {};
       for (const row of all(taskResult)) {

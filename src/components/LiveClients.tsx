@@ -38,7 +38,9 @@ export default function LiveClients({ ownerFilter = "", onCountsChanged }: { own
 
   const fetchClients = useCallback(async () => {
     const ownerParam = ownerFilter ? `&owner=${encodeURIComponent(ownerFilter)}` : "";
-    const res = await fetch(`/api/projects?completed=true&client_status=${clientFilter}${ownerParam}`);
+    // "paying=true" = any project past Onboarding stage. The moment they sign
+    // and move into Design & Content they're a paying customer being delivered.
+    const res = await fetch(`/api/projects?paying=true&client_status=${clientFilter}${ownerParam}`);
     const data = await res.json();
     setClients(data.projects || []);
     setLoading(false);
