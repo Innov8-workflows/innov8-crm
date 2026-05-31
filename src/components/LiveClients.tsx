@@ -659,20 +659,6 @@ function CardView({ clients, formatDate, isOverdue, onOpenProject, isLostView, o
             onMouseLeave={(e) => { e.currentTarget.style.borderColor = isLostView ? "#ef444440" : "var(--border)"; e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.opacity = isLostView ? "0.75" : "1"; }}
             onClick={() => onOpenProject(client)}
           >
-            {/* Invoice status badge — top left */}
-            {!isLostView && (
-              <button className="absolute top-2 left-2 z-10 px-2 py-0.5 rounded-full text-xs font-bold transition-colors"
-                style={{
-                  background: (client.invoice_status === "invoiced") ? "#22c55e" : "#ef4444",
-                  color: "#fff",
-                  boxShadow: "0 2px 4px rgba(0,0,0,0.3)",
-                }}
-                onClick={(e) => onToggleInvoiceStatus(client.id, client.invoice_status || "to_invoice", e)}
-                title="Click to toggle invoice status">
-                {client.invoice_status === "invoiced" ? "INVOICED" : "TO INVOICE"}
-              </button>
-            )}
-
             {/* Client status badge — top right */}
             {(() => {
               const status = isLostView ? "lost" : (client.client_status || "active");
@@ -814,19 +800,6 @@ function CardView({ clients, formatDate, isOverdue, onOpenProject, isLostView, o
                       onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                       onClick={(e) => onMarkLost(client.id, e)}>
                       Lost
-                    </button>
-                  )}
-                  {!isLostView && client.monthly_fee > 0 && (
-                    <button className="p-1 rounded transition-colors"
-                      style={{ color: invoicing === client.id ? "#eab308" : "var(--text-tertiary)" }}
-                      onMouseEnter={(e) => { if (invoicing !== client.id) { e.currentTarget.style.color = "#3b82f6"; e.currentTarget.style.background = "#3b82f615"; } }}
-                      onMouseLeave={(e) => { if (invoicing !== client.id) { e.currentTarget.style.color = "var(--text-tertiary)"; e.currentTarget.style.background = "transparent"; } }}
-                      onClick={(e) => onSendInvoice(client.id, e)}
-                      disabled={invoicing === client.id}
-                      title="Send Stripe invoice">
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
-                      </svg>
                     </button>
                   )}
                   <button className="p-1 rounded transition-colors"
