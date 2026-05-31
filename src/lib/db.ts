@@ -167,6 +167,15 @@ async function doInitDb() {
       updated_at TEXT DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS seo_geo_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      project_id INTEGER NOT NULL,
+      task_ids TEXT DEFAULT '',
+      notes TEXT DEFAULT '',
+      completed_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+    );
+
     CREATE TABLE IF NOT EXISTS site_events (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       project_id INTEGER NOT NULL,
@@ -215,6 +224,7 @@ async function doInitDb() {
     "ALTER TABLE leads ADD COLUMN lat REAL",
     "ALTER TABLE leads ADD COLUMN lng REAL",
     "ALTER TABLE projects ADD COLUMN tracking_id TEXT DEFAULT ''",
+    "ALTER TABLE projects ADD COLUMN last_seo_date TEXT DEFAULT ''",
   ];
   for (const sql of migrations) {
     try { await db.execute(sql); } catch { /* column exists */ }
@@ -245,6 +255,7 @@ async function doInitDb() {
     CREATE INDEX IF NOT EXISTS idx_site_events_type ON site_events(event_type);
     CREATE INDEX IF NOT EXISTS idx_projects_tracking ON projects(tracking_id);
     CREATE INDEX IF NOT EXISTS idx_schedule_date ON schedule_completions(date);
+    CREATE INDEX IF NOT EXISTS idx_seo_geo_project ON seo_geo_logs(project_id, completed_at);
   `);
 
   // Clean up any duplicate solutions left behind by the previous buggy seed check.

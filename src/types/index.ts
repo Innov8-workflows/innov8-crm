@@ -51,6 +51,7 @@ export interface Project {
   location?: string;
   capex?: number;
   demo_site_url?: string;
+  last_seo_date?: string;
   // Enriched on list responses
   cover_image?: string | null;
   has_cover?: boolean;

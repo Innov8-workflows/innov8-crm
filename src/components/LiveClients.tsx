@@ -5,6 +5,7 @@ import type { Project } from "@/types";
 import ProjectDetailModal from "./ProjectDetailModal";
 import LoadingAI from "./LoadingAI";
 import SiteAnalyticsModal from "./SiteAnalyticsModal";
+import SeoGeoModal from "./SeoGeoModal";
 
 interface ClientStats {
   mrr: number;
@@ -34,6 +35,7 @@ export default function LiveClients({ ownerFilter = "", onCountsChanged }: { own
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
   const [invoicing, setInvoicing] = useState<number | null>(null);
   const [analyticsClient, setAnalyticsClient] = useState<Project | null>(null);
+  const [seoClient, setSeoClient] = useState<Project | null>(null);
   const [invoiceResult, setInvoiceResult] = useState<{ id: number; msg: string; ok: boolean } | null>(null);
 
   const fetchClients = useCallback(async () => {
@@ -333,6 +335,7 @@ export default function LiveClients({ ownerFilter = "", onCountsChanged }: { own
             invoicing={invoicing}
             onToggleInvoiceStatus={toggleInvoiceStatus}
             onShowAnalytics={setAnalyticsClient}
+            onShowSeo={setSeoClient}
           />
         )}
       </div>
@@ -355,6 +358,15 @@ export default function LiveClients({ ownerFilter = "", onCountsChanged }: { own
         <SiteAnalyticsModal
           project={analyticsClient}
           onClose={() => setAnalyticsClient(null)}
+        />
+      )}
+
+      {/* SEO / GEO Maintenance Modal */}
+      {seoClient && (
+        <SeoGeoModal
+          project={seoClient}
+          onClose={() => setSeoClient(null)}
+          onLogged={fetchClients}
         />
       )}
 
@@ -628,9 +640,10 @@ interface CardProps {
   invoicing: number | null;
   onToggleInvoiceStatus: (id: number, currentStatus: string, e?: React.MouseEvent) => void;
   onShowAnalytics: (p: Project) => void;
+  onShowSeo: (p: Project) => void;
 }
 
-function CardView({ clients, formatDate, isOverdue, onOpenProject, isLostView, onMarkLost, onReactivate, onDelete, onCycleStatus, onSendInvoice, invoicing, onToggleInvoiceStatus, onShowAnalytics }: CardProps) {
+function CardView({ clients, formatDate, isOverdue, onOpenProject, isLostView, onMarkLost, onReactivate, onDelete, onCycleStatus, onSendInvoice, invoicing, onToggleInvoiceStatus, onShowAnalytics, onShowSeo }: CardProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4">
       {clients.map((client) => {
@@ -670,6 +683,36 @@ function CardView({ clients, formatDate, isOverdue, onOpenProject, isLostView, o
                   onClick={(e) => { e.stopPropagation(); if (!isLostView) onCycleStatus(client.id, status, e); }}
                   title={isLostView ? "Lost client" : "Click to change status"}>
                   {badge.label}
+                </button>
+              );
+            })()}
+
+            {/* Last SEO / GEO badge bar — sits above the cover image */}
+            {(() => {
+              const lastSeo = client.last_seo_date;
+              const ago = lastSeo ? Math.floor((Date.now() - new Date(lastSeo).getTime()) / 86400000) : null;
+              const stale = ago === null || ago > 30;
+              const warning = ago !== null && ago > 14 && ago <= 30;
+              const fresh = ago !== null && ago <= 14;
+              const label = lastSeo === undefined || !lastSeo
+                ? "No SEO/GEO logged yet"
+                : ago === 0 ? "Today" : ago === 1 ? "Yesterday" : `${ago} days ago`;
+              const color = stale ? "#ef4444" : warning ? "#f59e0b" : fresh ? "#22c55e" : "var(--text-dim)";
+              return (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onShowSeo(client); }}
+                  className="w-full px-3 py-1.5 flex items-center justify-between text-xs transition-colors"
+                  style={{ background: "var(--surface2)", borderBottom: "1px solid var(--border)", color: "var(--text-secondary)" }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = "var(--accent-subtle)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "var(--surface2)"; }}
+                  title="Click to log SEO / GEO maintenance work"
+                >
+                  <span className="flex items-center gap-1.5">
+                    <span style={{ color }}>●</span>
+                    <span style={{ color: "var(--text-dim)" }}>Last SEO/GEO:</span>
+                    <span style={{ color, fontWeight: 600 }}>{label}</span>
+                  </span>
+                  <span className="text-[10px]" style={{ color: "var(--text-quaternary)" }}>Log →</span>
                 </button>
               );
             })()}
