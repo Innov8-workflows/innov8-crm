@@ -353,7 +353,7 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
     if (!lead) return null;
     const s = lead.status || "new";
     // Don't touch manually-set advanced stages
-    if (["to_call", "meeting_booked", "maybe", "won", "lost", "rejected", "dead"].includes(s)) return null;
+    if (["to_call", "meeting_booked", "verbal", "maybe", "won", "lost", "rejected", "dead"].includes(s)) return null;
 
     const cfv = customFieldValuesRef.current;
     const get = (field: string, customId?: string) => {
