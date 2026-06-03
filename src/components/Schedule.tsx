@@ -35,7 +35,10 @@ export default function Schedule() {
 
   const fetchWeek = useCallback(async () => {
     setLoading(true);
-    const res = await fetch(`/api/schedule?week=${weekMonday}`);
+    // cache: "no-store" pairs with the server's no-store header — guarantees
+    // we get the latest completions whenever fetchWeek runs (mount + week nav
+    // + post-toggle rollback).
+    const res = await fetch(`/api/schedule?week=${weekMonday}`, { cache: "no-store" });
     const data = await res.json();
     setCompletions(data.completions || []);
     setDays(data.days || []);
@@ -67,16 +70,22 @@ export default function Schedule() {
     });
 
     try {
-      await fetch("/api/schedule", {
+      const res = await fetch("/api/schedule", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ slot_id: slot.id, date, completed: newState }),
       });
+      // CRUCIAL: fetch only throws on network errors. A 4xx/5xx response is
+      // considered "successful" by fetch — without this check, silent server
+      // failures left the optimistic tick on screen but no row in the DB,
+      // so refreshing wiped the progress.
+      if (!res.ok) throw new Error(`save failed: ${res.status}`);
       toast(newState ? `✓ ${slot.title}` : `Unticked ${slot.title}`, newState ? "success" : "info");
-    } catch {
-      // Rollback
+    } catch (err) {
+      console.error("schedule toggle failed", err);
+      // Rollback the optimistic update by re-syncing from the server
       fetchWeek();
-      toast("Update failed", "error");
+      toast("Update failed — please retry", "error");
     }
   }, [completionMap, toast, fetchWeek]);
 

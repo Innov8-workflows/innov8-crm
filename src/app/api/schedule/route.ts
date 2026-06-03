@@ -25,7 +25,9 @@ export async function GET(request: NextRequest) {
     days,
     completions: all(result),
   }, {
-    headers: { "Cache-Control": "private, max-age=10" },
+    // No cache — completions change frequently and the cached response was
+    // sometimes hiding fresh data after a toggle.
+    headers: { "Cache-Control": "private, no-store" },
   });
 }
 

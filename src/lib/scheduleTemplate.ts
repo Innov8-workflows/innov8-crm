@@ -135,21 +135,29 @@ export const SCHEDULE_SLOTS: ScheduleSlot[] = [
 
 // ─── Helpers ───────────────────────────────────────────────────────────
 
+/** Format Date → YYYY-MM-DD using LOCAL date parts. Avoids UTC roundtripping
+ *  that caused dates to drift back 1 day under BST (local midnight = UTC-1h). */
+function toLocalISODate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 /** Returns Monday's YYYY-MM-DD for the week containing the given date. */
 export function mondayOfWeek(d: Date = new Date()): string {
   const day = d.getDay(); // 0=Sun, 1=Mon ... 6=Sat
   const offset = day === 0 ? -6 : 1 - day;
-  const monday = new Date(d);
-  monday.setDate(d.getDate() + offset);
-  monday.setHours(0, 0, 0, 0);
-  return monday.toISOString().split("T")[0];
+  const monday = new Date(d.getFullYear(), d.getMonth(), d.getDate() + offset);
+  return toLocalISODate(monday);
 }
 
 /** Date string (YYYY-MM-DD) for nth day after a given Monday string. */
 export function dateForDayOffset(monday: string, dayOffset: number): string {
-  const d = new Date(monday + "T00:00:00");
-  d.setDate(d.getDate() + dayOffset);
-  return d.toISOString().split("T")[0];
+  const [y, m, dd] = monday.split("-").map(Number);
+  // Build a local date with no time component — pure date arithmetic
+  const d = new Date(y, m - 1, dd + dayOffset);
+  return toLocalISODate(d);
 }
 
 /** Day-of-week index (0=Mon, 6=Sun) for a Day enum. */
