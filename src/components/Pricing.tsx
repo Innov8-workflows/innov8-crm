@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { Solution } from "@/types";
 import { SOLUTION_CATEGORIES } from "@/types";
+import Icon, { type IconName } from "./Icon";
 
 export default function Pricing() {
   const [solutions, setSolutions] = useState<Solution[]>([]);
@@ -23,7 +24,7 @@ export default function Pricing() {
         </div>
         {/* Trophy callout */}
         <div className="rounded-xl px-4 py-3 flex items-center gap-3" style={{ border: "1px solid var(--accent)", background: "var(--accent-subtle)" }}>
-          <div className="text-2xl">🏆</div>
+          <div style={{ color: "var(--accent)" }}><Icon name="trophy" className="w-7 h-7" /></div>
           <div className="text-xs leading-relaxed" style={{ color: "var(--text-secondary)" }}>
             Most businesses pay <span style={{ color: "var(--accent)", fontWeight: 700 }}>£2,000+ upfront</span><br/>
             Our model gives you everything you need for a <span style={{ color: "var(--accent)", fontWeight: 700 }}>fraction of the typical cost</span>
@@ -98,10 +99,10 @@ export default function Pricing() {
       {/* Trust badges row */}
       <div className="rounded-xl p-5" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <TrustBadge icon="🛡" title="No Long-Term Contracts" subtitle="Cancel anytime" />
-          <TrustBadge icon="🔒" title="Secure & Reliable" subtitle="Your data is safe with us" />
-          <TrustBadge icon="🇬🇧" title="UK Based Support" subtitle="Real people, real support" />
-          <TrustBadge icon="🚀" title="Built to Grow" subtitle="Scalable as your business grows" />
+          <TrustBadge icon="shield-check" title="No Long-Term Contracts" subtitle="Cancel anytime" />
+          <TrustBadge icon="lock" title="Secure & Reliable" subtitle="Your data is safe with us" />
+          <TrustBadge icon="flag" title="UK Based Support" subtitle="Real people, real support" />
+          <TrustBadge icon="trending-up" title="Built to Grow" subtitle="Scalable as your business grows" />
         </div>
       </div>
 
@@ -109,7 +110,7 @@ export default function Pricing() {
       {solutions.length > 0 && (
         <div>
           <p className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: "var(--text-dim)" }}>Add-On Catalogue</p>
-          <h2 className="text-lg font-bold mb-0.5" style={{ color: "var(--text)" }}>🤖 AI Solutions &amp; Automations</h2>
+          <h2 className="text-lg font-bold mb-0.5 flex items-center gap-2" style={{ color: "var(--text)" }}><Icon name="cpu-chip" className="w-5 h-5" style={{ color: "var(--accent)" }} /> AI Solutions &amp; Automations</h2>
           <p className="text-xs mb-4" style={{ color: "var(--text-quaternary)" }}>Quick reference for upsells on calls. Tap any card to see the pitch angle.</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {solutions.map((s) => {
@@ -143,7 +144,7 @@ export default function Pricing() {
               <div className="w-full max-w-lg rounded-xl p-6" style={{ background: "var(--surface)", border: "1px solid var(--border)" }} onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-start justify-between mb-3">
                   <h3 className="text-xl font-bold" style={{ color: "var(--text)" }}>{selected.name}</h3>
-                  <button onClick={() => setSelected(null)} className="text-sm px-2" style={{ color: "var(--text-muted)" }}>✕</button>
+                  <button onClick={() => setSelected(null)} className="p-1 rounded" style={{ color: "var(--text-muted)" }}><Icon name="x-mark" className="w-5 h-5" /></button>
                 </div>
                 <p className="text-sm mb-4" style={{ color: "var(--text-secondary)" }}>{selected.description}</p>
                 <div className="grid grid-cols-3 gap-2 mb-4">
@@ -162,7 +163,7 @@ export default function Pricing() {
                 </div>
                 {selected.pitch_angle && (
                   <div className="p-3 rounded-lg mb-3" style={{ background: "var(--accent-subtle)", border: "1px solid var(--accent)" }}>
-                    <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: "var(--accent)" }}>💬 Pitch Angle</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider mb-1 flex items-center gap-1.5" style={{ color: "var(--accent)" }}><Icon name="chat" className="w-3.5 h-3.5" /> Pitch Angle</p>
                     <p className="text-sm" style={{ color: "var(--text)" }}>{selected.pitch_angle}</p>
                   </div>
                 )}
@@ -248,7 +249,7 @@ export default function Pricing() {
 
         {/* Pro tips */}
         <div className="mt-6 p-4 rounded-lg" style={{ background: "var(--accent-subtle)", border: "1px solid var(--accent)" }}>
-          <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--accent)" }}>💡 Pro Tips</p>
+          <p className="text-xs font-semibold uppercase tracking-wider mb-2 flex items-center gap-1.5" style={{ color: "var(--accent)" }}><Icon name="light-bulb" className="w-4 h-4" /> Pro Tips</p>
           <ul className="text-sm space-y-1.5" style={{ color: "var(--text-secondary)" }}>
             <li>• <span style={{ color: "var(--text)" }}>Rainy days</span> are golden — jobs get cancelled, they&apos;re stuck indoors, more chatty</li>
             <li>• <span style={{ color: "var(--text)" }}>End of month</span> trades are chasing invoices. They understand &quot;I&apos;m helping you get more jobs&quot; instantly</li>
@@ -264,15 +265,15 @@ export default function Pricing() {
         <h3 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: "var(--text-dim)" }}>Discovery Questions — Keep the Conversation Going</h3>
         <p className="text-xs mb-4" style={{ color: "var(--text-quaternary)" }}>Use these to understand their situation and keep things natural. Don&apos;t fire them off like a checklist — weave them in.</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          <QuestionCard emoji="🤔" question="Have you just not got round to getting a website?" note="Opens the door — most say yes, which means they already want one" />
-          <QuestionCard emoji="💷" question="Has price been a big factor in why you haven't got one?" note="If yes, perfect lead-in to T1 at £0 upfront" />
-          <QuestionCard emoji="📸" question="Have you had a chance to look at the before & afters section?" note="Draws attention to the gallery — visual proof of quality" />
-          <QuestionCard emoji="📱" question="How do most of your customers find you at the moment?" note="Reveals their reliance on Facebook/word of mouth — your angle" />
-          <QuestionCard emoji="⭐" question="I saw you've got some cracking reviews — do you get many enquiries from them?" note="Compliment + shows you've done your homework" />
-          <QuestionCard emoji="🔍" question="Have you ever Googled your trade in your area and seen who comes up?" note="Plants the SEO seed — they'll check after the call" />
-          <QuestionCard emoji="📞" question="Do you get much work over the quieter months?" note="If yes, great. If no — that's exactly what a website helps with" />
-          <QuestionCard emoji="🏆" question="What would set you apart from the competition if someone was comparing?" note="Gets them talking about their USP — use it to show how the site highlights that" />
-          <QuestionCard emoji="🌐" question="If someone searched for a [plumber/groomer/etc] near you right now, would they find you?" note="Rhetorical usually — makes them realise the gap" />
+          <QuestionCard icon="question" question="Have you just not got round to getting a website?" note="Opens the door — most say yes, which means they already want one" />
+          <QuestionCard icon="currency-pound" question="Has price been a big factor in why you haven't got one?" note="If yes, perfect lead-in to T1 at £0 upfront" />
+          <QuestionCard icon="camera" question="Have you had a chance to look at the before & afters section?" note="Draws attention to the gallery — visual proof of quality" />
+          <QuestionCard icon="device-mobile" question="How do most of your customers find you at the moment?" note="Reveals their reliance on Facebook/word of mouth — your angle" />
+          <QuestionCard icon="star" question="I saw you've got some cracking reviews — do you get many enquiries from them?" note="Compliment + shows you've done your homework" />
+          <QuestionCard icon="search" question="Have you ever Googled your trade in your area and seen who comes up?" note="Plants the SEO seed — they'll check after the call" />
+          <QuestionCard icon="phone" question="Do you get much work over the quieter months?" note="If yes, great. If no — that's exactly what a website helps with" />
+          <QuestionCard icon="trophy" question="What would set you apart from the competition if someone was comparing?" note="Gets them talking about their USP — use it to show how the site highlights that" />
+          <QuestionCard icon="globe" question="If someone searched for a [plumber/groomer/etc] near you right now, would they find you?" note="Rhetorical usually — makes them realise the gap" />
         </div>
       </div>
 
@@ -381,7 +382,7 @@ function FullPricingCard({
 
       {/* Timeline footer */}
       <div className="flex items-center gap-2 text-sm pt-1" style={{ color: "var(--text-secondary)" }}>
-        <span>🕒</span>
+        <Icon name="clock" className="w-4 h-4 flex-shrink-0" />
         <span>Live within <span style={{ color: "#22c55e", fontWeight: 700 }}>{timeline}</span></span>
       </div>
     </div>
@@ -429,17 +430,17 @@ function AddOnCard() {
 
       {/* Timeline footer */}
       <div className="flex items-center gap-2 text-sm pt-1" style={{ color: "var(--text-secondary)" }}>
-        <span>🕒</span>
+        <Icon name="clock" className="w-4 h-4 flex-shrink-0" />
         <span>Live within <span style={{ color: "#22c55e", fontWeight: 700 }}>3-5 business days</span></span>
       </div>
     </div>
   );
 }
 
-function TrustBadge({ icon, title, subtitle }: { icon: string; title: string; subtitle: string }) {
+function TrustBadge({ icon, title, subtitle }: { icon: IconName; title: string; subtitle: string }) {
   return (
     <div className="flex items-center gap-3">
-      <div className="text-3xl flex-shrink-0" style={{ color: "var(--accent)" }}>{icon}</div>
+      <div className="flex-shrink-0" style={{ color: "var(--accent)" }}><Icon name={icon} className="w-7 h-7" /></div>
       <div>
         <p className="text-sm font-bold" style={{ color: "var(--text)" }}>{title}</p>
         <p className="text-xs" style={{ color: "var(--text-dim)" }}>{subtitle}</p>
@@ -500,14 +501,14 @@ function DayCard({ day, rating, note }: { day: string; rating: "best" | "good" |
   );
 }
 
-function QuestionCard({ emoji, question, note }: { emoji: string; question: string; note: string }) {
+function QuestionCard({ icon, question, note }: { icon: IconName; question: string; note: string }) {
   return (
     <div className="rounded-lg p-4" style={{ background: "var(--surface2)", border: "1px solid var(--border)" }}>
       <div className="flex items-start gap-2 mb-2">
-        <span className="text-lg flex-shrink-0">{emoji}</span>
+        <span className="flex-shrink-0 mt-0.5" style={{ color: "var(--accent)" }}><Icon name={icon} className="w-4 h-4" /></span>
         <p className="text-sm font-medium" style={{ color: "var(--text)" }}>&ldquo;{question}&rdquo;</p>
       </div>
-      <p className="text-xs pl-7" style={{ color: "var(--text-dim)" }}>{note}</p>
+      <p className="text-xs pl-6" style={{ color: "var(--text-dim)" }}>{note}</p>
     </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { Project } from "@/types";
+import Icon, { type IconName } from "./Icon";
 
 interface Analytics {
   tracking_id: string;
@@ -72,7 +73,7 @@ export default function SiteAnalyticsModal({ project, onClose }: { project: Proj
             <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-dim)" }}>Site Analytics</p>
             <h2 className="text-lg font-bold" style={{ color: "var(--text)" }}>{project.business_name}</h2>
           </div>
-          <button onClick={onClose} className="text-sm px-2" style={{ color: "var(--text-muted)" }}>✕</button>
+          <button onClick={onClose} className="p-1 rounded" style={{ color: "var(--text-muted)" }}><Icon name="x-mark" className="w-5 h-5" /></button>
         </div>
 
         {/* Period selector */}
@@ -101,7 +102,7 @@ export default function SiteAnalyticsModal({ project, onClose }: { project: Proj
 
           {data && noData && (
             <div className="rounded-xl p-5 text-center" style={{ background: "var(--accent-subtle)", border: "1px solid var(--accent)" }}>
-              <div className="text-3xl mb-2">📊</div>
+              <div className="flex justify-center mb-2" style={{ color: "var(--accent)" }}><Icon name="chart-bar" className="w-9 h-9" /></div>
               <h3 className="text-base font-bold mb-1" style={{ color: "var(--accent)" }}>No data yet</h3>
               <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
                 The tracking snippet hasn&apos;t been added to this client&apos;s site yet, or no events have been recorded in the last {days} days.<br/>
@@ -114,14 +115,14 @@ export default function SiteAnalyticsModal({ project, onClose }: { project: Proj
             <>
               {/* KPI grid */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <Stat label="Page Views" value={data.page_views} icon="👁" color="var(--text)" />
-                <Stat label="Unique Visitors" value={data.unique_visitors} icon="👤" color="#3b82f6" />
-                <Stat label="Calls" value={data.calls} icon="📞" color="#22c55e" />
-                <Stat label="WhatsApps" value={data.whatsapps} icon="💬" color="#22c55e" />
-                <Stat label="Messengers" value={data.messengers} icon="💌" color="#3b82f6" />
-                <Stat label="Emails" value={data.emails} icon="📧" color="var(--accent)" />
-                <Stat label="Maps Clicks" value={data.maps} icon="🗺" color="#8b5cf6" />
-                <Stat label="Form Submits" value={data.forms} icon="📝" color="#facc15" />
+                <Stat label="Page Views" value={data.page_views} icon="eye" color="var(--text)" />
+                <Stat label="Unique Visitors" value={data.unique_visitors} icon="user" color="#3b82f6" />
+                <Stat label="Calls" value={data.calls} icon="phone" color="#22c55e" />
+                <Stat label="WhatsApps" value={data.whatsapps} icon="chat" color="#22c55e" />
+                <Stat label="Messengers" value={data.messengers} icon="paper-plane" color="#3b82f6" />
+                <Stat label="Emails" value={data.emails} icon="envelope" color="var(--accent)" />
+                <Stat label="Maps Clicks" value={data.maps} icon="map" color="#8b5cf6" />
+                <Stat label="Form Submits" value={data.forms} icon="document" color="#facc15" />
               </div>
 
               {/* Conversion summary */}
@@ -176,7 +177,7 @@ export default function SiteAnalyticsModal({ project, onClose }: { project: Proj
                     background: copied ? "#22c55e" : "var(--accent)",
                     color: "#fff",
                   }}>
-                  {copied ? "✓ Copied" : "📋 Copy"}
+                  <span className="inline-flex items-center gap-1.5"><Icon name={copied ? "check" : "clipboard-copy"} className="w-3.5 h-3.5" />{copied ? "Copied" : "Copy"}</span>
                 </button>
               </div>
               <code className="block text-xs p-2 rounded font-mono break-all" style={{
@@ -197,12 +198,12 @@ export default function SiteAnalyticsModal({ project, onClose }: { project: Proj
   );
 }
 
-function Stat({ label, value, icon, color }: { label: string; value: number; icon: string; color: string }) {
+function Stat({ label, value, icon, color }: { label: string; value: number; icon: IconName; color: string }) {
   return (
     <div className="rounded-lg p-3" style={{ background: "var(--surface2)", border: "1px solid var(--border)" }}>
       <div className="flex items-center justify-between mb-1">
         <span className="text-xs uppercase tracking-wider" style={{ color: "var(--text-dim)" }}>{label}</span>
-        <span className="text-base">{icon}</span>
+        <Icon name={icon} className="w-4 h-4" style={{ color }} />
       </div>
       <p className="text-2xl font-bold" style={{ color }}>{value.toLocaleString()}</p>
     </div>

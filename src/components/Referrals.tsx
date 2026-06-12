@@ -1,5 +1,7 @@
 "use client";
 
+import Icon, { type IconName } from "./Icon";
+
 export default function Referrals() {
   return (
     <div className="flex-1 overflow-auto p-6 space-y-8">
@@ -99,12 +101,12 @@ export default function Referrals() {
       <div className="rounded-xl p-6" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
         <h3 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: "var(--text-dim)" }}>Best Sources of Referrals</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          <SourceCard emoji="🧱" title="Same Trade, Different Area" note="A plumber in Leeds won&apos;t view one in Manchester as competition — they chat in trade groups." />
-          <SourceCard emoji="🤝" title="Complementary Trades" note="Plumber → electrician → builder → tiler. They work on the same jobs and refer each other already." />
-          <SourceCard emoji="👨‍👩‍👧" title="Family & Friends in Trade" note="Ask &quot;any family or mates in a trade?&quot; — often the easiest intro they can make." />
-          <SourceCard emoji="📣" title="Trade Facebook Groups" note="Ask if they&apos;d post your work in their local trade group. Reach 100+ businesses instantly." />
-          <SourceCard emoji="🏢" title="Local Business Networks" note="BNI, Chamber of Commerce, local business meetups — your client may attend these." />
-          <SourceCard emoji="⭐" title="Google Review Gold Mine" note="Anyone who left a 5-star review is already willing to vouch publicly — perfect referrer." />
+          <SourceCard icon="map" title="Same Trade, Different Area" note="A plumber in Leeds won&apos;t view one in Manchester as competition — they chat in trade groups." />
+          <SourceCard icon="user-group" title="Complementary Trades" note="Plumber → electrician → builder → tiler. They work on the same jobs and refer each other already." />
+          <SourceCard icon="users" title="Family & Friends in Trade" note="Ask &quot;any family or mates in a trade?&quot; — often the easiest intro they can make." />
+          <SourceCard icon="megaphone" title="Trade Facebook Groups" note="Ask if they&apos;d post your work in their local trade group. Reach 100+ businesses instantly." />
+          <SourceCard icon="building" title="Local Business Networks" note="BNI, Chamber of Commerce, local business meetups — your client may attend these." />
+          <SourceCard icon="star" title="Google Review Gold Mine" note="Anyone who left a 5-star review is already willing to vouch publicly — perfect referrer." />
         </div>
       </div>
 
@@ -328,14 +330,14 @@ function TimingItem({ number, title, text }: { number: string; title: string; te
   );
 }
 
-function SourceCard({ emoji, title, note }: { emoji: string; title: string; note: string }) {
+function SourceCard({ icon, title, note }: { icon: IconName; title: string; note: string }) {
   return (
     <div className="rounded-lg p-4" style={{ background: "var(--surface2)", border: "1px solid var(--border)" }}>
       <div className="flex items-start gap-2 mb-2">
-        <span className="text-lg flex-shrink-0">{emoji}</span>
+        <span className="flex-shrink-0 mt-0.5" style={{ color: "var(--accent)" }}><Icon name={icon} className="w-4 h-4" /></span>
         <p className="text-sm font-medium" style={{ color: "var(--text)" }}>{title}</p>
       </div>
-      <p className="text-xs pl-7" style={{ color: "var(--text-dim)" }}>{note}</p>
+      <p className="text-xs pl-6" style={{ color: "var(--text-dim)" }}>{note}</p>
     </div>
   );
 }

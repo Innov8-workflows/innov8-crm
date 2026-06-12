@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import type { Solution, EntitySolution } from "@/types";
 import { SOLUTION_STATUSES, SOLUTION_CATEGORIES } from "@/types";
 import LoadingAI from "./LoadingAI";
+import Icon, { type IconName } from "./Icon";
 import { useToast } from "./Toast";
 
 type SubView = "catalogue" | "matrix" | "stats";
@@ -59,7 +60,7 @@ export default function AISolutions() {
     <div className="flex-1 overflow-auto">
       {/* Sub-nav */}
       <div className="flex items-center gap-2 px-4 py-3" style={{ background: "var(--stats-bg)", borderBottom: "1px solid var(--border)" }}>
-        <h1 className="text-lg font-bold mr-4" style={{ color: "var(--text)" }}>🤖 AI Solutions</h1>
+        <h1 className="text-lg font-bold mr-4 flex items-center gap-2" style={{ color: "var(--text)" }}><Icon name="cpu-chip" className="w-5 h-5" style={{ color: "var(--accent)" }} /> AI Solutions</h1>
         <SubNavBtn active={subView === "catalogue"} onClick={() => setSubView("catalogue")}>Catalogue</SubNavBtn>
         <SubNavBtn active={subView === "matrix"} onClick={() => setSubView("matrix")}>Matrix</SubNavBtn>
         <SubNavBtn active={subView === "stats"} onClick={() => setSubView("stats")}>Stats</SubNavBtn>
@@ -130,7 +131,7 @@ function CatalogueView({ solutions, onEdit, onRefresh }: { solutions: Solution[]
   if (solutions.length === 0) {
     return (
       <div className="p-12 text-center" style={{ color: "var(--text-dim)" }}>
-        <div className="text-4xl mb-2">🤖</div>
+        <div className="flex justify-center mb-2"><Icon name="cpu-chip" className="w-10 h-10" /></div>
         <p className="mb-4">No solutions in the catalogue yet.</p>
         <p className="text-sm">Click &ldquo;+ New Solution&rdquo; to add your first one.</p>
       </div>
@@ -165,8 +166,9 @@ function CatalogueView({ solutions, onEdit, onRefresh }: { solutions: Solution[]
             </div>
 
             {s.pitch_angle && (
-              <div className="text-xs mb-3 italic p-2 rounded-lg" style={{ background: "var(--accent-subtle)", color: "var(--text)" }}>
-                💬 {s.pitch_angle}
+              <div className="text-xs mb-3 italic p-2 rounded-lg flex items-start gap-1.5" style={{ background: "var(--accent-subtle)", color: "var(--text)" }}>
+                <Icon name="chat" className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" style={{ color: "var(--accent)" }} />
+                <span>{s.pitch_angle}</span>
               </div>
             )}
 
@@ -257,7 +259,7 @@ function SolutionEditModal({ solution, onClose, onSaved }: { solution: Solution 
           <h2 className="text-lg font-bold" style={{ color: "var(--text)" }}>
             {solution ? "Edit Solution" : "New Solution"}
           </h2>
-          <button onClick={onClose} className="text-sm px-2 py-1 rounded" style={{ color: "var(--text-muted)" }}>✕</button>
+          <button onClick={onClose} className="p-1 rounded" style={{ color: "var(--text-muted)" }}><Icon name="x-mark" className="w-5 h-5" /></button>
         </div>
         <div className="p-5 overflow-auto space-y-4" style={{ maxHeight: "calc(90vh - 120px)" }}>
           <Field label="Name">
@@ -556,9 +558,9 @@ function MatrixView({ solutions }: { solutions: Solution[] }) {
                       onMouseLeave={(e) => { if (!isEditing) e.currentTarget.style.background = "transparent"; }}
                       style={{ background: isEditing ? "var(--accent-subtle)" : "transparent" }}>
                       {status ? (
-                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full font-bold text-xs"
+                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full"
                           style={{ background: `${status.color}30`, color: status.color, border: `1px solid ${status.color}` }}>
-                          {status.icon}
+                          <Icon name={status.icon as IconName} className="w-3.5 h-3.5" />
                         </span>
                       ) : (
                         <span style={{ color: "var(--text-quaternary)" }}>–</span>
@@ -662,7 +664,7 @@ function CellEditor({ state, onClose, onSetStatus, onRemove }: {
                     color: isCurrent ? s.color : "var(--text-secondary)",
                     border: `1px solid ${isCurrent ? s.color : "var(--border)"}`,
                   }}>
-                  <span>{s.icon}</span>
+                  <Icon name={s.icon as IconName} className="w-3.5 h-3.5" />
                   {s.label}
                 </button>
               );
@@ -703,7 +705,7 @@ function CellEditor({ state, onClose, onSetStatus, onRemove }: {
           <button onClick={onRemove}
             className="text-xs font-semibold px-2.5 py-1.5 rounded-lg"
             style={{ background: "transparent", color: "#ef4444", border: "1px solid #ef4444" }}>
-            🗑 Remove
+            <span className="inline-flex items-center gap-1.5"><Icon name="trash" className="w-3.5 h-3.5" /> Remove</span>
           </button>
         ) : <span />}
         <button onClick={onClose}

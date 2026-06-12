@@ -9,7 +9,12 @@ import "leaflet.markercluster/dist/MarkerCluster.css";
 import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 import { PIPELINE_STAGES } from "@/types";
 import LoadingAI from "./LoadingAI";
+import Icon from "./Icon";
 import { useToast } from "./Toast";
+
+// Inline map-pin SVG for the Leaflet popup (rendered from an HTML string, so it
+// can't use the React <Icon> component).
+const PIN_SVG = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-1px;margin-right:3px"><path d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z"/><path d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"/></svg>`;
 
 interface Marker {
   id: number;
@@ -102,7 +107,7 @@ function ClusteredMarkers({ markers }: { markers: Marker[] }) {
           <div style="font-size:12px;color:#666;margin-bottom:6px">
             ${m.contact_name ? escape(m.contact_name) + " · " : ""}${escape(m.business_type || "Unknown")}
           </div>
-          <div style="font-size:11px;color:#888;margin-bottom:8px">📍 ${escape(m.location)}</div>
+          <div style="font-size:11px;color:#888;margin-bottom:8px">${PIN_SVG}${escape(m.location)}</div>
           <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
             <span style="display:inline-block;padding:2px 8px;border-radius:4px;background:${stageColour(m.status)};color:#fff;font-size:11px;font-weight:600">${stageLabel}</span>
             ${m.owner ? `<span style="font-size:11px;color:#666">${escape(m.owner)}</span>` : ""}
@@ -279,7 +284,7 @@ export default function MapView({ ownerFilter = "" }: { ownerFilter?: string }) 
               cursor: geocoding ? "wait" : "pointer",
             }}
           >
-            {geocoding ? "Geocoding…" : "🔄 Refresh Geocoding"}
+            {geocoding ? "Geocoding…" : <span className="inline-flex items-center gap-1.5"><Icon name="refresh" className="w-4 h-4" /> Refresh Geocoding</span>}
           </button>
         </div>
       </div>
@@ -315,7 +320,7 @@ export default function MapView({ ownerFilter = "" }: { ownerFilter?: string }) 
               border: "2px solid var(--accent)",
               boxShadow: "0 10px 40px rgba(0,0,0,0.4)",
             }}>
-              <div className="text-4xl mb-2">📍</div>
+              <div className="flex justify-center mb-2" style={{ color: "var(--accent)" }}><Icon name="map-pin" className="w-9 h-9" /></div>
               <h3 className="text-lg font-bold mb-2" style={{ color: "var(--text)" }}>No pins yet</h3>
               <p className="text-sm mb-4" style={{ color: "var(--text-secondary)" }}>
                 You have <span style={{ color: "var(--accent)", fontWeight: 700 }}>{stats.pending}</span> leads waiting to be placed on the map.
@@ -326,7 +331,7 @@ export default function MapView({ ownerFilter = "" }: { ownerFilter?: string }) 
                 className="text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
                 style={{ background: "var(--accent)", color: "#fff" }}
               >
-                🔄 Start Geocoding
+                <span className="inline-flex items-center gap-1.5"><Icon name="refresh" className="w-4 h-4" /> Start Geocoding</span>
               </button>
             </div>
           </div>

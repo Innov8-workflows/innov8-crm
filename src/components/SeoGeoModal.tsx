@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import type { Project } from "@/types";
 import { SEO_GEO_TASKS } from "@/lib/seoGeoTasks";
+import Icon from "./Icon";
 import { useToast } from "./Toast";
 
 interface SeoLog {
@@ -111,14 +112,14 @@ export default function SeoGeoModal({ project, onClose, onLogged }: {
             <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-dim)" }}>SEO / GEO Maintenance</p>
             <h2 className="text-lg font-bold" style={{ color: "var(--text)" }}>{project.business_name}</h2>
           </div>
-          <button onClick={onClose} className="text-sm px-2" style={{ color: "var(--text-muted)" }}>✕</button>
+          <button onClick={onClose} className="p-1 rounded" style={{ color: "var(--text-muted)" }}><Icon name="x-mark" className="w-5 h-5" /></button>
         </div>
 
         <div className="flex-1 overflow-auto p-5 space-y-5">
           {/* SEO column */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-semibold uppercase tracking-wider" style={{ color: "#3b82f6" }}>🔍 SEO Tasks</h3>
+              <h3 className="text-sm font-semibold uppercase tracking-wider flex items-center gap-1.5" style={{ color: "#3b82f6" }}><Icon name="search" className="w-4 h-4" /> SEO Tasks</h3>
               <button onClick={() => tickAll("seo")} className="text-xs px-2 py-0.5 rounded" style={{ background: "var(--surface2)", color: "var(--text-muted)", border: "1px solid var(--border)" }}>Toggle all</button>
             </div>
             <div className="space-y-1.5">
@@ -131,7 +132,7 @@ export default function SeoGeoModal({ project, onClose, onLogged }: {
           {/* GEO column */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-semibold uppercase tracking-wider" style={{ color: "#22c55e" }}>📍 GEO / Local Tasks</h3>
+              <h3 className="text-sm font-semibold uppercase tracking-wider flex items-center gap-1.5" style={{ color: "#22c55e" }}><Icon name="map-pin" className="w-4 h-4" /> GEO / Local Tasks</h3>
               <button onClick={() => tickAll("geo")} className="text-xs px-2 py-0.5 rounded" style={{ background: "var(--surface2)", color: "var(--text-muted)", border: "1px solid var(--border)" }}>Toggle all</button>
             </div>
             <div className="space-y-1.5">

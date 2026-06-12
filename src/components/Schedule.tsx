@@ -16,6 +16,7 @@ import {
   todayAsDay,
 } from "@/lib/scheduleTemplate";
 import LoadingAI from "./LoadingAI";
+import Icon from "./Icon";
 import { useToast } from "./Toast";
 
 interface Completion {
@@ -126,7 +127,7 @@ export default function Schedule() {
       <div className="px-4 py-3 sticky top-0 z-20" style={{ background: "var(--stats-bg)", borderBottom: "1px solid var(--border)" }}>
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
           <div className="flex items-center gap-3">
-            <h1 className="text-lg font-bold" style={{ color: "var(--text)" }}>📅 Weekly Schedule</h1>
+            <h1 className="text-lg font-bold flex items-center gap-2" style={{ color: "var(--text)" }}><Icon name="calendar" className="w-5 h-5" style={{ color: "var(--accent)" }} /> Weekly Schedule</h1>
             <span className="text-xs px-2 py-1 rounded-full" style={{ background: "var(--accent-subtle)", color: "var(--accent)", fontWeight: 600 }}>
               Burn-the-Boats · 30hr/wk
             </span>
@@ -151,7 +152,7 @@ export default function Schedule() {
             return (
               <div key={act} className="rounded-lg p-2" style={{ background: "var(--surface2)", border: "1px solid var(--border)" }}>
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs" style={{ color: "var(--text-dim)" }}>{meta.emoji} {meta.label}</span>
+                  <span className="text-xs flex items-center gap-1.5" style={{ color: "var(--text-dim)" }}><Icon name={meta.icon} className="w-3.5 h-3.5" style={{ color: meta.color }} /> {meta.label}</span>
                   <span className="text-xs font-bold" style={{ color: barColor }}>{done}/{target}</span>
                 </div>
                 <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: "var(--surface3)" }}>
@@ -255,7 +256,10 @@ const SlotCard = memo(function SlotCardBase({ slot, completed, onToggle }: { slo
             <span className="text-[10px] font-mono" style={{ color: completed ? "var(--text-muted)" : "var(--text-dim)" }}>
               {slot.start}–{slot.end}
             </span>
-            <span className="text-[10px]" title={meta.label}>{meta.emoji}{slot.mobile && " 📱"}</span>
+            <span className="flex items-center gap-1" title={meta.label} style={{ color: meta.color }}>
+              <Icon name={meta.icon} className="w-3.5 h-3.5" />
+              {slot.mobile && <Icon name="device-mobile" className="w-3 h-3" />}
+            </span>
           </div>
           <p className="text-xs font-semibold leading-tight" style={{
             color: completed ? "var(--text-muted)" : "var(--text)",

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Icon, { type IconName } from "./Icon";
 
 type ViewId = "prospects" | "projects" | "clients" | "dashboard" | "map" | "ai_solutions" | "schedule" | "pricing" | "referrals";
 
@@ -13,16 +14,16 @@ interface ViewNavProps {
   onOwnerChange: (owner: string) => void;
 }
 
-const views = [
-  { id: "prospects" as const, label: "Prospects", emoji: "📋" },
-  { id: "projects" as const, label: "Projects", emoji: "🔨" },
-  { id: "clients" as const, label: "Live Clients", emoji: "✅" },
-  { id: "dashboard" as const, label: "Dashboard", emoji: "📊" },
-  { id: "map" as const, label: "Scrape Map", emoji: "🗺️" },
-  { id: "ai_solutions" as const, label: "AI Solutions", emoji: "🤖" },
-  { id: "schedule" as const, label: "Schedule", emoji: "📅" },
-  { id: "pricing" as const, label: "Pricing", emoji: "💷" },
-  { id: "referrals" as const, label: "Referrals", emoji: "🤝" },
+const views: { id: ViewId; label: string; icon: IconName }[] = [
+  { id: "prospects", label: "Prospects", icon: "clipboard" },
+  { id: "projects", label: "Projects", icon: "kanban" },
+  { id: "clients", label: "Live Clients", icon: "badge-check" },
+  { id: "dashboard", label: "Dashboard", icon: "chart-bar" },
+  { id: "map", label: "Scrape Map", icon: "map" },
+  { id: "ai_solutions", label: "AI Solutions", icon: "cpu-chip" },
+  { id: "schedule", label: "Schedule", icon: "calendar" },
+  { id: "pricing", label: "Pricing", icon: "currency-pound" },
+  { id: "referrals", label: "Referrals", icon: "user-plus" },
 ];
 
 export default function ViewNav({ active, onChange, projectCount = 0, clientCount = 0, ownerFilter, onOwnerChange }: ViewNavProps) {
@@ -81,7 +82,7 @@ export default function ViewNav({ active, onChange, projectCount = 0, clientCoun
               }}
               onClick={() => onChange(view.id)}
             >
-              <span className="text-base">{view.emoji}</span>
+              <Icon name={view.icon} className="w-4 h-4" />
               {view.label}
               {count > 0 && (
                 <span className="px-2 py-0.5 rounded-full text-xs font-bold" style={{

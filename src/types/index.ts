@@ -144,10 +144,10 @@ export interface EntitySolution {
 }
 
 export const SOLUTION_STATUSES = [
-  { value: "proposed", label: "Proposed", color: "#f59e0b", icon: "💡" },
-  { value: "sold", label: "Sold", color: "#22c55e", icon: "£" },
-  { value: "delivered", label: "Delivered", color: "#059669", icon: "✓" },
-  { value: "declined", label: "Declined", color: "#9CA3AF", icon: "✕" },
+  { value: "proposed", label: "Proposed", color: "#f59e0b", icon: "light-bulb" },
+  { value: "sold", label: "Sold", color: "#22c55e", icon: "currency-pound" },
+  { value: "delivered", label: "Delivered", color: "#059669", icon: "check" },
+  { value: "declined", label: "Declined", color: "#9CA3AF", icon: "x-mark" },
 ] as const;
 
 export const SOLUTION_CATEGORIES = [

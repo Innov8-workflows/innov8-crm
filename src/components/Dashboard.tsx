@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import LoadingAI from "./LoadingAI";
+import Icon from "./Icon";
 
 interface TypeBreakdown {
   type: string; total: number; won: number; rejected: number; lost: number;
@@ -441,7 +442,7 @@ function TopAISolutionsPanel({ solutions, onRefresh }: { solutions: SolutionsSta
                           onMouseEnter={(e) => { e.currentTarget.style.background = "#ef444420"; }}
                           onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                           title="Reset status — removes the sold/delivered mark">
-                          {removing === b.id ? "..." : "🗑 Reset"}
+                          {removing === b.id ? "..." : <span className="inline-flex items-center gap-1"><Icon name="trash" className="w-3 h-3" /> Reset</span>}
                         </button>
                       </div>
                     ))}

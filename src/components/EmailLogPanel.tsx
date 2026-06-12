@@ -2,16 +2,17 @@
 
 import { useEffect, useState, useCallback } from "react";
 import type { Lead, EmailLog, Activity, LeadNote } from "@/types";
+import Icon, { type IconName } from "./Icon";
 
 interface EmailLogPanelProps { lead: Lead; onClose: () => void; }
 
-const ACTIVITY_TYPES = [
-  { value: "call", label: "Called", icon: "📞" },
-  { value: "whatsapp", label: "WhatsApp", icon: "💬" },
-  { value: "facebook", label: "Facebook msg", icon: "📘" },
-  { value: "meeting", label: "Meeting", icon: "🤝" },
-  { value: "voicemail", label: "Voicemail", icon: "📱" },
-  { value: "other", label: "Other", icon: "📝" },
+const ACTIVITY_TYPES: { value: string; label: string; icon: IconName }[] = [
+  { value: "call", label: "Called", icon: "phone" },
+  { value: "whatsapp", label: "WhatsApp", icon: "chat" },
+  { value: "facebook", label: "Facebook msg", icon: "chat" },
+  { value: "meeting", label: "Meeting", icon: "users" },
+  { value: "voicemail", label: "Voicemail", icon: "device-mobile" },
+  { value: "other", label: "Other", icon: "document" },
 ];
 
 export default function EmailLogPanel({ lead, onClose }: EmailLogPanelProps) {
@@ -52,11 +53,11 @@ export default function EmailLogPanel({ lead, onClose }: EmailLogPanelProps) {
     setNewNote(""); fetchAll();
   };
 
-  const timeline = [
-    ...logs.map((l) => ({ id: `e-${l.id}`, icon: "✉️", title: l.subject || "(no subject)", detail: `To: ${l.recipient}`, date: l.sent_at })),
+  const timeline: { id: string; icon: IconName; title: string; detail: string; date: string }[] = [
+    ...logs.map((l) => ({ id: `e-${l.id}`, icon: "envelope" as IconName, title: l.subject || "(no subject)", detail: `To: ${l.recipient}`, date: l.sent_at })),
     ...activities.map((a) => {
       const t = ACTIVITY_TYPES.find((t) => t.value === a.type);
-      return { id: `a-${a.id}`, icon: t?.icon || "📝", title: t?.label || a.type, detail: a.description, date: a.created_at };
+      return { id: `a-${a.id}`, icon: (t?.icon || "document") as IconName, title: t?.label || a.type, detail: a.description, date: a.created_at };
     }),
   ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
@@ -123,7 +124,7 @@ export default function EmailLogPanel({ lead, onClose }: EmailLogPanelProps) {
                         border: `1px solid ${activityType === t.value ? "var(--accent)" : "var(--border-light)"}`,
                       }}
                       onClick={() => setActivityType(t.value)}>
-                      {t.icon} {t.label}
+                      <span className="inline-flex items-center gap-1"><Icon name={t.icon} className="w-3.5 h-3.5" /> {t.label}</span>
                     </button>
                   ))}
                 </div>
@@ -144,7 +145,7 @@ export default function EmailLogPanel({ lead, onClose }: EmailLogPanelProps) {
               <div className="space-y-1">
                 {timeline.map((item) => (
                   <div key={item.id} className="flex gap-3 py-2" style={{ borderBottom: "1px solid var(--surface2)" }}>
-                    <span className="text-base flex-shrink-0 mt-0.5">{item.icon}</span>
+                    <span className="flex-shrink-0 mt-0.5" style={{ color: "var(--text-dim)" }}><Icon name={item.icon} className="w-4 h-4" /></span>
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium" style={{ color: "var(--text)" }}>{item.title}</p>
                       {item.detail && <p className="text-xs truncate" style={{ color: "var(--text-dim)" }}>{item.detail}</p>}
