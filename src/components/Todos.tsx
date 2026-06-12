@@ -44,17 +44,21 @@ export default function Todos({ ownerFilter, onCountChanged }: TodosProps) {
   // Keep the latest callback without making load()/handlers depend on it.
   const onCountRef = useRef(onCountChanged);
   onCountRef.current = onCountChanged;
-  const report = useCallback((list: Todo[]) => {
-    onCountRef.current?.(list.filter((t) => !t.done).length);
-  }, []);
+
+  // Report the active-todo count to the parent (nav badge) AFTER each commit.
+  // Doing this inside a setTodos updater would update the parent mid-render —
+  // React 19 flags that and it caused the view to hang on first add.
+  useEffect(() => {
+    onCountRef.current?.(todos.filter((t) => !t.done).length);
+  }, [todos]);
 
   const load = useCallback(() => {
     fetch("/api/todos")
       .then((r) => r.json())
-      .then((d) => { const list: Todo[] = d.todos || []; setTodos(list); report(list); })
+      .then((d) => setTodos(d.todos || []))
       .catch(() => toast("Couldn't load to-dos", "error"))
       .finally(() => setLoading(false));
-  }, [report, toast]);
+  }, [toast]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -70,7 +74,7 @@ export default function Todos({ ownerFilter, onCountChanged }: TodosProps) {
       });
       if (!res.ok) throw new Error();
       const todo: Todo = await res.json();
-      setTodos((prev) => { const next = [todo, ...prev]; report(next); return next; });
+      setTodos((prev) => [todo, ...prev]);
       setNewText("");
       setNewPriority("medium");
     } catch {
@@ -81,7 +85,7 @@ export default function Todos({ ownerFilter, onCountChanged }: TodosProps) {
   };
 
   const patch = async (id: number, fields: Partial<Pick<Todo, "text" | "detail" | "priority" | "done">>) => {
-    setTodos((prev) => { const next = prev.map((t) => (t.id === id ? { ...t, ...fields } as Todo : t)); report(next); return next; });
+    setTodos((prev) => prev.map((t) => (t.id === id ? { ...t, ...fields } as Todo : t)));
     try {
       const res = await fetch(`/api/todos/${id}`, {
         method: "PATCH",
@@ -90,7 +94,7 @@ export default function Todos({ ownerFilter, onCountChanged }: TodosProps) {
       });
       if (!res.ok) throw new Error();
       const updated: Todo = await res.json();
-      setTodos((prev) => { const next = prev.map((t) => (t.id === id ? updated : t)); report(next); return next; });
+      setTodos((prev) => prev.map((t) => (t.id === id ? updated : t)));
     } catch {
       toast("Update failed", "error");
       load();
@@ -99,13 +103,13 @@ export default function Todos({ ownerFilter, onCountChanged }: TodosProps) {
 
   const remove = async (id: number) => {
     const snapshot = todos;
-    setTodos((prev) => { const next = prev.filter((t) => t.id !== id); report(next); return next; });
+    setTodos((prev) => prev.filter((t) => t.id !== id));
     try {
       const res = await fetch(`/api/todos/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error();
     } catch {
       toast("Delete failed", "error");
-      setTodos(snapshot); report(snapshot);
+      setTodos(snapshot);
     }
   };
 
