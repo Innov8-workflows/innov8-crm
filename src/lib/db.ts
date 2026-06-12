@@ -151,6 +151,19 @@ async function doInitDb() {
       UNIQUE(slot_id, date)
     );
 
+    CREATE TABLE IF NOT EXISTS todos (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      text TEXT NOT NULL,
+      detail TEXT DEFAULT '',
+      priority TEXT DEFAULT 'medium',
+      done INTEGER DEFAULT 0,
+      owner TEXT DEFAULT '',
+      sort_order INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now')),
+      completed_at TEXT DEFAULT ''
+    );
+
     CREATE TABLE IF NOT EXISTS solutions_catalogue (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,

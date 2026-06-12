@@ -187,3 +187,23 @@ export const ROW_COLORS: Record<string, string> = {
   called: "bg-amber-50/40", meeting_booked: "bg-green-50/40",
   won: "bg-emerald-50/50", lost: "bg-red-50/30",
 };
+
+export interface Todo {
+  id: number;
+  text: string;
+  detail: string;
+  priority: "low" | "medium" | "high";
+  done: number;
+  owner: string;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+  completed_at: string;
+}
+
+// Ordered High → Medium → Low — array index doubles as the sort weight.
+export const TODO_PRIORITIES = [
+  { value: "high", label: "High", color: "#ef4444" },
+  { value: "medium", label: "Medium", color: "#f59e0b" },
+  { value: "low", label: "Low", color: "#64748b" },
+] as const;

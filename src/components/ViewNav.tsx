@@ -3,13 +3,14 @@
 import { useState, useEffect, useRef } from "react";
 import Icon, { type IconName } from "./Icon";
 
-type ViewId = "prospects" | "projects" | "clients" | "dashboard" | "map" | "ai_solutions" | "schedule" | "pricing" | "referrals";
+type ViewId = "prospects" | "projects" | "clients" | "dashboard" | "map" | "ai_solutions" | "schedule" | "todos" | "pricing" | "referrals";
 
 interface ViewNavProps {
   active: ViewId;
   onChange: (view: ViewId) => void;
   projectCount?: number;
   clientCount?: number;
+  todoCount?: number;
   ownerFilter: string;
   onOwnerChange: (owner: string) => void;
 }
@@ -22,11 +23,12 @@ const views: { id: ViewId; label: string; icon: IconName }[] = [
   { id: "map", label: "Scrape Map", icon: "map" },
   { id: "ai_solutions", label: "AI Solutions", icon: "cpu-chip" },
   { id: "schedule", label: "Schedule", icon: "calendar" },
+  { id: "todos", label: "To-Do", icon: "list-bullet" },
   { id: "pricing", label: "Pricing", icon: "currency-pound" },
   { id: "referrals", label: "Referrals", icon: "user-plus" },
 ];
 
-export default function ViewNav({ active, onChange, projectCount = 0, clientCount = 0, ownerFilter, onOwnerChange }: ViewNavProps) {
+export default function ViewNav({ active, onChange, projectCount = 0, clientCount = 0, todoCount = 0, ownerFilter, onOwnerChange }: ViewNavProps) {
   const [users, setUsers] = useState<string[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -55,7 +57,7 @@ export default function ViewNav({ active, onChange, projectCount = 0, clientCoun
       <div className="flex items-center gap-2 ml-2">
         {views.map((view) => {
           const isActive = active === view.id;
-          const count = view.id === "projects" ? projectCount : view.id === "clients" ? clientCount : 0;
+          const count = view.id === "projects" ? projectCount : view.id === "clients" ? clientCount : view.id === "todos" ? todoCount : 0;
           return (
             <button
               key={view.id}

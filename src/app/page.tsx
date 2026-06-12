@@ -16,13 +16,15 @@ const Referrals = lazy(() => import("@/components/Referrals"));
 const MapView = lazy(() => import("@/components/MapView"));
 const AISolutions = lazy(() => import("@/components/AISolutions"));
 const Schedule = lazy(() => import("@/components/Schedule"));
+const Todos = lazy(() => import("@/components/Todos"));
 
-type ViewId = "prospects" | "projects" | "clients" | "dashboard" | "map" | "ai_solutions" | "schedule" | "pricing" | "referrals";
+type ViewId = "prospects" | "projects" | "clients" | "dashboard" | "map" | "ai_solutions" | "schedule" | "todos" | "pricing" | "referrals";
 
 export default function Home() {
   const [view, setView] = useState<ViewId>("prospects");
   const [projectCount, setProjectCount] = useState(0);
   const [clientCount, setClientCount] = useState(0);
+  const [todoCount, setTodoCount] = useState(0);
   const [ownerFilter, setOwnerFilter] = useState(() => {
     if (typeof window !== "undefined") {
       return localStorage.getItem("crm_ownerFilter") || "";
@@ -51,13 +53,16 @@ export default function Home() {
     fetch("/api/projects?completed=false").then((r) => r.json()).then((d) => {
       setProjectCount(d.projects?.length || 0);
     });
+    fetch("/api/todos?count=1").then((r) => r.json()).then((d) => {
+      setTodoCount(d.count || 0);
+    }).catch(() => {});
   }, []);
 
   useEffect(() => { refreshCounts(); }, [refreshCounts]);
 
   // Re-fetch counts whenever the user navigates back to a count-bearing view
   useEffect(() => {
-    if (view === "projects" || view === "clients" || view === "dashboard") {
+    if (view === "projects" || view === "clients" || view === "dashboard" || view === "todos") {
       refreshCounts();
     }
   }, [view, refreshCounts]);
@@ -82,7 +87,7 @@ export default function Home() {
   return (
     <ToastProvider>
       <div className="flex flex-col h-screen" style={{ background: "var(--bg)" }}>
-        <ViewNav active={view} onChange={setView} projectCount={projectCount} clientCount={clientCount}
+        <ViewNav active={view} onChange={setView} projectCount={projectCount} clientCount={clientCount} todoCount={todoCount}
           ownerFilter={ownerFilter} onOwnerChange={handleOwnerChange} />
         <Suspense fallback={<LoadingAI message="Loading" />}>
           {persistedView("prospects",    "Prospects failed to load",    () => <LeadGrid ownerFilter={ownerFilter} />)}
@@ -92,6 +97,7 @@ export default function Home() {
           {persistedView("map",          "Map failed to load",          () => <MapView ownerFilter={ownerFilter} />)}
           {persistedView("ai_solutions", "AI Solutions failed to load", () => <AISolutions />)}
           {persistedView("schedule",     "Schedule failed to load",     () => <Schedule />)}
+          {persistedView("todos",        "To-Do failed to load",        () => <Todos ownerFilter={ownerFilter} onCountChanged={setTodoCount} />)}
           {persistedView("pricing",      "Pricing failed to load",      () => <Pricing />)}
           {persistedView("referrals",    "Referrals failed to load",    () => <Referrals />)}
         </Suspense>
