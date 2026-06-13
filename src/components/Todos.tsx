@@ -40,6 +40,7 @@ export default function Todos({ ownerFilter, onCountChanged }: TodosProps) {
   const [newPriority, setNewPriority] = useState<Priority>("medium");
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Keep the latest callback without making load()/handlers depend on it.
   const onCountRef = useRef(onCountChanged);
@@ -63,8 +64,9 @@ export default function Todos({ ownerFilter, onCountChanged }: TodosProps) {
   useEffect(() => { load(); }, [load]);
 
   const add = async () => {
+    if (adding) return;
     const text = newText.trim();
-    if (!text || adding) return;
+    if (!text) { inputRef.current?.focus(); return; }
     setAdding(true);
     try {
       const res = await fetch("/api/todos", {
@@ -144,6 +146,7 @@ export default function Todos({ ownerFilter, onCountChanged }: TodosProps) {
 
         <div className="flex flex-col sm:flex-row gap-2">
           <input
+            ref={inputRef}
             value={newText}
             onChange={(e) => setNewText(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") add(); }}
@@ -155,9 +158,9 @@ export default function Todos({ ownerFilter, onCountChanged }: TodosProps) {
             <PriorityPicker value={newPriority} onChange={setNewPriority} />
             <button
               onClick={add}
-              disabled={!newText.trim() || adding}
+              disabled={adding}
               className="flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-lg transition-opacity"
-              style={{ background: "var(--accent)", color: "#fff", opacity: !newText.trim() || adding ? 0.5 : 1 }}
+              style={{ background: "var(--accent)", color: "#fff", opacity: adding ? 0.6 : 1 }}
             >
               <Icon name="plus" className="w-4 h-4" strokeWidth={2} /> Add
             </button>
