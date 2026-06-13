@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, Fragment } from "react";
+import { useState, useEffect, useCallback, useRef, type ReactNode } from "react";
 import type { Todo } from "@/types";
 import { TODO_PRIORITIES } from "@/types";
 import Icon from "./Icon";
@@ -192,23 +192,18 @@ export default function Todos({ ownerFilter, onCountChanged }: TodosProps) {
       </div>
 
       {/* List */}
-      <div className="px-6 py-4 max-w-3xl mx-auto space-y-2">
+      <div className="px-6 py-4 max-w-6xl mx-auto space-y-4">
         {loading ? (
           <p className="text-sm text-center py-10" style={{ color: "var(--text-dim)" }}>Loading…</p>
         ) : visible.length === 0 ? (
           <EmptyState text="Nothing on the list yet. Add the first thing above." />
         ) : (
           <>
-            {/* Active — split into High / Medium / Low sections */}
+            {/* Active — one box per priority, cards laid out side by side */}
             {TODO_PRIORITIES.map((p) => {
               const items = shownActive.filter((t) => t.priority === p.value);
               if (items.length === 0) return null;
-              return (
-                <Fragment key={p.value}>
-                  <SectionHeader color={p.color} label={p.label} count={items.length} />
-                  {items.map(renderItem)}
-                </Fragment>
-              );
+              return <Section key={p.value} color={p.color} label={p.label} count={items.length}>{items.map(renderItem)}</Section>;
             })}
             {filter === "active" && active.length === 0 && (
               <EmptyState text="No active to-dos — you're all caught up." />
@@ -216,10 +211,7 @@ export default function Todos({ ownerFilter, onCountChanged }: TodosProps) {
 
             {/* Done */}
             {shownDone.length > 0 && (
-              <>
-                <SectionHeader color="#64748b" label="Done" count={shownDone.length} />
-                {shownDone.map(renderItem)}
-              </>
+              <Section color="#64748b" label="Done" count={shownDone.length}>{shownDone.map(renderItem)}</Section>
             )}
             {filter === "done" && done.length === 0 && (
               <EmptyState text="Nothing ticked off yet." />
@@ -249,14 +241,18 @@ function PriorityPicker({ value, onChange }: { value: Priority; onChange: (p: Pr
   );
 }
 
-// ─── Priority / status section header ───
-function SectionHeader({ color, label, count }: { color: string; label: string; count: number }) {
+// ─── Boxed priority / status section with a side-by-side card grid ───
+function Section({ color, label, count, children }: { color: string; label: string; count: number; children: ReactNode }) {
   return (
-    <div className="flex items-center gap-2 pt-3 pb-0.5 first:pt-1">
-      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
-      <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color }}>{label}</span>
-      <span className="text-[11px] font-semibold px-1.5 rounded-full" style={{ background: `${color}20`, color }}>{count}</span>
-      <span className="flex-1 h-px" style={{ background: "var(--border)" }} />
+    <div className="rounded-xl p-3" style={{ border: `1px solid ${color}40`, background: `${color}14` }}>
+      <div className="flex items-center gap-2 mb-2.5 px-0.5">
+        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
+        <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color }}>{label}</span>
+        <span className="text-[11px] font-semibold px-1.5 rounded-full" style={{ background: `${color}26`, color }}>{count}</span>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+        {children}
+      </div>
     </div>
   );
 }
@@ -306,8 +302,8 @@ function TodoItem({ todo, editing, onStartEdit, onCancelEdit, onToggle, onSave, 
   }
 
   return (
-    <div className="group flex items-start gap-3 rounded-lg px-3 py-2.5 transition-colors"
-      style={{ background: "var(--surface)", border: "1px solid var(--border)", borderLeft: `3px solid ${isDone ? "var(--border-light)" : meta.color}` }}>
+    <div className="group flex items-start gap-3 rounded-lg px-3 py-2.5 transition-colors h-full"
+      style={{ background: "var(--surface2)", border: "1px solid var(--border)", borderLeft: `3px solid ${isDone ? "var(--border-light)" : meta.color}` }}>
       {/* Checkbox */}
       <button onClick={onToggle} aria-label={isDone ? "Mark not done" : "Mark done"}
         className="w-5 h-5 rounded-md flex-shrink-0 mt-0.5 flex items-center justify-center transition-colors"
