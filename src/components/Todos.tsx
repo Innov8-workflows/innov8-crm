@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, Fragment } from "react";
 import type { Todo } from "@/types";
 import { TODO_PRIORITIES } from "@/types";
 import Icon from "./Icon";
@@ -131,6 +131,14 @@ export default function Todos({ ownerFilter, onCountChanged }: TodosProps) {
   const shownActive = filter === "done" ? [] : active;
   const shownDone = filter === "active" ? [] : done;
 
+  const renderItem = (t: Todo) => (
+    <TodoItem key={t.id} todo={t} editing={editingId === t.id}
+      onStartEdit={() => setEditingId(t.id)} onCancelEdit={() => setEditingId(null)}
+      onToggle={() => patch(t.id, { done: t.done ? 0 : 1 })}
+      onSave={(fields) => { patch(t.id, fields); setEditingId(null); }}
+      onDelete={() => remove(t.id)} showOwner={!ownerFilter} />
+  );
+
   return (
     <div className="flex-1 overflow-auto">
       {/* Header + add bar */}
@@ -191,29 +199,26 @@ export default function Todos({ ownerFilter, onCountChanged }: TodosProps) {
           <EmptyState text="Nothing on the list yet. Add the first thing above." />
         ) : (
           <>
-            {shownActive.map((t) => (
-              <TodoItem key={t.id} todo={t} editing={editingId === t.id}
-                onStartEdit={() => setEditingId(t.id)} onCancelEdit={() => setEditingId(null)}
-                onToggle={() => patch(t.id, { done: t.done ? 0 : 1 })}
-                onSave={(fields) => { patch(t.id, fields); setEditingId(null); }}
-                onDelete={() => remove(t.id)} showOwner={!ownerFilter} />
-            ))}
+            {/* Active — split into High / Medium / Low sections */}
+            {TODO_PRIORITIES.map((p) => {
+              const items = shownActive.filter((t) => t.priority === p.value);
+              if (items.length === 0) return null;
+              return (
+                <Fragment key={p.value}>
+                  <SectionHeader color={p.color} label={p.label} count={items.length} />
+                  {items.map(renderItem)}
+                </Fragment>
+              );
+            })}
             {filter === "active" && active.length === 0 && (
               <EmptyState text="No active to-dos — you're all caught up." />
             )}
 
+            {/* Done */}
             {shownDone.length > 0 && (
               <>
-                {filter === "all" && shownActive.length > 0 && (
-                  <p className="text-[11px] font-semibold uppercase tracking-wider pt-4 pb-1" style={{ color: "var(--text-quaternary)" }}>Done</p>
-                )}
-                {shownDone.map((t) => (
-                  <TodoItem key={t.id} todo={t} editing={editingId === t.id}
-                    onStartEdit={() => setEditingId(t.id)} onCancelEdit={() => setEditingId(null)}
-                    onToggle={() => patch(t.id, { done: t.done ? 0 : 1 })}
-                    onSave={(fields) => { patch(t.id, fields); setEditingId(null); }}
-                    onDelete={() => remove(t.id)} showOwner={!ownerFilter} />
-                ))}
+                <SectionHeader color="#64748b" label="Done" count={shownDone.length} />
+                {shownDone.map(renderItem)}
               </>
             )}
             {filter === "done" && done.length === 0 && (
@@ -240,6 +245,18 @@ function PriorityPicker({ value, onChange }: { value: Priority; onChange: (p: Pr
           </button>
         );
       })}
+    </div>
+  );
+}
+
+// ─── Priority / status section header ───
+function SectionHeader({ color, label, count }: { color: string; label: string; count: number }) {
+  return (
+    <div className="flex items-center gap-2 pt-3 pb-0.5 first:pt-1">
+      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
+      <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color }}>{label}</span>
+      <span className="text-[11px] font-semibold px-1.5 rounded-full" style={{ background: `${color}20`, color }}>{count}</span>
+      <span className="flex-1 h-px" style={{ background: "var(--border)" }} />
     </div>
   );
 }
@@ -307,9 +324,6 @@ function TodoItem({ todo, editing, onStartEdit, onCancelEdit, onToggle, onSave, 
           <p className="text-xs mt-0.5 break-words" style={{ color: "var(--text-dim)", textDecoration: isDone ? "line-through" : "none" }}>{todo.detail}</p>
         )}
         <div className="flex items-center flex-wrap gap-x-2 gap-y-1 mt-1.5">
-          {!isDone && (
-            <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: `${meta.color}20`, color: meta.color }}>{meta.label}</span>
-          )}
           {showOwner && todo.owner && (
             <span className="text-[10px] font-semibold" style={{ color: ownerColor(todo.owner) }}>{todo.owner}</span>
           )}
