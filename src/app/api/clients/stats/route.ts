@@ -18,13 +18,9 @@ export async function GET(request: NextRequest) {
     args.push(ownerParam);
   }
 
-  // Single query for all client stats. A client is "paying" once they've
-  // moved past the Onboarding stage (Design & Content onwards = subscription
-  // has started, project is in active delivery). Used to require completed_at
-  // to be set — too late, missed in-flight delivery revenue.
-  const sql = `SELECT
-    COALESCE(SUM(CASE WHEN p.client_status IN ('active','refine') OR p.client_status IS NULL THEN p.monthly_fee ELSE 0 END), 0) as mrr,
-    COALESCE(SUM(CASE WHEN p.client_status IN ('active','refine') OR p.client_status IS NULL THEN l.capex ELSE 0 END), 0) as capex,
+  // Counts come from projects. A client is "paying" once they've moved past the
+  // Onboarding stage (Design & Content onwards = subscription started).
+  const countsSql = `SELECT
     SUM(CASE WHEN p.client_status IN ('active','refine') OR p.client_status IS NULL THEN 1 ELSE 0 END) as clientCount,
     SUM(CASE WHEN (p.client_status IN ('active','refine') OR p.client_status IS NULL) AND p.renewal_date != '' AND p.renewal_date < '${today}' THEN 1 ELSE 0 END) as overdueRenewals,
     SUM(CASE WHEN p.client_status = 'lost' THEN 1 ELSE 0 END) as lostClients
@@ -32,11 +28,26 @@ export async function GET(request: NextRequest) {
   JOIN leads l ON p.lead_id = l.id
   WHERE p.stage != 'onboarding'${ownerFilter}`;
 
-  const stats = first(await db.execute({ sql, args: args as never[] }));
+  const stats = first(await db.execute({ sql: countsSql, args: args as never[] }));
+
+  // Money is product-driven: sum the sold/delivered product line items attached to
+  // each client lead (base plan + add-ons). Replaces the old projects.monthly_fee /
+  // leads.capex manual fields.
+  const moneySql = `SELECT
+    COALESCE(SUM(es.monthly_upcharge), 0) as mrr,
+    COALESCE(SUM(es.upfront_charged), 0) as capex
+  FROM entity_solutions es
+  JOIN leads l ON es.entity_type = 'lead' AND es.entity_id = l.id
+  WHERE es.status IN ('sold','delivered')
+    AND EXISTS (
+      SELECT 1 FROM projects p WHERE p.lead_id = l.id AND p.stage != 'onboarding'
+        AND (p.client_status IN ('active','refine') OR p.client_status IS NULL)
+    )${ownerFilter}`;
+  const money = first(await db.execute({ sql: moneySql, args: args as never[] }));
 
   const response = NextResponse.json({
-    mrr: Number(stats?.mrr) || 0,
-    capex: Number(stats?.capex) || 0,
+    mrr: Number(money?.mrr) || 0,
+    capex: Number(money?.capex) || 0,
     clientCount: Number(stats?.clientCount) || 0,
     overdueRenewals: Number(stats?.overdueRenewals) || 0,
     lostClients: Number(stats?.lostClients) || 0,

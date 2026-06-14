@@ -219,6 +219,11 @@ async function doInitDb() {
       UNIQUE(entity_type, entity_id, solution_id),
       FOREIGN KEY (solution_id) REFERENCES solutions_catalogue(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS app_meta (
+      key TEXT PRIMARY KEY,
+      value TEXT DEFAULT ''
+    );
   `);
 
   const migrations = [
@@ -294,6 +299,11 @@ async function doInitDb() {
 
   // Seed the solutions catalogue (idempotent — adds missing names, leaves existing untouched)
   await seedSolutionsCatalogue(db);
+
+  // One-time: convert existing manual amounts into base product line items so the
+  // now product-driven dashboard carries current totals forward. Must run AFTER
+  // the catalogue seed (needs the "website" base product to exist).
+  await migrateBaseProductLineItems(db);
 }
 
 // Module-level flag — dedup runs once per lambda lifetime
@@ -414,6 +424,75 @@ async function seedSolutionsCatalogue(db: Client) {
     seedsChecked = true;
   } catch (e) {
     console.error("seedSolutionsCatalogue failed:", e);
+  }
+}
+
+// Module-level flag — base line-item migration runs once per lambda lifetime.
+// Correctness across lambdas is guarded by the app_meta sentinel (runs once ever).
+let baseLineItemsMigrated = false;
+
+// One-time migration: give every lead that currently carries a manual amount
+// (leads.capex, the custom_monthly field, or a client project's monthly_fee) a
+// base "Website — Essential" entity_solution carrying those amounts — so the now
+// product-driven dashboard shows the same totals it did before the switch.
+async function migrateBaseProductLineItems(db: Client) {
+  if (baseLineItemsMigrated) return;
+  try {
+    // Run exactly once ever (across all lambdas) — prevents resurrecting a base
+    // line item the user later deletes via the picker.
+    const marker = first(await db.execute("SELECT value FROM app_meta WHERE key = 'base_line_items_migrated'"));
+    if (marker) { baseLineItemsMigrated = true; return; }
+
+    const base = first(await db.execute(
+      "SELECT id FROM solutions_catalogue WHERE category = 'website' AND active = 1 ORDER BY id LIMIT 1"
+    ));
+    if (!base) return; // catalogue not seeded yet — retry next request (flag stays false)
+    const baseId = Number(base.id);
+
+    const rows = all(await db.execute(`
+      SELECT l.id AS lead_id,
+             COALESCE(l.capex, 0) AS capex,
+             COALESCE((SELECT CAST(cfv.value AS REAL) FROM custom_field_values cfv
+                       WHERE cfv.lead_id = l.id AND cfv.field_id = 'custom_monthly' AND cfv.value != '' LIMIT 1), 0) AS cust_monthly,
+             COALESCE((SELECT p.monthly_fee FROM projects p WHERE p.lead_id = l.id LIMIT 1), 0) AS proj_monthly,
+             (SELECT COUNT(*) FROM projects p2 WHERE p2.lead_id = l.id AND p2.stage != 'onboarding') AS is_client
+      FROM leads l
+      WHERE (COALESCE(l.capex,0) > 0
+             OR EXISTS (SELECT 1 FROM custom_field_values cfv WHERE cfv.lead_id = l.id AND cfv.field_id = 'custom_monthly' AND cfv.value != '' AND CAST(cfv.value AS REAL) > 0)
+             OR EXISTS (SELECT 1 FROM projects p WHERE p.lead_id = l.id AND p.monthly_fee > 0))
+        AND NOT EXISTS (
+          SELECT 1 FROM entity_solutions es JOIN solutions_catalogue sc ON sc.id = es.solution_id
+          WHERE es.entity_type = 'lead' AND es.entity_id = l.id AND sc.category = 'website'
+        )
+    `));
+
+    const now = new Date().toISOString();
+    let seeded = 0;
+    for (const r of rows) {
+      const leadId = Number(r.lead_id);
+      const isClient = Number(r.is_client) > 0;
+      const monthly = isClient ? (Number(r.proj_monthly) || Number(r.cust_monthly) || 0)
+                               : (Number(r.cust_monthly) || Number(r.proj_monthly) || 0);
+      const upfront = Number(r.capex) || 0;
+      const status = isClient ? "sold" : "proposed";
+      await db.execute({
+        sql: `INSERT INTO entity_solutions
+              (entity_type, entity_id, solution_id, status, monthly_upcharge, upfront_charged, notes, proposed_at, sold_at, delivered_at, created_at, updated_at)
+              VALUES ('lead', ?, ?, ?, ?, ?, 'Migrated from manual amounts', ?, ?, '', ?, ?)
+              ON CONFLICT(entity_type, entity_id, solution_id) DO NOTHING`,
+        args: [leadId, baseId, status, monthly, upfront, now, isClient ? now : "", now, now],
+      });
+      seeded++;
+    }
+
+    await db.execute({
+      sql: "INSERT OR REPLACE INTO app_meta (key, value) VALUES ('base_line_items_migrated', ?)",
+      args: [now],
+    });
+    baseLineItemsMigrated = true;
+    console.log(`[migrateBaseProductLineItems] seeded ${seeded} base product line items`);
+  } catch (e) {
+    console.error("migrateBaseProductLineItems failed:", e);
   }
 }
 

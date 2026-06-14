@@ -33,8 +33,7 @@ export async function GET(request: NextRequest) {
     SUM(CASE WHEN status = 'lost' THEN 1 ELSE 0 END) as lost,
     SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected,
     SUM(CASE WHEN follow_up_date != '' AND follow_up_date < ? AND status NOT IN ('won','lost','completed','rejected') THEN 1 ELSE 0 END) as overdue,
-    SUM(CASE WHEN follow_up_date = ? THEN 1 ELSE 0 END) as dueToday,
-    COALESCE(SUM(CASE WHEN capex > 0 AND status NOT IN ('won','completed','rejected','dead') THEN capex ELSE 0 END), 0) as totalCapex
+    SUM(CASE WHEN follow_up_date = ? THEN 1 ELSE 0 END) as dueToday
   FROM leads ${ownerWhere}`;
 
   // Today bindings come first because they appear first in the SELECT
@@ -63,24 +62,30 @@ export async function GET(request: NextRequest) {
     fbMessengerOnlyCount = Number(r?.fb_only) || 0;
   } catch {}
 
-  // Monthly total from custom fields (separate table, needs JOIN)
+  // Prospect forecast is product-driven: sum the product line items (any status
+  // except declined) attached to open-prospect leads. Open prospect = status not
+  // in won/completed (live clients, in /api/clients/stats), rejected, or dead.
+  // Replaces the old leads.capex + custom_monthly manual fields.
   let totalMonthly = 0;
+  let totalCapex = 0;
   try {
-    // Exclude won/completed (live clients, counted in /api/clients/stats), rejected
-    // (they said no), and dead (cold lead — no signal). All would inflate forecast.
-    let monthlySQL = `SELECT COALESCE(SUM(CAST(cfv.value AS REAL)), 0) as v
-      FROM custom_field_values cfv JOIN leads l ON cfv.lead_id = l.id
-      WHERE cfv.field_id = 'custom_monthly' AND cfv.value != ''
+    let psql = `SELECT
+        COALESCE(SUM(es.monthly_upcharge), 0) as monthly,
+        COALESCE(SUM(es.upfront_charged), 0) as capex
+      FROM entity_solutions es
+      JOIN leads l ON es.entity_type = 'lead' AND es.entity_id = l.id
+      WHERE es.status IN ('proposed','sold','delivered')
         AND l.status NOT IN ('won','completed','rejected','dead')`;
-    const monthlyArgs: InValue[] = [];
+    const pArgs: InValue[] = [];
     if (ownerParam === "__unassigned__") {
-      monthlySQL += " AND (l.owner = '' OR l.owner IS NULL)";
+      psql += " AND (l.owner = '' OR l.owner IS NULL)";
     } else if (ownerParam) {
-      monthlySQL += " AND l.owner = ?";
-      monthlyArgs.push(ownerParam);
+      psql += " AND l.owner = ?";
+      pArgs.push(ownerParam);
     }
-    const r = first(await db.execute({ sql: monthlySQL, args: monthlyArgs }));
-    totalMonthly = (r?.v as number) || 0;
+    const r = first(await db.execute({ sql: psql, args: pArgs }));
+    totalMonthly = Number(r?.monthly) || 0;
+    totalCapex = Number(r?.capex) || 0;
   } catch {}
 
   // Win/rejection breakdown by business type
@@ -116,7 +121,7 @@ export async function GET(request: NextRequest) {
     rejected: Number(stats?.rejected) || 0,
     overdue: Number(stats?.overdue) || 0,
     dueToday: Number(stats?.dueToday) || 0,
-    totalCapex: Number(stats?.totalCapex) || 0,
+    totalCapex,
     totalMonthly,
     byType,
   });

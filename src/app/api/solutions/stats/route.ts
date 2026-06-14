@@ -10,16 +10,19 @@ export async function GET() {
   await initDb();
   const db = getClient();
 
-  // Single CASE/WHEN aggregation — same pattern as /api/leads/stats
+  // Single CASE/WHEN aggregation. mrr / one_off_revenue are the UPSELL figures —
+  // add-ons only (category != 'website'); the base plan is already counted in
+  // Client MRR via /api/clients/stats, so excluding it here avoids double counting.
   const totalsSQL = `SELECT
     COUNT(*) as total,
-    SUM(CASE WHEN status = 'proposed' THEN 1 ELSE 0 END) as proposed,
-    SUM(CASE WHEN status = 'sold' THEN 1 ELSE 0 END) as sold,
-    SUM(CASE WHEN status = 'delivered' THEN 1 ELSE 0 END) as delivered,
-    SUM(CASE WHEN status = 'declined' THEN 1 ELSE 0 END) as declined,
-    COALESCE(SUM(CASE WHEN status IN ('sold','delivered') THEN monthly_upcharge ELSE 0 END), 0) as mrr,
-    COALESCE(SUM(CASE WHEN status IN ('sold','delivered') THEN upfront_charged ELSE 0 END), 0) as one_off_revenue
-  FROM entity_solutions`;
+    SUM(CASE WHEN es.status = 'proposed' THEN 1 ELSE 0 END) as proposed,
+    SUM(CASE WHEN es.status = 'sold' THEN 1 ELSE 0 END) as sold,
+    SUM(CASE WHEN es.status = 'delivered' THEN 1 ELSE 0 END) as delivered,
+    SUM(CASE WHEN es.status = 'declined' THEN 1 ELSE 0 END) as declined,
+    COALESCE(SUM(CASE WHEN es.status IN ('sold','delivered') AND sc.category != 'website' THEN es.monthly_upcharge ELSE 0 END), 0) as mrr,
+    COALESCE(SUM(CASE WHEN es.status IN ('sold','delivered') AND sc.category != 'website' THEN es.upfront_charged ELSE 0 END), 0) as one_off_revenue
+  FROM entity_solutions es
+  LEFT JOIN solutions_catalogue sc ON sc.id = es.solution_id`;
 
   const totals = first(await db.execute(totalsSQL));
 
