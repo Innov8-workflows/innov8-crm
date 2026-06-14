@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import type { Project, ProjectTask, ProjectFile } from "@/types";
+import type { Project, ProjectTask, ProjectFile, EntitySolution } from "@/types";
 import { PROJECT_STAGES } from "@/types";
+import ProductPicker from "./ProductPicker";
 
 interface Props {
   project: Project;
@@ -164,6 +165,22 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
     setEditing(null);
     setHasUnsavedChanges(true);
   };
+
+  // Products are the source of truth for the dashboard, but invoice automation
+  // still keys off projects.monthly_fee — so mirror the sold/delivered monthly
+  // total back to the project whenever the picker changes.
+  const handleProductsChanged = useCallback(async (esRows: EntitySolution[]) => {
+    const sold = esRows.filter((r) => r.status === "sold" || r.status === "delivered");
+    const monthly = sold.reduce((s, r) => s + (Number(r.monthly_upcharge) || 0), 0);
+    setDetails((prev) => ({ ...prev, monthly_fee: monthly } as typeof prev));
+    try {
+      await fetch(`/api/projects/${project.id}`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ monthly_fee: monthly }),
+      });
+      onUpdate();
+    } catch {}
+  }, [project.id, onUpdate]);
 
   const saveAllDetails = async () => {
     setSaving(true);
@@ -483,6 +500,14 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
 
           {activeTab === "details" && (
             <div className="space-y-4">
+              {/* Products / Plan — the source of truth for the dashboard */}
+              <div className="rounded-lg overflow-hidden" style={{ background: "var(--surface2)", border: "1px solid var(--border)" }}>
+                <ProductPicker leadId={project.lead_id} businessName={details.business_name} onChanged={handleProductsChanged} />
+              </div>
+              <p className="text-[11px] -mt-2" style={{ color: "var(--text-dim)" }}>
+                The dashboard totals these products. The Stripe / manual fields below are for billing only.
+              </p>
+
               {/* Stripe Products selector (multiple) */}
               {stripeProducts.length > 0 && (() => {
                 const currentIds = ((details as unknown as Record<string, unknown>).stripe_price_id as string || "").split(",").filter(Boolean);

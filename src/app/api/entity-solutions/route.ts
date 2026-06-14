@@ -129,7 +129,13 @@ export async function PUT(request: NextRequest) {
     ] as InValue[],
   });
 
-  return NextResponse.json({ ok: true });
+  // Return the upserted row so callers (e.g. the product picker) get its id
+  // without a follow-up fetch.
+  const row = first(await db.execute({
+    sql: "SELECT * FROM entity_solutions WHERE entity_type = ? AND entity_id = ? AND solution_id = ?",
+    args: [entity_type, Number(entity_id), Number(solution_id)],
+  }));
+  return NextResponse.json({ ok: true, entity_solution: row });
 }
 
 // DELETE ?id=

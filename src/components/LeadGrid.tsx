@@ -31,12 +31,13 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
-import type { Lead } from "@/types";
+import type { Lead, EntitySolution } from "@/types";
 import { PIPELINE_STAGES, ROW_COLORS } from "@/types";
 import EditableCell from "./EditableCell";
 import StatusCheckbox from "./StatusCheckbox";
 import TabBar from "./TabBar";
 import EmailLogPanel from "./EmailLogPanel";
+import ProductPicker from "./ProductPicker";
 import DraggableRow from "./DraggableRow";
 import ColumnHeaderEditor from "./ColumnHeaderEditor";
 import StatsBar from "./StatsBar";
@@ -152,6 +153,8 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
   const [search, setSearch] = useState("");
   const [sorting, setSorting] = useState<SortingState>([]);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [pickerLead, setPickerLead] = useState<Lead | null>(null);
+  const [productRollup, setProductRollup] = useState<Record<string, { count: number; monthly: number; upfront: number }>>({});
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({});
   const [columnOrder, setColumnOrder] = useState<ColumnOrderState>([]);
@@ -217,7 +220,7 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
       const allBuiltIn = ["select", "drag_handle", "row_num", "owner", "status",
         "business_name", "contact_name", "business_type", "location",
         "follow_up_date", "website_status", "email", "phone", "demo_site_url",
-        "emailed", "messaged", "responded", "followed_up", "capex", "notes",
+        "emailed", "messaged", "responded", "followed_up", "capex", "products", "notes",
         "add_column", "actions"];
 
       let changed = false;
@@ -240,12 +243,20 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
         }
       }
 
-      // Add any built-in columns not in saved order (new columns only)
+      // Add any built-in columns not in saved order (new columns only).
+      // Insert before the trailing +/actions columns so new columns (e.g. products)
+      // land among the data columns rather than after the action buttons.
       for (const bid of allBuiltIn) {
+        if (bid === "add_column" || bid === "actions") continue;
         if (!parsed.includes(bid)) {
-          parsed.push(bid);
+          const addIdx = parsed.indexOf("add_column");
+          if (addIdx !== -1) parsed.splice(addIdx, 0, bid);
+          else parsed.push(bid);
           changed = true;
         }
+      }
+      for (const bid of ["add_column", "actions"]) {
+        if (!parsed.includes(bid)) { parsed.push(bid); changed = true; }
       }
 
       // Remove columns that no longer exist
@@ -342,8 +353,18 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
   // and re-memoises the entire columns array (=> re-renders all 298 rows × 30 cells).
   const leadsRef = useRef<Lead[]>(leads);
   const customFieldValuesRef = useRef(customFieldValues);
+  const productRollupRef = useRef(productRollup);
   useEffect(() => { leadsRef.current = leads; }, [leads]);
   useEffect(() => { customFieldValuesRef.current = customFieldValues; }, [customFieldValues]);
+  useEffect(() => { productRollupRef.current = productRollup; }, [productRollup]);
+
+  // Per-lead product summaries for the "Plan / Products" column (one grouped query).
+  useEffect(() => {
+    fetch("/api/leads/product-rollup").then((r) => r.json()).then((d) => {
+      productRollupRef.current = d.rollup || {};
+      setProductRollup(d.rollup || {});
+    }).catch(() => {});
+  }, []);
 
   // getAutoStage must be 100% stable (empty deps) so updateLead/updateCustomField
   // don't recreate → renderCell doesn't recreate → columns memo doesn't bust.
@@ -611,6 +632,36 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
     [updateLead, usersList]
   );
 
+  // Recompute a lead's product rollup from the picker's rows + bump its updated_at
+  // (so only that row re-renders, reading the fresh ref). Mirrors updateCustomField.
+  const handleProductChange = useCallback((leadId: number, esRows: EntitySolution[]) => {
+    const active = esRows.filter((r) => r.status !== "declined");
+    const roll = {
+      count: active.length,
+      monthly: active.reduce((s, r) => s + (Number(r.monthly_upcharge) || 0), 0),
+      upfront: active.reduce((s, r) => s + (Number(r.upfront_charged) || 0), 0),
+    };
+    const next = { ...productRollupRef.current, [String(leadId)]: roll };
+    productRollupRef.current = next;
+    setProductRollup(next);
+    setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, updated_at: new Date().toISOString() } : l)));
+  }, []);
+
+  const renderProductCell = useCallback((lead: Lead) => {
+    const r = productRollupRef.current[String(lead.id)];
+    const has = !!r && r.count > 0;
+    return (
+      <button onClick={(e) => { e.stopPropagation(); setPickerLead(lead); }}
+        className="w-full text-left text-xs px-1.5 py-1 rounded transition-colors truncate"
+        style={{ color: has ? "var(--text)" : "var(--text-quaternary)", background: "transparent" }}
+        onMouseEnter={(e) => (e.currentTarget.style.background = "var(--surface2)")}
+        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+        title={has ? `${r.count} product${r.count > 1 ? "s" : ""} · £${r.monthly}/mo · £${r.upfront} one-off` : "Add products"}>
+        {has ? `£${r.monthly}/mo${r.count > 1 ? ` · ${r.count}` : ""}` : "+ Add"}
+      </button>
+    );
+  }, []);
+
   const columns = useMemo<ColumnDef<Lead, unknown>[]>(
     () => [
       columnHelper.display({ id: "select", header: ({ table }) => (
@@ -673,6 +724,15 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
           },
         })
       ),
+      // Plan / Products — opens the per-lead product picker
+      columnHelper.display({
+        id: "products",
+        header: () => <span className="text-xs font-semibold" style={{ color: "var(--text-dim)" }}>Plan</span>,
+        size: 95,
+        minSize: 60,
+        enableResizing: true,
+        cell: (info) => renderProductCell(info.row.original),
+      }),
       // "+" Add column button
       columnHelper.display({
         id: "add_column",
@@ -712,7 +772,7 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
         ),
       }),
     ],
-    [editableFields, customColumns, getLabel, getColType, saveColConfig, deleteColumn, renderCell, deleteLead, updateCustomField]
+    [editableFields, customColumns, getLabel, getColType, saveColConfig, deleteColumn, renderCell, renderProductCell, deleteLead, updateCustomField]
   );
 
   const table = useReactTable({
@@ -995,6 +1055,16 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
       </div>
 
       {selectedLead && <EmailLogPanel lead={selectedLead} onClose={() => setSelectedLead(null)} />}
+
+      {pickerLead && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.6)" }} onClick={() => setPickerLead(null)}>
+          <div className="w-full max-w-md rounded-xl overflow-hidden shadow-2xl" style={{ background: "var(--surface)", border: "1px solid var(--border)" }} onClick={(e) => e.stopPropagation()}>
+            <ProductPicker leadId={pickerLead.id} businessName={pickerLead.business_name}
+              onClose={() => setPickerLead(null)}
+              onChanged={(esRows) => handleProductChange(pickerLead.id, esRows)} />
+          </div>
+        </div>
+      )}
 
       {/* Add Lead Modal */}
       {showAddModal && (
