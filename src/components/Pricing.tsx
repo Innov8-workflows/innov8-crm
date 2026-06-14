@@ -32,67 +32,22 @@ export default function Pricing() {
         </div>
       </div>
 
-      {/* Tier 1 Market: Local Businesses (Trades) */}
+      {/* The Website Product — one plan, everything included */}
       <div>
-        <p className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: "#22c55e" }}>Tier 1 Market</p>
-        <h2 className="text-lg font-bold mb-0.5" style={{ color: "var(--text)" }}>Local Businesses</h2>
-        <p className="text-xs mb-4" style={{ color: "var(--text-quaternary)" }}>Plumbers &middot; Electricians &middot; Roofers &middot; Builders &middot; Driveways &middot; Scaffolders &middot; Heating engineers</p>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <p className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: "#22c55e" }}>The Website Product</p>
+        <h2 className="text-lg font-bold mb-0.5" style={{ color: "var(--text)" }}>One plan — everything included</h2>
+        <p className="text-xs mb-4" style={{ color: "var(--text-quaternary)" }}>Perfect for: Roofers &middot; Driveways &middot; Builders &middot; Electricians &middot; Plumbers</p>
+        <div className="max-w-sm mx-auto">
           <FullPricingCard
             tier="T1"
             tierLabel="Essential"
             tierSub="Website Foundation"
-            upfront="FREE"
+            upfront="£95"
             monthly="£85"
             tierColor="#22c55e"
             features={ESSENTIAL_FEATURES}
-            timeline="1-3 business days"
+            timeline="7 days"
           />
-          <FullPricingCard
-            tier="T2"
-            tierLabel="Growth"
-            tierSub="Automations - For Scaling Your Business"
-            upfront="FREE"
-            monthly="£150"
-            tierColor="var(--accent)"
-            popular
-            inheritsFromT1
-            features={GROWTH_FEATURES}
-            timeline="1 week"
-          />
-          <AddOnCard />
-        </div>
-      </div>
-
-      {/* Tier 2 Market: Social Businesses */}
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: "#22c55e" }}>Tier 2 Market</p>
-        <h2 className="text-lg font-bold mb-0.5" style={{ color: "var(--text)" }}>Social Businesses</h2>
-        <p className="text-xs mb-4" style={{ color: "var(--text-quaternary)" }}>Dog groomers &middot; Beauticians &middot; Hairdressers &middot; Barbers &middot; Personal trainers &middot; Photographers</p>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <FullPricingCard
-            tier="T1"
-            tierLabel="Essential"
-            tierSub="Website Foundation"
-            upfront="FREE"
-            monthly="£45"
-            tierColor="#22c55e"
-            features={ESSENTIAL_FEATURES}
-            timeline="1-3 business days"
-          />
-          <FullPricingCard
-            tier="T2"
-            tierLabel="Growth"
-            tierSub="Automations - For Scaling Your Business"
-            upfront="FREE"
-            monthly="£85"
-            tierColor="var(--accent)"
-            popular
-            inheritsFromT1
-            features={GROWTH_FEATURES}
-            timeline="1 week"
-          />
-          <AddOnCard />
         </div>
       </div>
 
@@ -106,14 +61,14 @@ export default function Pricing() {
         </div>
       </div>
 
-      {/* AI Solutions Catalogue — quick reference for upsells */}
-      {solutions.length > 0 && (
+      {/* Add-ons — pulled live from the product catalogue (base plan excluded) */}
+      {solutions.some((s) => s.category !== "website") && (
         <div>
-          <p className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: "var(--text-dim)" }}>Add-On Catalogue</p>
-          <h2 className="text-lg font-bold mb-0.5 flex items-center gap-2" style={{ color: "var(--text)" }}><Icon name="cpu-chip" className="w-5 h-5" style={{ color: "var(--accent)" }} /> AI Solutions &amp; Automations</h2>
-          <p className="text-xs mb-4" style={{ color: "var(--text-quaternary)" }}>Quick reference for upsells on calls. Tap any card to see the pitch angle.</p>
+          <p className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: "var(--text-dim)" }}>Enhance Your Results</p>
+          <h2 className="text-lg font-bold mb-0.5 flex items-center gap-2" style={{ color: "var(--text)" }}><Icon name="cpu-chip" className="w-5 h-5" style={{ color: "var(--accent)" }} /> Add-ons</h2>
+          <p className="text-xs mb-4" style={{ color: "var(--text-quaternary)" }}>Bolt-ons that grow results. Tap any card to see the pitch angle.</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-            {solutions.map((s) => {
+            {solutions.filter((s) => s.category !== "website").map((s) => {
               const cat = SOLUTION_CATEGORIES.find((c) => c.value === s.category);
               return (
                 <button key={s.id} onClick={() => setSelected(s)}
@@ -296,25 +251,18 @@ export default function Pricing() {
 // ─── Pricing constants — single source of truth for both markets ───
 const ESSENTIAL_FEATURES = [
   "Professional Branded Website",
+  "Hosting & Support",
+  "Organic SEO/GEO",
+  "Regular SEO/GEO Enhancements",
   "Click-to-Call",
-  "Before & Afters Slider",
-  "Google Reviews",
-  "Contact Forms",
+  "Contact Forms (WhatsApp/Email)",
   "Mobile Optimised",
+  "Google/Facebook Reviews",
+  "Before & After Slider",
+  "Hero Video Included",
+  "Visual Transformation Videos Included",
   "WhatsApp/Messenger Widget",
-  "Organic SEO",
   "Socials Linked",
-];
-
-const GROWTH_FEATURES = [
-  "Review Submissions",
-  "Scannable Google Review Cards",
-  "Missed Call Text Back",
-  "CRM App",
-  "Email Automation",
-  "Booking Calendar",
-  "Automated Lead Follow Up",
-  "5-Star Magic Review Funnel",
 ];
 
 function FullPricingCard({
@@ -355,7 +303,7 @@ function FullPricingCard({
       {/* Price block */}
       <div className="text-center mb-3">
         <div className="text-3xl font-bold" style={{ color: "#22c55e" }}>{upfront}</div>
-        <div className="text-xs" style={{ color: "var(--text-dim)" }}>upfront</div>
+        <div className="text-xs" style={{ color: "var(--text-dim)" }}>one-time setup</div>
       </div>
       <div className="text-center mb-4">
         <div className="text-4xl font-bold" style={{ color: tierColor }}>{monthly}<span className="text-2xl">/pm</span></div>
@@ -384,54 +332,6 @@ function FullPricingCard({
       <div className="flex items-center gap-2 text-sm pt-1" style={{ color: "var(--text-secondary)" }}>
         <Icon name="clock" className="w-4 h-4 flex-shrink-0" />
         <span>Live within <span style={{ color: "#22c55e", fontWeight: 700 }}>{timeline}</span></span>
-      </div>
-    </div>
-  );
-}
-
-function AddOnCard() {
-  return (
-    <div className="rounded-2xl p-6 flex flex-col" style={{
-      background: "var(--surface)",
-      border: "1px solid var(--border)",
-    }}>
-      {/* Title */}
-      <div className="text-center mb-3">
-        <p className="text-sm font-semibold mb-1" style={{ color: "#22c55e" }}>ADD-ON</p>
-        <h3 className="text-2xl font-bold" style={{ color: "var(--text)" }}>AI Tools</h3>
-        <p className="text-xs" style={{ color: "var(--text-dim)" }}>Optional</p>
-      </div>
-
-      <div className="my-3" style={{ borderTop: "1px solid var(--border)" }} />
-
-      {/* Pricing range */}
-      <div className="text-center mb-5">
-        <div className="text-4xl font-bold" style={{ color: "#22c55e" }}>£30-£60<span className="text-2xl">/pm</span></div>
-      </div>
-
-      {/* Tools list */}
-      <ul className="space-y-2 mb-4">
-        <li className="flex items-start gap-2 text-sm" style={{ color: "var(--text-secondary)" }}>
-          <span className="flex-shrink-0 mt-0.5" style={{ color: "#22c55e" }}>✓</span>
-          <span>AI Chatbot <span style={{ color: "var(--text-dim)" }}>(£30/mo)</span></span>
-        </li>
-        <li className="flex items-start gap-2 text-sm" style={{ color: "var(--text-secondary)" }}>
-          <span className="flex-shrink-0 mt-0.5" style={{ color: "#22c55e" }}>✓</span>
-          <span>AI Voice Call Handler <span style={{ color: "var(--text-dim)" }}>(£60/mo)</span></span>
-        </li>
-      </ul>
-
-      <div className="my-2" style={{ borderTop: "1px solid var(--border)" }} />
-
-      {/* Description */}
-      <p className="text-sm flex-1 mb-3" style={{ color: "var(--text-secondary)" }}>
-        Streamline your business by boosting conversion and saving admin time all connected through to the <span style={{ color: "var(--accent)", fontWeight: 600 }}>Innov8 Workflow App</span> to manage.
-      </p>
-
-      {/* Timeline footer */}
-      <div className="flex items-center gap-2 text-sm pt-1" style={{ color: "var(--text-secondary)" }}>
-        <Icon name="clock" className="w-4 h-4 flex-shrink-0" />
-        <span>Live within <span style={{ color: "#22c55e", fontWeight: 700 }}>3-5 business days</span></span>
       </div>
     </div>
   );
