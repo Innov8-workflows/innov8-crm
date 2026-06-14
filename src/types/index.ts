@@ -151,6 +151,7 @@ export const SOLUTION_STATUSES = [
 ] as const;
 
 export const SOLUTION_CATEGORIES = [
+  { value: "website", label: "Website", color: "#22c55e" },
   { value: "ai", label: "AI", color: "#8b5cf6" },
   { value: "automation", label: "Automation", color: "#3b82f6" },
   { value: "marketing", label: "Marketing", color: "#ec4899" },
