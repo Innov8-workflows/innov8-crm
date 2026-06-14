@@ -93,7 +93,7 @@ export default function Home() {
           {persistedView("prospects",    "Prospects failed to load",    () => <LeadGrid ownerFilter={ownerFilter} />)}
           {persistedView("projects",     "Projects failed to load",     () => <KanbanBoard ownerFilter={ownerFilter} onCountsChanged={refreshCounts} />)}
           {persistedView("clients",      "Clients failed to load",      () => <LiveClients ownerFilter={ownerFilter} onCountsChanged={refreshCounts} />)}
-          {persistedView("dashboard",    "Dashboard failed to load",    () => <Dashboard ownerFilter={ownerFilter} />)}
+          {persistedView("dashboard",    "Dashboard failed to load",    () => <Dashboard ownerFilter={ownerFilter} active={view === "dashboard"} />)}
           {persistedView("map",          "Map failed to load",          () => <MapView ownerFilter={ownerFilter} />)}
           {persistedView("ai_solutions", "AI Solutions failed to load", () => <AISolutions />)}
           {persistedView("schedule",     "Schedule failed to load",     () => <Schedule />)}

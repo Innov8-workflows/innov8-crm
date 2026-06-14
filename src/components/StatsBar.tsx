@@ -9,14 +9,14 @@ interface Stats {
   totalCapex: number; totalMonthly: number;
 }
 
-export default function StatsBar({ ownerFilter = "" }: { ownerFilter?: string }) {
+export default function StatsBar({ ownerFilter = "", refreshKey = 0 }: { ownerFilter?: string; refreshKey?: number }) {
   const [stats, setStats] = useState<Stats | null>(null);
   const [expanded, setExpanded] = useState(true);
 
   useEffect(() => {
     const params = ownerFilter ? `?owner=${encodeURIComponent(ownerFilter)}` : "";
     fetch(`/api/leads/stats${params}`).then((r) => r.json()).then(setStats);
-  }, [ownerFilter]);
+  }, [ownerFilter, refreshKey]);
 
   if (!stats) return null;
 

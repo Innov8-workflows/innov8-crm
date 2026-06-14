@@ -52,6 +52,7 @@ export async function GET(request: NextRequest) {
     overdueRenewals: Number(stats?.overdueRenewals) || 0,
     lostClients: Number(stats?.lostClients) || 0,
   });
-  response.headers.set("Cache-Control", "private, max-age=5");
+  // no-store: now product-driven (hot-write via the picker) — must reflect changes immediately.
+  response.headers.set("Cache-Control", "private, no-store");
   return response;
 }

@@ -29,7 +29,7 @@ interface SolutionsStats {
   }>;
 }
 
-export default function Dashboard({ ownerFilter = "" }: { ownerFilter?: string }) {
+export default function Dashboard({ ownerFilter = "", active = true }: { ownerFilter?: string; active?: boolean }) {
   const [prospects, setProspects] = useState<ProspectStats | null>(null);
   const [clients, setClients] = useState<ClientStats | null>(null);
   const [activeProjects, setActiveProjects] = useState(0);
@@ -52,7 +52,10 @@ export default function Dashboard({ ownerFilter = "" }: { ownerFilter?: string }
     setLoading(false);
   }, [ownerFilter]);
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+  // Re-fetch whenever the Dashboard becomes the active view (it stays mounted via
+  // the mount-once pattern, so without this it would show stale numbers after
+  // products are changed elsewhere). Stats endpoints are no-store, so this is fresh.
+  useEffect(() => { if (active) fetchAll(); }, [active, fetchAll]);
 
   if (loading) return <LoadingAI message="Loading dashboard" />;
 

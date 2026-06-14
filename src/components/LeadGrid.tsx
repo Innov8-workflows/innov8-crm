@@ -155,6 +155,7 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [pickerLead, setPickerLead] = useState<Lead | null>(null);
   const [productRollup, setProductRollup] = useState<Record<string, { count: number; monthly: number; upfront: number }>>({});
+  const [statsRefresh, setStatsRefresh] = useState(0);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({});
   const [columnOrder, setColumnOrder] = useState<ColumnOrderState>([]);
@@ -645,6 +646,7 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
     productRollupRef.current = next;
     setProductRollup(next);
     setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, updated_at: new Date().toISOString() } : l)));
+    setStatsRefresh((n) => n + 1); // refresh the Prospect Monthly/CAPEX/ARR mini-dashboard
   }, []);
 
   const renderProductCell = useCallback((lead: Lead) => {
@@ -954,7 +956,7 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
         </div>
       </div>
 
-      <StatsBar ownerFilter={ownerFilter} />
+      <StatsBar ownerFilter={ownerFilter} refreshKey={statsRefresh} />
       <TabBar tabs={TABS} active={activeTab} onChange={setActiveTab} />
 
       {/* Toolbar */}

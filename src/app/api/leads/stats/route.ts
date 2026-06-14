@@ -125,6 +125,7 @@ export async function GET(request: NextRequest) {
     totalMonthly,
     byType,
   });
-  response.headers.set("Cache-Control", "private, max-age=5");
+  // no-store: prospect monthly/capex are now product-driven — must reflect picker changes immediately.
+  response.headers.set("Cache-Control", "private, no-store");
   return response;
 }
