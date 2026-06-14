@@ -750,18 +750,30 @@ function CardView({ clients, productRollup, formatDate, isOverdue, onOpenProject
                   </p>
                 </div>
                 <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
-                  {client.capex != null && client.capex > 0 && (
-                    <span className="text-xs font-bold px-2 py-0.5 rounded-full"
-                      style={{ background: "#ea580c20", color: "var(--accent)" }}>
-                      £{client.capex}
-                    </span>
-                  )}
-                  {client.monthly_fee > 0 && (
-                    <span className="text-xs font-bold px-2 py-0.5 rounded-full"
-                      style={{ background: isLostView ? "#ef444420" : "#22c55e20", color: isLostView ? "#ef4444" : "#22c55e" }}>
-                      {isLostView ? "-" : ""}£{client.monthly_fee}/mo
-                    </span>
-                  )}
+                  {(() => {
+                    // Card value badges come from the attached products (= the modal
+                    // footer): one-off total + monthly total. Fall back to the manual
+                    // fields if a client somehow has no products attached.
+                    const roll = productRollup[String(client.lead_id)];
+                    const upfront = roll ? roll.upfront : (client.capex || 0);
+                    const monthly = roll ? roll.monthly : (client.monthly_fee || 0);
+                    return (
+                      <>
+                        {upfront > 0 && (
+                          <span className="text-xs font-bold px-2 py-0.5 rounded-full"
+                            style={{ background: "#ea580c20", color: "var(--accent)" }}>
+                            £{upfront}
+                          </span>
+                        )}
+                        {monthly > 0 && (
+                          <span className="text-xs font-bold px-2 py-0.5 rounded-full"
+                            style={{ background: isLostView ? "#ef444420" : "#22c55e20", color: isLostView ? "#ef4444" : "#22c55e" }}>
+                            {isLostView ? "-" : ""}£{monthly}/mo
+                          </span>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
 
