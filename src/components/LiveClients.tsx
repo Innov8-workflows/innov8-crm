@@ -2,10 +2,16 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import type { Project } from "@/types";
+import { SOLUTION_CATEGORIES } from "@/types";
 import ProjectDetailModal from "./ProjectDetailModal";
 import LoadingAI from "./LoadingAI";
 import SiteAnalyticsModal from "./SiteAnalyticsModal";
 import SeoGeoModal from "./SeoGeoModal";
+
+const catColor = (cat: string) => SOLUTION_CATEGORIES.find((c) => c.value === cat)?.color || "var(--text-dim)";
+const shortProductName = (name: string) => name.replace(/^Website — /, "").replace(/\s*\(T1\)$/, "");
+
+type ProductRollup = Record<string, { count: number; monthly: number; upfront: number; items: { name: string; category: string }[] }>;
 
 interface ClientStats {
   mrr: number;
@@ -24,6 +30,7 @@ export default function LiveClients({ ownerFilter = "", onCountsChanged }: { own
   const [clients, setClients] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<ClientStats | null>(null);
+  const [productRollup, setProductRollup] = useState<ProductRollup>({});
   const [viewMode, setViewMode] = useState<ViewMode>("card");
   const [clientFilter, setClientFilter] = useState<ClientFilter>("active");
   const [search, setSearch] = useState("");
@@ -54,7 +61,14 @@ export default function LiveClients({ ownerFilter = "", onCountsChanged }: { own
     setStats(await res.json());
   }, [ownerFilter]);
 
-  useEffect(() => { fetchClients(); fetchStats(); }, [clientFilter, ownerFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Per-client product list (attached to the client's lead) for the card chips.
+  const fetchRollup = useCallback(async () => {
+    const res = await fetch("/api/leads/product-rollup");
+    const data = await res.json();
+    setProductRollup(data.rollup || {});
+  }, []);
+
+  useEffect(() => { fetchClients(); fetchStats(); fetchRollup(); }, [clientFilter, ownerFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const updateClient = useCallback(async (id: number, field: string, value: string | number) => {
     setClients((prev) => prev.map((c) => (c.id === id ? { ...c, [field]: value } : c)));
@@ -323,6 +337,7 @@ export default function LiveClients({ ownerFilter = "", onCountsChanged }: { own
         ) : (
           <CardView
             clients={filtered}
+            productRollup={productRollup}
             formatDate={formatDate}
             isOverdue={isOverdue}
             onOpenProject={setSelectedProject}
@@ -345,7 +360,7 @@ export default function LiveClients({ ownerFilter = "", onCountsChanged }: { own
         <ProjectDetailModal
           project={selectedProject}
           onClose={() => setSelectedProject(null)}
-          onUpdate={() => { fetchClients(); fetchStats(); }}
+          onUpdate={() => { fetchClients(); fetchStats(); fetchRollup(); }}
           onComplete={() => {}}
           onMarkLost={(id) => { markAsLost(id); setSelectedProject(null); }}
           onReactivate={(id) => { reactivateClient(id); setSelectedProject(null); }}
@@ -628,6 +643,7 @@ function GridView({ clients, sortKey, sortDir, onSort, editingCell, editValue, o
 
 interface CardProps {
   clients: Project[];
+  productRollup: ProductRollup;
   formatDate: (d: string) => string;
   isOverdue: (d: string) => boolean;
   onOpenProject: (p: Project) => void;
@@ -643,7 +659,7 @@ interface CardProps {
   onShowSeo: (p: Project) => void;
 }
 
-function CardView({ clients, formatDate, isOverdue, onOpenProject, isLostView, onMarkLost, onReactivate, onDelete, onCycleStatus, onSendInvoice, invoicing, onToggleInvoiceStatus, onShowAnalytics, onShowSeo }: CardProps) {
+function CardView({ clients, productRollup, formatDate, isOverdue, onOpenProject, isLostView, onMarkLost, onReactivate, onDelete, onCycleStatus, onSendInvoice, invoicing, onToggleInvoiceStatus, onShowAnalytics, onShowSeo }: CardProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4">
       {clients.map((client) => {
@@ -748,6 +764,18 @@ function CardView({ clients, formatDate, isOverdue, onOpenProject, isLostView, o
                   )}
                 </div>
               </div>
+
+              {(productRollup[String(client.lead_id)]?.items?.length ?? 0) > 0 && (
+                <div className="flex flex-wrap gap-1 mt-1.5">
+                  {productRollup[String(client.lead_id)].items.map((it, i) => (
+                    <span key={i} className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded"
+                      style={{ background: "var(--surface2)", color: "var(--text-secondary)" }}>
+                      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: catColor(it.category) }} />
+                      {shortProductName(it.name)}
+                    </span>
+                  ))}
+                </div>
+              )}
 
               {client.domain && (
                 <p className="text-xs mt-1 truncate" style={{ color: "var(--accent)" }}>{client.domain}</p>
