@@ -18,14 +18,9 @@ const ROW_COLORS: Record<string, string> = {
 
 interface DraggableRowProps {
   row: Row<Lead>;
-  // Virtualization: index in the (filtered/sorted) row list + the virtualizer's
-  // measure callback. measureRef is composed with dnd-kit's setNodeRef so a row
-  // is both draggable and live-measured. Optional so the row still works unvirtualized.
-  dataIndex?: number;
-  measureRef?: (node: Element | null) => void;
 }
 
-function DraggableRowBase({ row, dataIndex, measureRef }: DraggableRowProps) {
+function DraggableRowBase({ row }: DraggableRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: row.original.id });
 
   const style = {
@@ -42,7 +37,7 @@ function DraggableRowBase({ row, dataIndex, measureRef }: DraggableRowProps) {
   const bgColor = isOverdue ? "rgba(239,68,68,0.06)" : ROW_COLORS[status] || "";
 
   return (
-    <tr ref={(node) => { setNodeRef(node); measureRef?.(node); }} data-index={dataIndex} style={{ ...style, background: bgColor }}
+    <tr ref={setNodeRef} style={{ ...style, background: bgColor }}
       className="transition-colors"
       onMouseEnter={(e) => { if (!bgColor) e.currentTarget.style.background = "rgba(255,255,255,0.02)"; }}
       onMouseLeave={(e) => { if (!bgColor) e.currentTarget.style.background = ""; else e.currentTarget.style.background = bgColor; }}>
@@ -65,9 +60,6 @@ function DraggableRowBase({ row, dataIndex, measureRef }: DraggableRowProps) {
 const DraggableRow = memo(DraggableRowBase, (prev, next) => {
   const a = prev.row.original;
   const b = next.row.original;
-  // Virtual position changed (scroll/sort/filter shifted this row) → re-render so
-  // the data-index attribute stays correct for live measurement.
-  if (prev.dataIndex !== next.dataIndex) return false;
   if (a.id !== b.id) return false;
   if (a.status !== b.status) return false;
   if (a.emailed !== b.emailed) return false;

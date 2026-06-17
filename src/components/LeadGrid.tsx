@@ -874,8 +874,9 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
   // every one of the 400+ rows rendered into the DOM at once — the single biggest
   // source of scroll jank and a large share of the tab's memory footprint.
   // The padding-row technique below keeps native <table> layout, the sticky
-  // header and dnd-kit's drag transforms all intact. Rows are measured live
-  // (measureElement) so the scrollbar stays exact even if a row's height varies.
+  // header and dnd-kit's drag transforms all intact. Rows are a fixed 33px
+  // (single line, whitespace-nowrap), so a fixed size is exact — no per-row
+  // measurement (which, composed with dnd-kit's ref, caused a measure loop).
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const tableRows = table.getRowModel().rows;
   const rowVirtualizer = useVirtualizer({
@@ -1071,7 +1072,7 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
                   )}
                   {virtualRows.map((vr) => {
                     const row = tableRows[vr.index];
-                    return <DraggableRow key={row.id} row={row} dataIndex={vr.index} measureRef={rowVirtualizer.measureElement} />;
+                    return <DraggableRow key={row.id} row={row} />;
                   })}
                   {paddingBottom > 0 && (
                     <tr aria-hidden><td colSpan={columns.length} style={{ height: paddingBottom, padding: 0, border: 0 }} /></tr>
