@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, type ReactNode } from "react";
 import type { Todo } from "@/types";
-import { TODO_PRIORITIES } from "@/types";
+import { TODO_PRIORITIES, TODO_CATEGORIES } from "@/types";
 import Icon from "./Icon";
 import { useToast } from "./Toast";
 
@@ -11,6 +11,8 @@ type Priority = "low" | "medium" | "high";
 
 const PRIORITY_WEIGHT: Record<string, number> = { high: 0, medium: 1, low: 2 };
 const priorityMeta = (p: string) => TODO_PRIORITIES.find((x) => x.value === p) || TODO_PRIORITIES[1];
+const catMeta = (c: string) => TODO_CATEGORIES.find((x) => x.value === c) || TODO_CATEGORIES[TODO_CATEGORIES.length - 1];
+const catOf = (t: Todo) => t.category || "general";
 const ownerColor = (o: string) => (o === "Truthfu1" ? "var(--accent)" : o === "LowKey" ? "#c084fc" : "var(--text-dim)");
 
 function relTime(iso: string): string {
@@ -36,8 +38,10 @@ export default function Todos({ ownerFilter, onCountChanged }: TodosProps) {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Filter>("active");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [newText, setNewText] = useState("");
   const [newPriority, setNewPriority] = useState<Priority>("medium");
+  const [newCategory, setNewCategory] = useState<string>("general");
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -52,6 +56,12 @@ export default function Todos({ ownerFilter, onCountChanged }: TodosProps) {
   useEffect(() => {
     onCountRef.current?.(todos.filter((t) => !t.done).length);
   }, [todos]);
+
+  // When focused on a category, pre-select it in the add picker so a new task
+  // lands where you're looking.
+  useEffect(() => {
+    if (categoryFilter !== "all") setNewCategory(categoryFilter);
+  }, [categoryFilter]);
 
   const load = useCallback(() => {
     fetch("/api/todos")
@@ -72,7 +82,7 @@ export default function Todos({ ownerFilter, onCountChanged }: TodosProps) {
       const res = await fetch("/api/todos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, priority: newPriority }),
+        body: JSON.stringify({ text, priority: newPriority, category: newCategory }),
       });
       if (!res.ok) throw new Error();
       const todo: Todo = await res.json();
@@ -86,7 +96,7 @@ export default function Todos({ ownerFilter, onCountChanged }: TodosProps) {
     }
   };
 
-  const patch = async (id: number, fields: Partial<Pick<Todo, "text" | "detail" | "priority" | "done">>) => {
+  const patch = async (id: number, fields: Partial<Pick<Todo, "text" | "detail" | "priority" | "category" | "done">>) => {
     setTodos((prev) => prev.map((t) => (t.id === id ? { ...t, ...fields } as Todo : t)));
     try {
       const res = await fetch(`/api/todos/${id}`, {
@@ -121,22 +131,33 @@ export default function Todos({ ownerFilter, onCountChanged }: TodosProps) {
     return (t.owner || "").toLowerCase() === ownerFilter.toLowerCase();
   };
 
-  const visible = todos.filter(matchesOwner);
-  const active = visible.filter((t) => !t.done).sort((a, b) =>
+  // Owner-scoped set drives the category chip counts (independent of which
+  // category is currently selected, so the counts don't jump as you filter).
+  const ownerScoped = todos.filter(matchesOwner);
+  const activeCount = (cat: string) => ownerScoped.filter((t) => !t.done && (cat === "all" || catOf(t) === cat)).length;
+
+  const matchesCategory = (t: Todo) => categoryFilter === "all" || catOf(t) === categoryFilter;
+  const visible = ownerScoped.filter(matchesCategory);
+
+  const byPriorityThenRecency = (a: Todo, b: Todo) =>
     (PRIORITY_WEIGHT[a.priority] - PRIORITY_WEIGHT[b.priority]) ||
-    (new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+    (new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+  const active = visible.filter((t) => !t.done).sort(byPriorityThenRecency);
   const done = visible.filter((t) => t.done).sort((a, b) =>
     new Date(b.completed_at || b.updated_at).getTime() - new Date(a.completed_at || a.updated_at).getTime());
 
   const shownActive = filter === "done" ? [] : active;
   const shownDone = filter === "active" ? [] : done;
 
-  const renderItem = (t: Todo) => (
+  const oneCat = categoryFilter !== "all";
+
+  const renderItem = (t: Todo, showCategory = false) => (
     <TodoItem key={t.id} todo={t} editing={editingId === t.id}
       onStartEdit={() => setEditingId(t.id)} onCancelEdit={() => setEditingId(null)}
       onToggle={() => patch(t.id, { done: t.done ? 0 : 1 })}
       onSave={(fields) => { patch(t.id, fields); setEditingId(null); }}
-      onDelete={() => remove(t.id)} showOwner={!ownerFilter} />
+      onDelete={() => remove(t.id)} showOwner={!ownerFilter} showCategory={showCategory} />
   );
 
   return (
@@ -162,7 +183,8 @@ export default function Todos({ ownerFilter, onCountChanged }: TodosProps) {
             className="flex-1 px-3 py-2 text-sm rounded-lg"
             style={{ background: "var(--surface2)", border: "1px solid var(--border-light)", color: "var(--text)", outline: "none" }}
           />
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <CategoryPicker value={newCategory} onChange={setNewCategory} />
             <PriorityPicker value={newPriority} onChange={setNewPriority} />
             <button
               onClick={add}
@@ -175,15 +197,23 @@ export default function Todos({ ownerFilter, onCountChanged }: TodosProps) {
           </div>
         </div>
 
+        {/* Category filter */}
+        <div className="flex items-center gap-1.5 flex-wrap mt-3">
+          <CatChip active={categoryFilter === "all"} color="var(--accent)" label="All" count={activeCount("all")} onClick={() => setCategoryFilter("all")} />
+          {TODO_CATEGORIES.map((c) => (
+            <CatChip key={c.value} active={categoryFilter === c.value} color={c.color} label={c.label} count={activeCount(c.value)} onClick={() => setCategoryFilter(c.value)} />
+          ))}
+        </div>
+
         {/* Status filter */}
-        <div className="flex items-center gap-1 mt-3">
+        <div className="flex items-center gap-1 mt-2">
           {([["active", `Active${active.length ? ` (${active.length})` : ""}`], ["done", `Done${done.length ? ` (${done.length})` : ""}`], ["all", "All"]] as const).map(([f, label]) => (
             <button key={f} onClick={() => setFilter(f)}
               className="text-xs font-semibold px-3 py-1 rounded-full transition-colors"
               style={{
-                background: filter === f ? "var(--accent)" : "var(--surface2)",
-                color: filter === f ? "#fff" : "var(--text-secondary)",
-                border: `1px solid ${filter === f ? "var(--accent)" : "var(--border)"}`,
+                background: filter === f ? "var(--surface3, var(--surface))" : "transparent",
+                color: filter === f ? "var(--text)" : "var(--text-dim)",
+                border: `1px solid ${filter === f ? "var(--border-light)" : "transparent"}`,
               }}>
               {label}
             </button>
@@ -195,23 +225,30 @@ export default function Todos({ ownerFilter, onCountChanged }: TodosProps) {
       <div className="px-6 py-4 max-w-6xl mx-auto space-y-4">
         {loading ? (
           <p className="text-sm text-center py-10" style={{ color: "var(--text-dim)" }}>Loading…</p>
-        ) : visible.length === 0 ? (
+        ) : ownerScoped.length === 0 ? (
           <EmptyState text="Nothing on the list yet. Add the first thing above." />
         ) : (
           <>
-            {/* Active — one box per priority, cards laid out side by side */}
-            {TODO_PRIORITIES.map((p) => {
-              const items = shownActive.filter((t) => t.priority === p.value);
-              if (items.length === 0) return null;
-              return <Section key={p.value} color={p.color} label={p.label} count={items.length}>{items.map(renderItem)}</Section>;
-            })}
+            {/* Active — one box per category. All categories → 2-up grid; a single
+                selected category → one full-width box with denser cards. */}
+            <div className={oneCat ? "" : "grid grid-cols-1 lg:grid-cols-2 gap-4 items-start"}>
+              {TODO_CATEGORIES.map((c) => {
+                const items = shownActive.filter((t) => catOf(t) === c.value);
+                if (items.length === 0) return null;
+                return (
+                  <Section key={c.value} color={c.color} label={c.label} count={items.length} singleCol={!oneCat}>
+                    {items.map((t) => renderItem(t, false))}
+                  </Section>
+                );
+              })}
+            </div>
             {filter === "active" && active.length === 0 && (
-              <EmptyState text="No active to-dos — you're all caught up." />
+              <EmptyState text={oneCat ? `No active ${catMeta(categoryFilter).label} to-dos.` : "No active to-dos — you're all caught up."} />
             )}
 
-            {/* Done */}
+            {/* Done — full width, with a category tag on each card */}
             {shownDone.length > 0 && (
-              <Section color="#64748b" label="Done" count={shownDone.length}>{shownDone.map(renderItem)}</Section>
+              <Section color="#64748b" label="Done" count={shownDone.length}>{shownDone.map((t) => renderItem(t, true))}</Section>
             )}
             {filter === "done" && done.length === 0 && (
               <EmptyState text="Nothing ticked off yet." />
@@ -220,6 +257,40 @@ export default function Todos({ ownerFilter, onCountChanged }: TodosProps) {
         )}
       </div>
     </div>
+  );
+}
+
+// ─── Category filter chip ───
+function CatChip({ active, color, label, count, onClick }: { active: boolean; color: string; label: string; count: number; onClick: () => void }) {
+  return (
+    <button onClick={onClick}
+      className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full transition-colors"
+      style={{
+        background: active ? color : `${color}14`,
+        color: active ? "#fff" : color,
+        border: `1px solid ${active ? color : `${color}40`}`,
+      }}>
+      {label}
+      {count > 0 && (
+        <span className="text-[10px] font-bold px-1.5 rounded-full"
+          style={{ background: active ? "rgba(255,255,255,0.25)" : `${color}26`, color: active ? "#fff" : color }}>
+          {count}
+        </span>
+      )}
+    </button>
+  );
+}
+
+// ─── Category picker (dropdown — too many to segment) ───
+function CategoryPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <select value={value} onChange={(e) => onChange(e.target.value)} title="Category"
+      className="text-xs font-semibold rounded-lg px-2.5 py-2 flex-shrink-0 cursor-pointer"
+      style={{ background: "var(--surface2)", border: "1px solid var(--border-light)", color: "var(--text-secondary)", outline: "none" }}>
+      {TODO_CATEGORIES.map((c) => (
+        <option key={c.value} value={c.value} style={{ background: "var(--surface)", color: "var(--text)" }}>{c.label}</option>
+      ))}
+    </select>
   );
 }
 
@@ -241,8 +312,8 @@ function PriorityPicker({ value, onChange }: { value: Priority; onChange: (p: Pr
   );
 }
 
-// ─── Boxed priority / status section with a side-by-side card grid ───
-function Section({ color, label, count, children }: { color: string; label: string; count: number; children: ReactNode }) {
+// ─── Boxed category / status section with a card grid ───
+function Section({ color, label, count, singleCol, children }: { color: string; label: string; count: number; singleCol?: boolean; children: ReactNode }) {
   return (
     <div className="rounded-xl p-3" style={{ border: `1px solid ${color}40`, background: `${color}14` }}>
       <div className="flex items-center gap-2 mb-2.5 px-0.5">
@@ -250,7 +321,7 @@ function Section({ color, label, count, children }: { color: string; label: stri
         <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color }}>{label}</span>
         <span className="text-[11px] font-semibold px-1.5 rounded-full" style={{ background: `${color}26`, color }}>{count}</span>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+      <div className={singleCol ? "grid grid-cols-1 gap-2.5" : "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5"}>
         {children}
       </div>
     </div>
@@ -258,44 +329,48 @@ function Section({ color, label, count, children }: { color: string; label: stri
 }
 
 // ─── Single row ───
-function TodoItem({ todo, editing, onStartEdit, onCancelEdit, onToggle, onSave, onDelete, showOwner }: {
+function TodoItem({ todo, editing, onStartEdit, onCancelEdit, onToggle, onSave, onDelete, showOwner, showCategory }: {
   todo: Todo;
   editing: boolean;
   onStartEdit: () => void;
   onCancelEdit: () => void;
   onToggle: () => void;
-  onSave: (fields: Partial<Pick<Todo, "text" | "detail" | "priority">>) => void;
+  onSave: (fields: Partial<Pick<Todo, "text" | "detail" | "priority" | "category">>) => void;
   onDelete: () => void;
   showOwner: boolean;
+  showCategory: boolean;
 }) {
   const [text, setText] = useState(todo.text);
   const [detail, setDetail] = useState(todo.detail || "");
   const [priority, setPriority] = useState<Priority>(todo.priority);
+  const [category, setCategory] = useState<string>(catOf(todo));
 
   useEffect(() => {
-    if (editing) { setText(todo.text); setDetail(todo.detail || ""); setPriority(todo.priority); }
+    if (editing) { setText(todo.text); setDetail(todo.detail || ""); setPriority(todo.priority); setCategory(catOf(todo)); }
   }, [editing, todo]);
 
   const meta = priorityMeta(todo.priority);
+  const cat = catMeta(catOf(todo));
   const isDone = !!todo.done;
 
   if (editing) {
     return (
       <div className="rounded-lg p-3 space-y-2" style={{ background: "var(--surface)", border: "1px solid var(--accent)" }}>
         <input autoFocus value={text} onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter" && text.trim()) onSave({ text, detail, priority }); if (e.key === "Escape") onCancelEdit(); }}
+          onKeyDown={(e) => { if (e.key === "Enter" && text.trim()) onSave({ text, detail, priority, category }); if (e.key === "Escape") onCancelEdit(); }}
           className="w-full px-2 py-1.5 text-sm rounded"
           style={{ background: "var(--surface2)", border: "1px solid var(--border-light)", color: "var(--text)", outline: "none" }} />
         <textarea value={detail} onChange={(e) => setDetail(e.target.value)} rows={2} placeholder="Notes (optional)"
           className="w-full px-2 py-1.5 text-sm rounded resize-none"
           style={{ background: "var(--surface2)", border: "1px solid var(--border-light)", color: "var(--text)", outline: "none" }} />
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <CategoryPicker value={category} onChange={setCategory} />
           <PriorityPicker value={priority} onChange={setPriority} />
-          <div className="flex items-center gap-2">
-            <button onClick={onCancelEdit} className="text-xs px-3 py-1.5 rounded" style={{ color: "var(--text-dim)" }}>Cancel</button>
-            <button onClick={() => text.trim() && onSave({ text, detail, priority })} disabled={!text.trim()}
-              className="text-xs font-semibold px-3 py-1.5 rounded-lg" style={{ background: "var(--accent)", color: "#fff", opacity: text.trim() ? 1 : 0.5 }}>Save</button>
-          </div>
+        </div>
+        <div className="flex items-center justify-end gap-2">
+          <button onClick={onCancelEdit} className="text-xs px-3 py-1.5 rounded" style={{ color: "var(--text-dim)" }}>Cancel</button>
+          <button onClick={() => text.trim() && onSave({ text, detail, priority, category })} disabled={!text.trim()}
+            className="text-xs font-semibold px-3 py-1.5 rounded-lg" style={{ background: "var(--accent)", color: "#fff", opacity: text.trim() ? 1 : 0.5 }}>Save</button>
         </div>
       </div>
     );
@@ -320,6 +395,11 @@ function TodoItem({ todo, editing, onStartEdit, onCancelEdit, onToggle, onSave, 
           <p className="text-xs mt-0.5 break-words" style={{ color: "var(--text-dim)", textDecoration: isDone ? "line-through" : "none" }}>{todo.detail}</p>
         )}
         <div className="flex items-center flex-wrap gap-x-2 gap-y-1 mt-1.5">
+          {showCategory && (
+            <span className="text-[10px] font-semibold inline-flex items-center gap-1" style={{ color: cat.color }}>
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: cat.color }} />{cat.label}
+            </span>
+          )}
           {showOwner && todo.owner && (
             <span className="text-[10px] font-semibold" style={{ color: ownerColor(todo.owner) }}>{todo.owner}</span>
           )}

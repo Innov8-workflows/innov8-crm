@@ -156,6 +156,7 @@ async function doInitDb() {
       text TEXT NOT NULL,
       detail TEXT DEFAULT '',
       priority TEXT DEFAULT 'medium',
+      category TEXT DEFAULT 'general',
       done INTEGER DEFAULT 0,
       owner TEXT DEFAULT '',
       sort_order INTEGER DEFAULT 0,
@@ -243,6 +244,7 @@ async function doInitDb() {
     "ALTER TABLE leads ADD COLUMN lng REAL",
     "ALTER TABLE projects ADD COLUMN tracking_id TEXT DEFAULT ''",
     "ALTER TABLE projects ADD COLUMN last_seo_date TEXT DEFAULT ''",
+    "ALTER TABLE todos ADD COLUMN category TEXT DEFAULT 'general'",
     // Retire the 20 generic placeholder solutions in favour of Jay's real product line.
     // Soft-delete (active=0) keeps any historical entity_solutions intact (no FK cascade).
     `UPDATE solutions_catalogue SET active = 0 WHERE name IN (

@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   await initDb();
   const db = getClient();
-  const { text, priority, detail } = await request.json();
+  const { text, priority, detail, category } = await request.json();
 
   if (!text || !text.trim()) return NextResponse.json({ error: "text required" }, { status: 400 });
 
@@ -35,9 +35,9 @@ export async function POST(request: NextRequest) {
   const now = new Date().toISOString();
 
   const result = await db.execute({
-    sql: `INSERT INTO todos (text, detail, priority, owner, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?)`,
-    args: [text.trim(), (detail || "").trim(), priority || "medium", owner, now, now],
+    sql: `INSERT INTO todos (text, detail, priority, category, owner, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    args: [text.trim(), (detail || "").trim(), priority || "medium", category || "general", owner, now, now],
   });
 
   const todo = first(await db.execute({ sql: "SELECT * FROM todos WHERE id = ?", args: [result.lastInsertRowid!] }));

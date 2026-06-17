@@ -14,6 +14,7 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
   if (typeof body.text === "string") { updates.push("text = ?"); values.push(body.text.trim()); }
   if (typeof body.detail === "string") { updates.push("detail = ?"); values.push(body.detail.trim()); }
   if (typeof body.priority === "string") { updates.push("priority = ?"); values.push(body.priority); }
+  if (typeof body.category === "string") { updates.push("category = ?"); values.push(body.category); }
   if (body.done !== undefined) {
     const done = body.done ? 1 : 0;
     updates.push("done = ?"); values.push(done);

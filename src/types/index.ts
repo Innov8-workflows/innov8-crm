@@ -194,6 +194,7 @@ export interface Todo {
   text: string;
   detail: string;
   priority: "low" | "medium" | "high";
+  category: string;
   done: number;
   owner: string;
   sort_order: number;
@@ -207,4 +208,14 @@ export const TODO_PRIORITIES = [
   { value: "high", label: "High", color: "#ef4444" },
   { value: "medium", label: "Medium", color: "#f59e0b" },
   { value: "low", label: "Low", color: "#64748b" },
+] as const;
+
+// To-Do organising buckets. Each task belongs to one. 'general' is the catch-all
+// default (existing tasks migrate here). Render order = the order below.
+export const TODO_CATEGORIES = [
+  { value: "sales", label: "Sales", color: "#10b981" },
+  { value: "client", label: "Client", color: "#3b82f6" },
+  { value: "prospect_demo", label: "Prospect Demo", color: "#8b5cf6" },
+  { value: "internal", label: "Internal", color: "#14b8a6" },
+  { value: "general", label: "General", color: "#64748b" },
 ] as const;
