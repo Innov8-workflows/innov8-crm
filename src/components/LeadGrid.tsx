@@ -31,6 +31,7 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import type { Lead, EntitySolution } from "@/types";
 import { PIPELINE_STAGES, ROW_COLORS } from "@/types";
 import EditableCell from "./EditableCell";
@@ -868,6 +869,25 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
 
   const leadIds = useMemo(() => leads.map((l) => l.id), [leads]);
 
+  // --- Row virtualization ---------------------------------------------------
+  // Only the ~30 rows in (and just outside) the viewport are mounted. Previously
+  // every one of the 400+ rows rendered into the DOM at once — the single biggest
+  // source of scroll jank and a large share of the tab's memory footprint.
+  // The padding-row technique below keeps native <table> layout, the sticky
+  // header and dnd-kit's drag transforms all intact. Rows are measured live
+  // (measureElement) so the scrollbar stays exact even if a row's height varies.
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const tableRows = table.getRowModel().rows;
+  const rowVirtualizer = useVirtualizer({
+    count: tableRows.length,
+    getScrollElement: () => scrollContainerRef.current,
+    estimateSize: () => 33,
+    overscan: 12,
+  });
+  const virtualRows = rowVirtualizer.getVirtualItems();
+  const paddingTop = virtualRows.length ? virtualRows[0].start : 0;
+  const paddingBottom = virtualRows.length ? rowVirtualizer.getTotalSize() - virtualRows[virtualRows.length - 1].end : 0;
+
   const btnStyle = { background: "transparent", border: "1px solid var(--border-light)", color: "var(--text-secondary)", borderRadius: "6px" };
   const btnHover = (e: React.MouseEvent) => { (e.target as HTMLElement).style.background = "var(--surface3)"; };
   const btnLeave = (e: React.MouseEvent) => { (e.target as HTMLElement).style.background = "transparent"; };
@@ -1027,7 +1047,7 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
       </div>
 
       {/* Table */}
-      <div className="flex-1 overflow-auto">
+      <div ref={scrollContainerRef} className="flex-1 overflow-auto">
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} modifiers={[restrictToVerticalAxis]}>
           <table className="text-sm border-collapse" style={{ width: table.getTotalSize(), tableLayout: "fixed" }}>
             <thead className="sticky top-0 z-10" style={{ background: "var(--surface)" }}>
@@ -1046,9 +1066,16 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
                 <tr><td colSpan={columns.length} className="text-center py-8" style={{ color: "var(--text-tertiary)" }}>No leads found</td></tr>
               ) : (
                 <SortableContext items={leadIds} strategy={verticalListSortingStrategy}>
-                  {table.getRowModel().rows.map((row) => (
-                    <DraggableRow key={row.id} row={row} />
-                  ))}
+                  {paddingTop > 0 && (
+                    <tr aria-hidden><td colSpan={columns.length} style={{ height: paddingTop, padding: 0, border: 0 }} /></tr>
+                  )}
+                  {virtualRows.map((vr) => {
+                    const row = tableRows[vr.index];
+                    return <DraggableRow key={row.id} row={row} dataIndex={vr.index} measureRef={rowVirtualizer.measureElement} />;
+                  })}
+                  {paddingBottom > 0 && (
+                    <tr aria-hidden><td colSpan={columns.length} style={{ height: paddingBottom, padding: 0, border: 0 }} /></tr>
+                  )}
                 </SortableContext>
               )}
             </tbody>
