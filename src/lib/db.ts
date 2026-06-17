@@ -277,6 +277,8 @@ async function doInitDb() {
     CREATE INDEX IF NOT EXISTS idx_leads_lat ON leads(lat);
     CREATE INDEX IF NOT EXISTS idx_entity_solutions_entity ON entity_solutions(entity_type, entity_id);
     CREATE INDEX IF NOT EXISTS idx_entity_solutions_solution ON entity_solutions(solution_id);
+    CREATE INDEX IF NOT EXISTS idx_entity_solutions_status ON entity_solutions(status);
+    CREATE INDEX IF NOT EXISTS idx_custom_field_values_field ON custom_field_values(field_id);
     CREATE INDEX IF NOT EXISTS idx_solutions_active ON solutions_catalogue(active);
     CREATE INDEX IF NOT EXISTS idx_site_events_project ON site_events(project_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_site_events_type ON site_events(event_type);

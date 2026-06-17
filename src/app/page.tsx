@@ -74,9 +74,15 @@ export default function Home() {
 
   // Helper: render a view container that mounts on first visit, then stays
   // mounted but hidden. Avoids the costly unmount/remount/re-fetch cycle.
-  const persistedView = (id: ViewId, fallbackMessage: string, render: () => React.ReactNode) => {
+  // persist=true (default): mount on first visit, then stay mounted-but-hidden for
+  // instant nav — good for light or most-used views.
+  // persist=false: unmount when not the active view, freeing memory. Used for the
+  // heavy views (Leaflet map, AI Solutions matrix, Kanban) that were the main
+  // memory/crash drivers when kept alive forever. They re-mount (~1s) on revisit.
+  const persistedView = (id: ViewId, fallbackMessage: string, render: () => React.ReactNode, persist = true) => {
     const isVisited = visitedRef.current.has(id);
     if (!isVisited) return null;
+    if (!persist && view !== id) return null;
     return (
       <div className="flex-1 flex flex-col min-h-0" style={{ display: view === id ? "flex" : "none" }}>
         <ErrorBoundary fallbackMessage={fallbackMessage}>{render()}</ErrorBoundary>
@@ -91,11 +97,11 @@ export default function Home() {
           ownerFilter={ownerFilter} onOwnerChange={handleOwnerChange} />
         <Suspense fallback={<LoadingAI message="Loading" />}>
           {persistedView("prospects",    "Prospects failed to load",    () => <LeadGrid ownerFilter={ownerFilter} />)}
-          {persistedView("projects",     "Projects failed to load",     () => <KanbanBoard ownerFilter={ownerFilter} onCountsChanged={refreshCounts} />)}
+          {persistedView("projects",     "Projects failed to load",     () => <KanbanBoard ownerFilter={ownerFilter} onCountsChanged={refreshCounts} />, false)}
           {persistedView("clients",      "Clients failed to load",      () => <LiveClients ownerFilter={ownerFilter} onCountsChanged={refreshCounts} />)}
           {persistedView("dashboard",    "Dashboard failed to load",    () => <Dashboard ownerFilter={ownerFilter} active={view === "dashboard"} />)}
-          {persistedView("map",          "Map failed to load",          () => <MapView ownerFilter={ownerFilter} />)}
-          {persistedView("ai_solutions", "AI Solutions failed to load", () => <AISolutions />)}
+          {persistedView("map",          "Map failed to load",          () => <MapView ownerFilter={ownerFilter} />, false)}
+          {persistedView("ai_solutions", "AI Solutions failed to load", () => <AISolutions />, false)}
           {persistedView("schedule",     "Schedule failed to load",     () => <Schedule />)}
           {persistedView("todos",        "To-Do failed to load",        () => <Todos ownerFilter={ownerFilter} onCountChanged={setTodoCount} />)}
           {persistedView("pricing",      "Pricing failed to load",      () => <Pricing />)}

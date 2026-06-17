@@ -153,6 +153,10 @@ export default function MapView({ ownerFilter = "" }: { ownerFilter?: string }) 
   const [geocoding, setGeocoding] = useState(false);
   const isDark = useIsDarkTheme();
   const { toast } = useToast();
+  // The view now unmounts when not active (frees Leaflet memory). Guard async
+  // setState so a long-running geocode / fetch can't update an unmounted component.
+  const mountedRef = useRef(true);
+  useEffect(() => () => { mountedRef.current = false; }, []);
 
   const businessTypes = useMemo(() => {
     const set = new Set<string>();
@@ -168,6 +172,7 @@ export default function MapView({ ownerFilter = "" }: { ownerFilter?: string }) 
 
     const res = await fetch(`/api/leads/map?${params.toString()}`);
     const data = await res.json();
+    if (!mountedRef.current) return;
     setMarkers(data.markers || []);
     setStats(data.stats || null);
     setLoading(false);
@@ -193,20 +198,23 @@ export default function MapView({ ownerFilter = "" }: { ownerFilter?: string }) 
         totalGeocoded += data.geocoded || 0;
         totalFailed += data.failed || 0;
         const processedThisRound = (data.geocoded || 0) + (data.failed || 0);
+        if (!mountedRef.current) return;
         setGeocodeProgress((prev) => ({
           done: prev.done + processedThisRound,
           total: prev.done + processedThisRound + (data.remaining || 0),
         }));
-        // Refresh the map after every batch so pins appear incrementally
-        fetchMarkers();
         if (!data.remaining) break;
       }
+      // Refresh the map once at the end — was redrawing on every batch (~15× heavy redraws).
+      if (mountedRef.current) fetchMarkers();
       toast(`Geocoded ${totalGeocoded} location${totalGeocoded === 1 ? "" : "s"}${totalFailed ? `, ${totalFailed} unresolvable` : ""}`, "success");
     } catch {
       toast("Geocoding failed — please try again", "error");
     } finally {
-      setGeocoding(false);
-      setGeocodeProgress({ done: 0, total: 0 });
+      if (mountedRef.current) {
+        setGeocoding(false);
+        setGeocodeProgress({ done: 0, total: 0 });
+      }
     }
   };
 
