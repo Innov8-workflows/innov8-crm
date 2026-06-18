@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import type { Project } from "@/types";
 import { SOLUTION_CATEGORIES } from "@/types";
 import ProjectDetailModal from "./ProjectDetailModal";
+import SetupPills from "./SetupPills";
 import LoadingAI from "./LoadingAI";
 import SiteAnalyticsModal from "./SiteAnalyticsModal";
 import SeoGeoModal from "./SeoGeoModal";
@@ -351,6 +352,7 @@ export default function LiveClients({ ownerFilter = "", onCountsChanged }: { own
             onToggleInvoiceStatus={toggleInvoiceStatus}
             onShowAnalytics={setAnalyticsClient}
             onShowSeo={setSeoClient}
+            onToggleSetup={updateClient}
           />
         )}
       </div>
@@ -657,9 +659,10 @@ interface CardProps {
   onToggleInvoiceStatus: (id: number, currentStatus: string, e?: React.MouseEvent) => void;
   onShowAnalytics: (p: Project) => void;
   onShowSeo: (p: Project) => void;
+  onToggleSetup: (id: number, field: string, value: number) => void;
 }
 
-function CardView({ clients, productRollup, formatDate, isOverdue, onOpenProject, isLostView, onMarkLost, onReactivate, onDelete, onCycleStatus, onSendInvoice, invoicing, onToggleInvoiceStatus, onShowAnalytics, onShowSeo }: CardProps) {
+function CardView({ clients, productRollup, formatDate, isOverdue, onOpenProject, isLostView, onMarkLost, onReactivate, onDelete, onCycleStatus, onSendInvoice, invoicing, onToggleInvoiceStatus, onShowAnalytics, onShowSeo, onToggleSetup }: CardProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4">
       {clients.map((client) => {
@@ -804,6 +807,8 @@ function CardView({ clients, productRollup, formatDate, isOverdue, onOpenProject
                   </div>
                 </div>
               )}
+
+              <SetupPills values={client} onToggle={(field, next) => onToggleSetup(client.id, field, next)} />
 
               {/* Footer with action */}
               <div className="flex items-center justify-between mt-2 pt-2" style={{ borderTop: "1px solid var(--border)" }}>

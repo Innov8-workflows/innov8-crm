@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import type { Project } from "@/types";
 import { PROJECT_STAGES } from "@/types";
 import ProjectDetailModal from "./ProjectDetailModal";
+import SetupPills, { type SetupField } from "./SetupPills";
 import LoadingAI from "./LoadingAI";
 
 export default function KanbanBoard({ ownerFilter = "", onCountsChanged }: { ownerFilter?: string; onCountsChanged?: () => void }) {
@@ -31,6 +32,15 @@ export default function KanbanBoard({ ownerFilter = "", onCountsChanged }: { own
   }, [ownerFilter]);
 
   useEffect(() => { fetchProjects(); }, [fetchProjects]);
+
+  // Toggle a setup milestone (GA4 / Search Console / Business Profile) — optimistic.
+  const toggleSetup = useCallback((projectId: number, field: SetupField, next: number) => {
+    setProjects((prev) => prev.map((p) => (p.id === projectId ? { ...p, [field]: next } : p)));
+    fetch(`/api/projects/${projectId}`, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ [field]: next }),
+    }).catch(() => {});
+  }, []);
 
   const moveProject = useCallback(async (projectId: number, newStage: string) => {
     const project = projects.find((p) => p.id === projectId);
@@ -230,6 +240,7 @@ export default function KanbanBoard({ ownerFilter = "", onCountsChanged }: { own
                           </span>
                         )}
                       </div>
+                      <SetupPills values={project} onToggle={(field, next) => toggleSetup(project.id, field, next)} />
                     </div>
                   ))}
 

@@ -40,6 +40,10 @@ export interface Project {
   client_status: string;
   stripe_price_id: string;
   invoice_status: string;
+  // Foundational setup milestones, shown as toggle pills on the cards
+  ga4_embedded?: number;
+  search_console_verified?: number;
+  gbp_setup?: number;
   created_at: string;
   updated_at: string;
   // Joined from leads
