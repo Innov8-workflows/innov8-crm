@@ -213,9 +213,11 @@ export const TODO_PRIORITIES = [
 // To-Do organising buckets. Each task belongs to one. 'general' is the catch-all
 // default (existing tasks migrate here). Render order = the order below.
 export const TODO_CATEGORIES = [
-  { value: "sales", label: "Sales", color: "#10b981" },
-  { value: "client", label: "Client", color: "#3b82f6" },
-  { value: "prospect_demo", label: "Prospect Demo", color: "#8b5cf6" },
-  { value: "internal", label: "Internal", color: "#14b8a6" },
-  { value: "general", label: "General", color: "#64748b" },
+  { value: "sales", label: "Sales", color: "#10b981" },          // outreach, proposals, closing
+  { value: "client", label: "Client", color: "#3b82f6" },        // delivery + maintenance for paying clients
+  { value: "prospect_demo", label: "Prospect Demo", color: "#8b5cf6" }, // pre-sale demo builds
+  { value: "marketing", label: "Marketing", color: "#ec4899" },  // own-brand content, social, ads, SEO
+  { value: "product", label: "Product", color: "#6366f1" },      // own software — BidIQ, MarketBubbles, the CRM
+  { value: "internal", label: "Internal", color: "#14b8a6" },    // ops, admin, finance, process
+  { value: "general", label: "General", color: "#64748b" },      // catch-all / default
 ] as const;
