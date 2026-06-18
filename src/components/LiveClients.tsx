@@ -723,7 +723,7 @@ function CardView({ clients, productRollup, formatDate, isOverdue, onOpenProject
             {client.has_cover ? (
               <div className="w-full h-36 overflow-hidden" style={{ background: "var(--surface2)" }}>
                 <img
-                  src={`/api/projects/${client.id}/cover`}
+                  src={`/api/projects/${client.id}/cover?v=${client.cover_version ?? 0}`}
                   alt={client.business_name || ""}
                   className="w-full h-full object-cover"
                   style={isLostView ? { filter: "grayscale(60%)" } : {}}

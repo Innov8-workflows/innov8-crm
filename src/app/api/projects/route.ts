@@ -60,9 +60,18 @@ export async function GET(request: NextRequest) {
     const placeholders = ids.map(() => "?").join(",");
 
     const batchQueries: Promise<unknown>[] = [
-      // Just flag which projects have at least one image — no URL data transferred
+      // Per project, the id of the file the cover endpoint WOULD serve (same WHERE
+      // + ORDER BY). We hand this back as cover_version so the card's <img> can
+      // cache-bust: /cover is cached immutable, so without a version that changes
+      // when the cover changes the browser keeps showing the old image. No base64
+      // data is transferred — just the id.
       db.execute({
-        sql: `SELECT DISTINCT project_id FROM project_files WHERE project_id IN (${placeholders}) AND (file_type LIKE 'image/%' OR url LIKE 'data:image/%' OR is_cover = 1)`,
+        sql: `SELECT project_id, id AS cover_id FROM (
+                 SELECT project_id, id,
+                        ROW_NUMBER() OVER (PARTITION BY project_id ORDER BY is_cover DESC, created_at ASC) AS rn
+                 FROM project_files
+                 WHERE project_id IN (${placeholders}) AND (file_type LIKE 'image/%' OR url LIKE 'data:image/%' OR is_cover = 1)
+               ) WHERE rn = 1`,
         args: ids as never[],
       }),
     ];
@@ -76,14 +85,16 @@ export async function GET(request: NextRequest) {
     const results = await Promise.all(batchQueries);
     const hasCoverResult = results[0] as import("@libsql/client").ResultSet;
 
-    const hasCover: Record<number, boolean> = {};
+    const coverId: Record<number, number> = {};
     for (const row of all(hasCoverResult)) {
-      hasCover[row.project_id as number] = true;
+      coverId[row.project_id as number] = row.cover_id as number;
     }
 
     for (const p of projects) {
       const pid = p.id as number;
-      (p as Record<string, unknown>).has_cover = hasCover[pid] || false;
+      const cid = coverId[pid];
+      (p as Record<string, unknown>).has_cover = cid !== undefined;
+      (p as Record<string, unknown>).cover_version = cid ?? 0;
     }
 
     if (completed === "true" || paying === "true") {
@@ -101,7 +112,9 @@ export async function GET(request: NextRequest) {
   }
 
   return NextResponse.json({ projects }, {
-    headers: { "Cache-Control": "private, max-age=10" },
+    // No-store: the list feeds card cover images (cover_version) + stats, so it
+    // must reflect a cover/image change on the very next refetch, not up to 10s later.
+    headers: { "Cache-Control": "private, no-store" },
   });
 }
 

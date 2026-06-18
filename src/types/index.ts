@@ -55,6 +55,7 @@ export interface Project {
   // Enriched on list responses
   cover_image?: string | null;
   has_cover?: boolean;
+  cover_version?: number; // id of the file currently serving as cover — cache-buster for the card image
   tasks_total?: number;
   tasks_done?: number;
 }

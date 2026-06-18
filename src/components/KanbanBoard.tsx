@@ -198,7 +198,7 @@ export default function KanbanBoard({ ownerFilter = "", onCountsChanged }: { own
                       {project.has_cover && (
                         <div className="w-full h-28 -mt-3 -mx-3 mb-2 overflow-hidden rounded-t-lg" style={{ width: "calc(100% + 24px)" }}>
                           <img
-                            src={`/api/projects/${project.id}/cover`}
+                            src={`/api/projects/${project.id}/cover?v=${project.cover_version ?? 0}`}
                             alt=""
                             className="w-full h-full object-cover"
                             loading="lazy"
