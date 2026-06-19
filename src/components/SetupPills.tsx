@@ -5,6 +5,7 @@
 // Label is "Business Profile" (not "GBP") to avoid clashing with £ on the cards.
 const SETUP_ITEMS = [
   { field: "ga4_embedded", label: "GA4", title: "Google Analytics 4 embedded" },
+  { field: "ga4_conversions", label: "GA4 Conversions", title: "GA4 conversion events / key events configured" },
   { field: "search_console_verified", label: "Search Console", title: "Google Search Console verified" },
   { field: "gbp_setup", label: "Business Profile", title: "Google Business Profile set up" },
 ] as const;
@@ -12,7 +13,7 @@ const SETUP_ITEMS = [
 export type SetupField = (typeof SETUP_ITEMS)[number]["field"];
 
 export default function SetupPills({ values, onToggle }: {
-  values: { ga4_embedded?: number; search_console_verified?: number; gbp_setup?: number };
+  values: { ga4_embedded?: number; ga4_conversions?: number; search_console_verified?: number; gbp_setup?: number };
   onToggle: (field: SetupField, next: number) => void;
 }) {
   return (

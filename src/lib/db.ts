@@ -116,6 +116,7 @@ async function doInitDb() {
       project_notes TEXT DEFAULT '',
       completed_at TEXT DEFAULT '',
       ga4_embedded INTEGER DEFAULT 0,
+      ga4_conversions INTEGER DEFAULT 0,
       search_console_verified INTEGER DEFAULT 0,
       gbp_setup INTEGER DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now')),
@@ -251,6 +252,7 @@ async function doInitDb() {
     "ALTER TABLE projects ADD COLUMN ga4_embedded INTEGER DEFAULT 0",
     "ALTER TABLE projects ADD COLUMN search_console_verified INTEGER DEFAULT 0",
     "ALTER TABLE projects ADD COLUMN gbp_setup INTEGER DEFAULT 0",
+    "ALTER TABLE projects ADD COLUMN ga4_conversions INTEGER DEFAULT 0",
     // Retire the 20 generic placeholder solutions in favour of Jay's real product line.
     // Soft-delete (active=0) keeps any historical entity_solutions intact (no FK cascade).
     `UPDATE solutions_catalogue SET active = 0 WHERE name IN (

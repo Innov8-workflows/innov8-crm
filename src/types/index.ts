@@ -42,6 +42,7 @@ export interface Project {
   invoice_status: string;
   // Foundational setup milestones, shown as toggle pills on the cards
   ga4_embedded?: number;
+  ga4_conversions?: number;
   search_console_verified?: number;
   gbp_setup?: number;
   created_at: string;
