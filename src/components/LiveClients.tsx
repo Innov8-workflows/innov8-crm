@@ -5,6 +5,7 @@ import type { Project } from "@/types";
 import { SOLUTION_CATEGORIES } from "@/types";
 import ProjectDetailModal from "./ProjectDetailModal";
 import SetupPills from "./SetupPills";
+import ReviewsBadge, { type ReviewValues } from "./ReviewsBadge";
 import LoadingAI from "./LoadingAI";
 import SiteAnalyticsModal from "./SiteAnalyticsModal";
 import SeoGeoModal from "./SeoGeoModal";
@@ -79,6 +80,15 @@ export default function LiveClients({ ownerFilter = "", onCountsChanged }: { own
     });
     fetchStats();
   }, [fetchStats]);
+
+  // Save the manually-tracked Google/Facebook review stats — optimistic, one PUT.
+  const saveReviews = useCallback(async (id: number, fields: ReviewValues) => {
+    setClients((prev) => prev.map((c) => (c.id === id ? { ...c, ...fields } : c)));
+    await fetch(`/api/projects/${id}`, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(fields),
+    });
+  }, []);
 
   const markAsLost = useCallback(async (id: number, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -353,6 +363,7 @@ export default function LiveClients({ ownerFilter = "", onCountsChanged }: { own
             onShowAnalytics={setAnalyticsClient}
             onShowSeo={setSeoClient}
             onToggleSetup={updateClient}
+            onSaveReviews={saveReviews}
           />
         )}
       </div>
@@ -660,9 +671,10 @@ interface CardProps {
   onShowAnalytics: (p: Project) => void;
   onShowSeo: (p: Project) => void;
   onToggleSetup: (id: number, field: string, value: number) => void;
+  onSaveReviews: (id: number, fields: ReviewValues) => void;
 }
 
-function CardView({ clients, productRollup, formatDate, isOverdue, onOpenProject, isLostView, onMarkLost, onReactivate, onDelete, onCycleStatus, onSendInvoice, invoicing, onToggleInvoiceStatus, onShowAnalytics, onShowSeo, onToggleSetup }: CardProps) {
+function CardView({ clients, productRollup, formatDate, isOverdue, onOpenProject, isLostView, onMarkLost, onReactivate, onDelete, onCycleStatus, onSendInvoice, invoicing, onToggleInvoiceStatus, onShowAnalytics, onShowSeo, onToggleSetup, onSaveReviews }: CardProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4">
       {clients.map((client) => {
@@ -819,6 +831,7 @@ function CardView({ clients, productRollup, formatDate, isOverdue, onOpenProject
                 </div>
               )}
 
+              <ReviewsBadge values={client} onSave={(f) => onSaveReviews(client.id, f)} />
               <SetupPills values={client} onToggle={(field, next) => onToggleSetup(client.id, field, next)} />
 
               {/* Footer with action */}

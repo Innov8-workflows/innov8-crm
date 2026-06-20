@@ -45,6 +45,11 @@ export interface Project {
   ga4_conversions?: number;
   search_console_verified?: number;
   gbp_setup?: number;
+  // Manually-maintained review stats, shown as chips on the cards
+  google_rating?: number;
+  google_review_count?: number;
+  facebook_rating?: number;
+  facebook_review_count?: number;
   created_at: string;
   updated_at: string;
   // Joined from leads

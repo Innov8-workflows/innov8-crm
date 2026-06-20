@@ -119,6 +119,10 @@ async function doInitDb() {
       ga4_conversions INTEGER DEFAULT 0,
       search_console_verified INTEGER DEFAULT 0,
       gbp_setup INTEGER DEFAULT 0,
+      google_rating REAL DEFAULT 0,
+      google_review_count INTEGER DEFAULT 0,
+      facebook_rating REAL DEFAULT 0,
+      facebook_review_count INTEGER DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (lead_id) REFERENCES leads(id)
@@ -253,6 +257,10 @@ async function doInitDb() {
     "ALTER TABLE projects ADD COLUMN search_console_verified INTEGER DEFAULT 0",
     "ALTER TABLE projects ADD COLUMN gbp_setup INTEGER DEFAULT 0",
     "ALTER TABLE projects ADD COLUMN ga4_conversions INTEGER DEFAULT 0",
+    "ALTER TABLE projects ADD COLUMN google_rating REAL DEFAULT 0",
+    "ALTER TABLE projects ADD COLUMN google_review_count INTEGER DEFAULT 0",
+    "ALTER TABLE projects ADD COLUMN facebook_rating REAL DEFAULT 0",
+    "ALTER TABLE projects ADD COLUMN facebook_review_count INTEGER DEFAULT 0",
     // Retire the 20 generic placeholder solutions in favour of Jay's real product line.
     // Soft-delete (active=0) keeps any historical entity_solutions intact (no FK cascade).
     `UPDATE solutions_catalogue SET active = 0 WHERE name IN (

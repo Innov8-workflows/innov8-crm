@@ -5,6 +5,7 @@ import type { Project } from "@/types";
 import { PROJECT_STAGES } from "@/types";
 import ProjectDetailModal from "./ProjectDetailModal";
 import SetupPills, { type SetupField } from "./SetupPills";
+import ReviewsBadge, { type ReviewValues } from "./ReviewsBadge";
 import LoadingAI from "./LoadingAI";
 
 export default function KanbanBoard({ ownerFilter = "", onCountsChanged }: { ownerFilter?: string; onCountsChanged?: () => void }) {
@@ -39,6 +40,15 @@ export default function KanbanBoard({ ownerFilter = "", onCountsChanged }: { own
     fetch(`/api/projects/${projectId}`, {
       method: "PUT", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ [field]: next }),
+    }).catch(() => {});
+  }, []);
+
+  // Save the manually-tracked Google/Facebook review stats — optimistic, one PUT.
+  const saveReviews = useCallback((projectId: number, fields: ReviewValues) => {
+    setProjects((prev) => prev.map((p) => (p.id === projectId ? { ...p, ...fields } : p)));
+    fetch(`/api/projects/${projectId}`, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(fields),
     }).catch(() => {});
   }, []);
 
@@ -249,6 +259,7 @@ export default function KanbanBoard({ ownerFilter = "", onCountsChanged }: { own
                           </span>
                         )}
                       </div>
+                      <ReviewsBadge values={project} onSave={(f) => saveReviews(project.id, f)} />
                       <SetupPills values={project} onToggle={(field, next) => toggleSetup(project.id, field, next)} />
                     </div>
                   ))}
