@@ -224,9 +224,18 @@ export default function KanbanBoard({ ownerFilter = "", onCountsChanged }: { own
                         {project.contact_name || "No contact"} {project.business_type ? `· ${project.business_type}` : ""}
                       </p>
                       {project.domain && (
-                        <p className="text-xs mt-1 truncate" style={{ color: "var(--accent)" }}>
+                        <a
+                          href={/^https?:\/\//i.test(project.domain) ? project.domain : `https://${project.domain}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title={`Open ${project.domain}`}
+                          onClick={(e) => e.stopPropagation()}
+                          onMouseDown={(e) => e.stopPropagation()}
+                          className="block text-xs mt-1 truncate hover:underline"
+                          style={{ color: "var(--accent)" }}
+                        >
                           {project.domain}
-                        </p>
+                        </a>
                       )}
                       <div className="flex items-center justify-between mt-2">
                         <span className="text-xs" style={{ color: "var(--text-tertiary)" }}>

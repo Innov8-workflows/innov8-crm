@@ -793,7 +793,18 @@ function CardView({ clients, productRollup, formatDate, isOverdue, onOpenProject
               )}
 
               {client.domain && (
-                <p className="text-xs mt-1 truncate" style={{ color: "var(--accent)" }}>{client.domain}</p>
+                <a
+                  href={/^https?:\/\//i.test(client.domain) ? client.domain : `https://${client.domain}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={`Open ${client.domain}`}
+                  onClick={(e) => e.stopPropagation()}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  className="block text-xs mt-1 truncate hover:underline"
+                  style={{ color: "var(--accent)" }}
+                >
+                  {client.domain}
+                </a>
               )}
 
               {client.tasks_total !== undefined && client.tasks_total > 0 && (
