@@ -30,15 +30,16 @@ export async function GET(request: NextRequest) {
 
   const stats = first(await db.execute({ sql: countsSql, args: args as never[] }));
 
-  // Money is product-driven: sum the sold/delivered product line items attached to
-  // each client lead (base plan + add-ons). Replaces the old projects.monthly_fee /
-  // leads.capex manual fields.
+  // Money is product-driven: sum every attached (non-declined) product line item on
+  // each client lead — base plan + add-ons — so the board total matches exactly what
+  // the cards show. The card value badges come from /api/leads/product-rollup, which
+  // also counts everything except 'declined', so this status filter must mirror it.
   const moneySql = `SELECT
     COALESCE(SUM(es.monthly_upcharge), 0) as mrr,
     COALESCE(SUM(es.upfront_charged), 0) as capex
   FROM entity_solutions es
   JOIN leads l ON es.entity_type = 'lead' AND es.entity_id = l.id
-  WHERE es.status IN ('sold','delivered')
+  WHERE es.status != 'declined'
     AND EXISTS (
       SELECT 1 FROM projects p WHERE p.lead_id = l.id AND p.stage != 'onboarding'
         AND (p.client_status IN ('active','refine') OR p.client_status IS NULL)
