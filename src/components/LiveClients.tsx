@@ -749,7 +749,8 @@ function CardView({ clients, productRollup, formatDate, isOverdue, onOpenProject
               );
             })()}
 
-            {/* Cover Image */}
+            {/* Cover Image — with the latest SEO/GEO score overlaid top-left */}
+            <div className="relative">
             {client.has_cover ? (
               <div className="w-full h-36 overflow-hidden" style={{ background: "var(--surface2)" }}>
                 <img
@@ -769,6 +770,24 @@ function CardView({ clients, productRollup, formatDate, isOverdue, onOpenProject
                 </svg>
               </div>
             )}
+            {client.seo_score != null && (() => {
+              const s = client.seo_score as number;
+              const p = client.seo_score_prev;
+              const band = s >= 7 ? "#4ade80" : s >= 4 ? "#fbbf24" : "#f87171";
+              const trend = (p != null) ? (s > p ? "up" : s < p ? "down" : "same") : null;
+              return (
+                <span className="absolute top-2 left-2 z-10 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold"
+                  style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", border: "1px solid rgba(255,255,255,0.12)" }}
+                  title="Latest SEO/GEO score">
+                  <span style={{ color: "#cbd5e1", fontWeight: 600 }}>SEO</span>
+                  <span style={{ color: band }}>{s}/10</span>
+                  {trend === "up" && <span style={{ color: "#22c55e" }}>↑</span>}
+                  {trend === "down" && <span style={{ color: "#ef4444" }}>↓</span>}
+                  {trend === "same" && <span style={{ color: "#94a3b8" }}>–</span>}
+                </span>
+              );
+            })()}
+            </div>
 
             {/* Card Body */}
             <div className="p-3">
