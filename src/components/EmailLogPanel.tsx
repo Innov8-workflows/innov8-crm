@@ -79,7 +79,7 @@ export default function EmailLogPanel({ lead, onClose }: EmailLogPanelProps) {
       <div className="p-4" style={{ borderBottom: "1px solid var(--border)", background: "var(--stats-bg)" }}>
         <div className="grid grid-cols-2 gap-2 text-sm">
           {[["Contact", lead.contact_name], ["Email", lead.email], ["Phone", lead.phone], ["Type", lead.business_type]].map(([l, v]) => (
-            <div key={l}><span style={{ color: "var(--text-dim)" }}>{l}:</span> <span style={{ color: "var(--text-secondary)" }}>{v || "—"}</span></div>
+            <div key={l}><span style={{ color: "var(--text-dim)" }}>{l}:</span> <span className={["Contact", "Email", "Phone"].includes(l as string) ? "cf-name" : ""} style={{ color: "var(--text-secondary)" }}>{v || "—"}</span></div>
           ))}
           {lead.demo_site_url && (
             <div className="col-span-2"><span style={{ color: "var(--text-dim)" }}>Demo:</span>{" "}

@@ -220,7 +220,7 @@ export default function KanbanBoard({ ownerFilter = "", onCountsChanged }: { own
                           <img
                             src={`/api/projects/${project.id}/cover?v=${project.cover_version ?? 0}`}
                             alt=""
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-cover cf-img"
                             loading="lazy"
                             decoding="async"
                             onError={(e) => { (e.currentTarget.parentElement as HTMLElement).style.display = "none"; }}
@@ -241,7 +241,7 @@ export default function KanbanBoard({ ownerFilter = "", onCountsChanged }: { own
                           title={`Open ${project.domain}`}
                           onClick={(e) => e.stopPropagation()}
                           onMouseDown={(e) => e.stopPropagation()}
-                          className="block text-xs mt-1 truncate hover:underline"
+                          className="block text-xs mt-1 truncate hover:underline cf-name"
                           style={{ color: "var(--accent)" }}
                         >
                           {project.domain}

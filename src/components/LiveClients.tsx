@@ -600,7 +600,7 @@ function GridView({ clients, sortKey, sortDir, onSort, editingCell, editValue, o
 
             if (col.key === "domain") {
               return (
-                <span key={col.key} className="text-xs px-2 truncate cursor-pointer" style={{ color: rawValue ? "var(--accent)" : "var(--text-quaternary)" }}
+                <span key={col.key} className="text-xs px-2 truncate cursor-pointer cf-name" style={{ color: rawValue ? "var(--accent)" : "var(--text-quaternary)" }}
                   onClick={() => col.editable && onStartEdit(client.id, col.key, rawValue as string | number)}>
                   {String(rawValue) || "—"}
                 </span>
@@ -608,7 +608,7 @@ function GridView({ clients, sortKey, sortDir, onSort, editingCell, editValue, o
             }
 
             return (
-              <span key={col.key} className={`text-xs px-2 truncate ${col.editable ? "cursor-pointer" : ""} ${col.key === "contact_name" ? "cf-name" : ""}`}
+              <span key={col.key} className={`text-xs px-2 truncate ${col.editable ? "cursor-pointer" : ""} ${["contact_name", "email", "phone"].includes(col.key) ? "cf-name" : ""}`}
                 style={{ color: rawValue ? "var(--text-secondary)" : "var(--text-quaternary)" }}
                 onClick={() => col.editable && onStartEdit(client.id, col.key, rawValue as string | number)}>
                 {String(rawValue) || "—"}
@@ -756,7 +756,7 @@ function CardView({ clients, productRollup, formatDate, isOverdue, onOpenProject
                 <img
                   src={`/api/projects/${client.id}/cover?v=${client.cover_version ?? 0}`}
                   alt={client.business_name || ""}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover cf-img"
                   style={isLostView ? { filter: "grayscale(60%)" } : {}}
                   loading="lazy"
                   decoding="async"
@@ -846,7 +846,7 @@ function CardView({ clients, productRollup, formatDate, isOverdue, onOpenProject
                   title={`Open ${client.domain}`}
                   onClick={(e) => e.stopPropagation()}
                   onMouseDown={(e) => e.stopPropagation()}
-                  className="block text-xs mt-1 truncate hover:underline"
+                  className="block text-xs mt-1 truncate hover:underline cf-name"
                   style={{ color: "var(--accent)" }}
                 >
                   {client.domain}

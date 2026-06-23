@@ -186,13 +186,18 @@ input:focus, select:focus, textarea:focus {
    recordings / demos. The header toggle adds .cf-on to <html>. Discrete names
    carry .cf-name; the data grids blur by column via the <td data-col> attribute
    so we don't have to tag every cell. */
-.cf-name,
-td[data-col="business_name"], td[data-col="contact_name"] {
+.cf-name, .cf-img,
+td[data-col="business_name"], td[data-col="contact_name"],
+td[data-col="email"], td[data-col="phone"], td[data-col="demo_site_url"], td[data-col="domain"] {
   transition: filter 0.12s ease;
 }
 html.cf-on .cf-name,
-html.cf-on td[data-col="business_name"],
-html.cf-on td[data-col="contact_name"] {
+html.cf-on td[data-col="business_name"], html.cf-on td[data-col="contact_name"],
+html.cf-on td[data-col="email"], html.cf-on td[data-col="phone"],
+html.cf-on td[data-col="demo_site_url"], html.cf-on td[data-col="domain"] {
   filter: blur(6px) !important;
   user-select: none;
 }
+/* Cover images get a heavier blur so client branding / logos in the screenshot
+   aren't legible either. */
+html.cf-on .cf-img { filter: blur(16px) !important; }
