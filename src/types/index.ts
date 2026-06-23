@@ -68,6 +68,21 @@ export interface Project {
   cover_version?: number; // id of the file currently serving as cover — cache-buster for the card image
   tasks_total?: number;
   tasks_done?: number;
+  // Latest SEO report score + the one before it (for the card trend arrow) + its date
+  seo_score?: number;
+  seo_score_prev?: number;
+  seo_report_date?: string;
+}
+
+// An uploaded/linked SEO report with a score, tracked over time per client
+export interface SeoReport {
+  id: number;
+  score: number;
+  report_url: string;   // base64 data URL (uploaded file) OR external link
+  report_name: string;
+  report_type: string;  // mime type, or 'link'
+  notes: string;
+  logged_at: string;    // the report's date
 }
 
 export interface ProjectTask {

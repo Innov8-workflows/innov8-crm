@@ -198,6 +198,20 @@ async function doInitDb() {
       FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS seo_reports (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      project_id INTEGER NOT NULL,
+      score REAL DEFAULT 0,
+      report_url TEXT DEFAULT '',
+      report_name TEXT DEFAULT '',
+      report_type TEXT DEFAULT '',
+      notes TEXT DEFAULT '',
+      logged_at TEXT DEFAULT (datetime('now')),
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_seo_reports_project ON seo_reports(project_id);
+
     CREATE TABLE IF NOT EXISTS site_events (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       project_id INTEGER NOT NULL,

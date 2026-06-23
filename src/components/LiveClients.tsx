@@ -706,30 +706,45 @@ function CardView({ clients, productRollup, formatDate, isOverdue, onOpenProject
 
             {/* Last SEO / GEO badge bar — sits above the cover image */}
             {(() => {
-              const lastSeo = client.last_seo_date;
-              const ago = lastSeo ? Math.floor((Date.now() - new Date(lastSeo).getTime()) / 86400000) : null;
+              // Freshness comes from the most recent of a task-log date OR a report's date.
+              const effDate = [client.last_seo_date, client.seo_report_date].filter(Boolean).sort().pop() || "";
+              const ago = effDate ? Math.floor((Date.now() - new Date(effDate).getTime()) / 86400000) : null;
               const stale = ago === null || ago > 30;
               const warning = ago !== null && ago > 14 && ago <= 30;
               const fresh = ago !== null && ago <= 14;
-              const label = lastSeo === undefined || !lastSeo
+              const label = !effDate
                 ? "No SEO/GEO logged yet"
                 : ago === 0 ? "Today" : ago === 1 ? "Yesterday" : `${ago} days ago`;
               const color = stale ? "#ef4444" : warning ? "#f59e0b" : fresh ? "#22c55e" : "var(--text-dim)";
+              const score = client.seo_score;
+              const prev = client.seo_score_prev;
+              const hasScore = score !== undefined && score !== null;
+              const trend = (score != null && prev != null)
+                ? (score > prev ? "up" : score < prev ? "down" : "same") : null;
               return (
                 <button
                   onClick={(e) => { e.stopPropagation(); onShowSeo(client); }}
-                  className="w-full px-3 py-1.5 flex items-center justify-between text-xs transition-colors"
+                  className="w-full px-3 py-1.5 flex items-center justify-between gap-2 text-xs transition-colors"
                   style={{ background: "var(--surface2)", borderBottom: "1px solid var(--border)", color: "var(--text-secondary)" }}
                   onMouseEnter={(e) => { e.currentTarget.style.background = "var(--accent-subtle)"; }}
                   onMouseLeave={(e) => { e.currentTarget.style.background = "var(--surface2)"; }}
-                  title="Click to log SEO / GEO maintenance work"
+                  title="Click to log SEO / GEO work + upload a score report"
                 >
-                  <span className="flex items-center gap-1.5">
+                  <span className="flex items-center gap-1.5 min-w-0">
                     <span style={{ color }}>●</span>
                     <span style={{ color: "var(--text-dim)" }}>Last SEO/GEO:</span>
-                    <span style={{ color, fontWeight: 600 }}>{label}</span>
+                    <span className="truncate" style={{ color, fontWeight: 600 }}>{label}</span>
                   </span>
-                  <span className="text-[10px]" style={{ color: "var(--text-quaternary)" }}>Log →</span>
+                  {hasScore ? (
+                    <span className="flex items-center gap-1 flex-shrink-0 font-semibold">
+                      <span style={{ color: "var(--text-secondary)" }}>{score}/10</span>
+                      {trend === "up" && <span style={{ color: "#22c55e" }}>↑</span>}
+                      {trend === "down" && <span style={{ color: "#ef4444" }}>↓</span>}
+                      {trend === "same" && <span style={{ color: "var(--text-dim)" }}>–</span>}
+                    </span>
+                  ) : (
+                    <span className="text-[10px] flex-shrink-0" style={{ color: "var(--text-quaternary)" }}>Log →</span>
+                  )}
                 </button>
               );
             })()}

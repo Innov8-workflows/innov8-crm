@@ -74,6 +74,18 @@ export async function GET(request: NextRequest) {
                ) WHERE rn = 1`,
         args: ids as never[],
       }),
+      // Per project, the latest two SEO report scores (+ latest date) so the client
+      // card can show "score/10 + ↑/↓ trend" without an N-call fan-out. rn=1 is the
+      // latest, rn=2 the previous. (Same window-function shape as cover_version.)
+      db.execute({
+        sql: `SELECT project_id, score, logged_at, rn FROM (
+                 SELECT project_id, score, logged_at,
+                        ROW_NUMBER() OVER (PARTITION BY project_id ORDER BY logged_at DESC, id DESC) AS rn
+                 FROM seo_reports
+                 WHERE project_id IN (${placeholders})
+               ) WHERE rn <= 2`,
+        args: ids as never[],
+      }),
     ];
 
     if (completed === "true" || paying === "true") {
@@ -97,8 +109,26 @@ export async function GET(request: NextRequest) {
       (p as Record<string, unknown>).cover_version = cid ?? 0;
     }
 
+    // Latest + previous SEO report score per project (for the card trend).
+    const seoResult = results[1] as import("@libsql/client").ResultSet;
+    const seoLatest: Record<number, { score: number; date: string }> = {};
+    const seoPrev: Record<number, number> = {};
+    for (const row of all(seoResult)) {
+      const pid = row.project_id as number;
+      if ((row.rn as number) === 1) seoLatest[pid] = { score: Number(row.score), date: String(row.logged_at) };
+      else seoPrev[pid] = Number(row.score);
+    }
+    for (const p of projects) {
+      const pid = p.id as number;
+      if (seoLatest[pid]) {
+        (p as Record<string, unknown>).seo_score = seoLatest[pid].score;
+        (p as Record<string, unknown>).seo_report_date = seoLatest[pid].date;
+      }
+      if (seoPrev[pid] !== undefined) (p as Record<string, unknown>).seo_score_prev = seoPrev[pid];
+    }
+
     if (completed === "true" || paying === "true") {
-      const taskResult = results[1] as import("@libsql/client").ResultSet;
+      const taskResult = results[2] as import("@libsql/client").ResultSet;
       const taskStats: Record<number, { total: number; done: number }> = {};
       for (const row of all(taskResult)) {
         taskStats[row.project_id as number] = { total: row.total as number, done: row.done as number };
