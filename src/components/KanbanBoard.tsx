@@ -227,11 +227,11 @@ export default function KanbanBoard({ ownerFilter = "", onCountsChanged }: { own
                           />
                         </div>
                       )}
-                      <h3 className="text-sm font-medium truncate" style={{ color: "var(--text)" }}>
+                      <h3 className="text-sm font-medium truncate cf-name" style={{ color: "var(--text)" }}>
                         {project.business_name}
                       </h3>
                       <p className="text-xs mt-1 truncate" style={{ color: "var(--text-dim)" }}>
-                        {project.contact_name || "No contact"} {project.business_type ? `· ${project.business_type}` : ""}
+                        <span className="cf-name">{project.contact_name || "No contact"}</span> {project.business_type ? `· ${project.business_type}` : ""}
                       </p>
                       {project.domain && (
                         <a

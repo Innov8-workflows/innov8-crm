@@ -67,7 +67,7 @@ export default function EmailLogPanel({ lead, onClose }: EmailLogPanelProps) {
     <div className="fixed inset-y-0 right-0 w-full sm:w-[420px] shadow-2xl z-50 flex flex-col"
       style={{ background: "var(--surface)", borderLeft: "1px solid var(--border)" }}>
       <div className="flex items-center justify-between p-4" style={{ borderBottom: "1px solid var(--border)" }}>
-        <h2 className="text-lg font-semibold truncate" style={{ color: "var(--text)" }}>{lead.business_name}</h2>
+        <h2 className="text-lg font-semibold truncate cf-name" style={{ color: "var(--text)" }}>{lead.business_name}</h2>
         <button onClick={onClose} className="p-1 rounded transition-colors" style={{ color: "var(--text-dim)" }}
           onMouseEnter={(e) => e.currentTarget.style.color = "#f0f0f0"}
           onMouseLeave={(e) => e.currentTarget.style.color = "#666"}>

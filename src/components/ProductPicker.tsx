@@ -111,7 +111,7 @@ export default function ProductPicker({ leadId, businessName, onClose, onChanged
           <Icon name="currency-pound" className="w-4 h-4 flex-shrink-0" style={{ color: "var(--accent)" }} />
           <div className="min-w-0">
             <p className="text-sm font-bold truncate" style={{ color: "var(--text)" }}>Products</p>
-            {businessName && <p className="text-[11px] truncate" style={{ color: "var(--text-dim)" }}>{businessName}</p>}
+            {businessName && <p className="text-[11px] truncate cf-name" style={{ color: "var(--text-dim)" }}>{businessName}</p>}
           </div>
         </div>
         {onClose && (

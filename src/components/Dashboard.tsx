@@ -432,7 +432,7 @@ function TopAISolutionsPanel({ solutions, onRefresh }: { solutions: SolutionsSta
                             background: b.entity_type === "project" ? "#22c55e25" : "var(--surface2)",
                             color: b.entity_type === "project" ? "#22c55e" : "var(--text-dim)",
                           }}>{b.entity_type === "project" ? "Client" : "Lead"}</span>
-                        <span className="flex-1 truncate" style={{ color: "var(--text)" }}>{b.business_name}</span>
+                        <span className="flex-1 truncate cf-name" style={{ color: "var(--text)" }}>{b.business_name}</span>
                         <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded flex-shrink-0"
                           style={{ background: b.status === "delivered" ? "#05966925" : "#22c55e25", color: b.status === "delivered" ? "#059669" : "#22c55e" }}>
                           {b.status}

@@ -537,7 +537,7 @@ function MatrixView({ solutions }: { solutions: Solution[] }) {
               <tr key={`${row.entity_type}:${row.entity_id}`} style={{ borderBottom: "1px solid var(--border)" }}>
                 <td className="px-3 py-2 sticky left-0" style={{ background: "var(--surface)", borderRight: "1px solid var(--border)" }}>
                   <div className="flex items-center gap-2">
-                    <span style={{ color: "var(--text)" }}>{row.business_name || "(unnamed)"}</span>
+                    <span className="cf-name" style={{ color: "var(--text)" }}>{row.business_name || "(unnamed)"}</span>
                     <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded"
                       style={{
                         background: row.entity_type === "project" ? "#22c55e25" : "var(--surface2)",
@@ -643,7 +643,7 @@ function CellEditor({ state, onClose, onSetStatus, onRemove }: {
         border: "2px solid var(--accent)",
       }}>
       <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--border)" }}>
-        <p className="text-xs font-semibold uppercase tracking-wider mb-0.5" style={{ color: "var(--text-dim)" }}>
+        <p className="text-xs font-semibold uppercase tracking-wider mb-0.5 cf-name" style={{ color: "var(--text-dim)" }}>
           {state.row.business_name || "(unnamed)"}
         </p>
         <p className="text-sm font-bold" style={{ color: "var(--text)" }}>{state.solution.name}</p>

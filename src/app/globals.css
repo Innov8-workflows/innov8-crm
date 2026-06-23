@@ -181,3 +181,18 @@ input:focus, select:focus, textarea:focus {
   border-color: var(--accent) !important;
   box-shadow: 0 0 0 1px var(--accent);
 }
+
+/* Content Filter — blurs every client-identifying name across the app for screen
+   recordings / demos. The header toggle adds .cf-on to <html>. Discrete names
+   carry .cf-name; the data grids blur by column via the <td data-col> attribute
+   so we don't have to tag every cell. */
+.cf-name,
+td[data-col="business_name"], td[data-col="contact_name"] {
+  transition: filter 0.12s ease;
+}
+html.cf-on .cf-name,
+html.cf-on td[data-col="business_name"],
+html.cf-on td[data-col="contact_name"] {
+  filter: blur(6px) !important;
+  user-select: none;
+}

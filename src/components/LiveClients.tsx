@@ -412,7 +412,7 @@ export default function LiveClients({ ownerFilter = "", onCountsChanged }: { own
               </div>
               <div>
                 <h3 className="text-sm font-semibold" style={{ color: "var(--text)" }}>Delete Client Permanently</h3>
-                <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+                <p className="text-xs mt-0.5 cf-name" style={{ color: "var(--text-muted)" }}>
                   {clients.find((c) => c.id === confirmDelete)?.business_name}
                 </p>
               </div>
@@ -566,7 +566,7 @@ function GridView({ clients, sortKey, sortDir, onSort, editingCell, editValue, o
 
             if (col.key === "business_name") {
               return (
-                <button key={col.key} className="text-xs font-medium px-2 text-left truncate" style={{ color: "var(--text)" }}
+                <button key={col.key} className="text-xs font-medium px-2 text-left truncate cf-name" style={{ color: "var(--text)" }}
                   onClick={() => onOpenProject(client)}>
                   {String(rawValue)}
                 </button>
@@ -608,7 +608,7 @@ function GridView({ clients, sortKey, sortDir, onSort, editingCell, editValue, o
             }
 
             return (
-              <span key={col.key} className={`text-xs px-2 truncate ${col.editable ? "cursor-pointer" : ""}`}
+              <span key={col.key} className={`text-xs px-2 truncate ${col.editable ? "cursor-pointer" : ""} ${col.key === "contact_name" ? "cf-name" : ""}`}
                 style={{ color: rawValue ? "var(--text-secondary)" : "var(--text-quaternary)" }}
                 onClick={() => col.editable && onStartEdit(client.id, col.key, rawValue as string | number)}>
                 {String(rawValue) || "—"}
@@ -793,9 +793,9 @@ function CardView({ clients, productRollup, formatDate, isOverdue, onOpenProject
             <div className="p-3">
               <div className="flex items-start justify-between mb-1">
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-sm font-semibold truncate" style={{ color: "var(--text)" }}>{client.business_name}</h3>
+                  <h3 className="text-sm font-semibold truncate cf-name" style={{ color: "var(--text)" }}>{client.business_name}</h3>
                   <p className="text-xs truncate" style={{ color: "var(--text-dim)" }}>
-                    {client.contact_name}{client.business_type ? ` · ${client.business_type}` : ""}
+                    <span className="cf-name">{client.contact_name}</span>{client.business_type ? ` · ${client.business_type}` : ""}
                   </p>
                 </div>
                 <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">

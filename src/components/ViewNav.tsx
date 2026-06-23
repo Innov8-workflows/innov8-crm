@@ -32,6 +32,7 @@ export default function ViewNav({ active, onChange, projectCount = 0, clientCoun
   const [users, setUsers] = useState<string[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [contentFilter, setContentFilter] = useState(false);
 
   useEffect(() => {
     fetch("/api/users").then((r) => r.json()).then((d) => setUsers(d.users || []));
@@ -45,6 +46,22 @@ export default function ViewNav({ active, onChange, projectCount = 0, clientCoun
     document.addEventListener("mousedown", handle);
     return () => document.removeEventListener("mousedown", handle);
   }, [showDropdown]);
+
+  // Content Filter — blur every client name app-wide (for screen recordings / demos).
+  // Persisted in localStorage; applied by toggling .cf-on on <html> (see globals.css).
+  useEffect(() => {
+    const on = typeof window !== "undefined" && localStorage.getItem("crm_content_filter") === "1";
+    setContentFilter(on);
+    document.documentElement.classList.toggle("cf-on", on);
+  }, []);
+  const toggleContentFilter = () => {
+    setContentFilter((prev) => {
+      const next = !prev;
+      try { localStorage.setItem("crm_content_filter", next ? "1" : "0"); } catch {}
+      document.documentElement.classList.toggle("cf-on", next);
+      return next;
+    });
+  };
 
   const ownerLabel = ownerFilter === "" ? "All" : ownerFilter === "__unassigned__" ? "Unassigned" : ownerFilter;
   const ownerBtnColor = ownerFilter === "Truthfu1" ? "var(--accent)" : ownerFilter === "LowKey" ? "#c084fc" : ownerFilter ? "var(--accent)" : "";
@@ -140,6 +157,21 @@ export default function ViewNav({ active, onChange, projectCount = 0, clientCoun
           </div>
         )}
       </div>
+
+      {/* Content Filter — blur all client names (for recording demos / TikToks) */}
+      <button
+        onClick={toggleContentFilter}
+        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-colors text-xs flex-shrink-0"
+        style={{
+          background: contentFilter ? "var(--accent)" : "var(--surface2)",
+          border: `1px solid ${contentFilter ? "var(--accent)" : "var(--border-light)"}`,
+          color: contentFilter ? "#fff" : "var(--text-muted)",
+        }}
+        title="Content Filter — blur all client names across the app (for screen recordings / demos)"
+      >
+        <Icon name="eye" className="w-3.5 h-3.5" />
+        <span className="hidden lg:inline">{contentFilter ? "Filter On" : "Content Filter"}</span>
+      </button>
 
       {/* Theme toggle */}
       <button

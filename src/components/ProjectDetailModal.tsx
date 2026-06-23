@@ -220,9 +220,9 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
         {/* Header */}
         <div className="flex items-start justify-between p-5" style={{ borderBottom: "1px solid var(--border)" }}>
           <div className="flex-1 min-w-0">
-            <h2 className="text-xl font-bold truncate" style={{ color: "var(--text)" }}>{details.business_name}</h2>
+            <h2 className="text-xl font-bold truncate cf-name" style={{ color: "var(--text)" }}>{details.business_name}</h2>
             <div className="flex items-center gap-3 mt-1">
-              <span className="text-sm" style={{ color: "var(--text-muted)" }}>{details.contact_name} · {details.email}</span>
+              <span className="text-sm" style={{ color: "var(--text-muted)" }}><span className="cf-name">{details.contact_name}</span> · {details.email}</span>
               <span className="px-2 py-0.5 rounded-full text-xs font-medium"
                 style={{ background: PROJECT_STAGES.find((s) => s.value === details.stage)?.color + "25",
                   color: PROJECT_STAGES.find((s) => s.value === details.stage)?.color }}>

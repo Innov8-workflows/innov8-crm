@@ -103,9 +103,9 @@ function ClusteredMarkers({ markers }: { markers: Marker[] }) {
       const stageLabel = PIPELINE_STAGES.find((s) => s.value === m.status)?.label || m.status || "New";
       const popup = `
         <div style="font-family:'Bricolage Grotesque',sans-serif;min-width:200px">
-          <div style="font-weight:700;font-size:14px;margin-bottom:4px">${escape(m.business_name)}</div>
+          <div class="cf-name" style="font-weight:700;font-size:14px;margin-bottom:4px">${escape(m.business_name)}</div>
           <div style="font-size:12px;color:#666;margin-bottom:6px">
-            ${m.contact_name ? escape(m.contact_name) + " · " : ""}${escape(m.business_type || "Unknown")}
+            ${m.contact_name ? `<span class="cf-name">${escape(m.contact_name)}</span> · ` : ""}${escape(m.business_type || "Unknown")}
           </div>
           <div style="font-size:11px;color:#888;margin-bottom:8px">${PIN_SVG}${escape(m.location)}</div>
           <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">

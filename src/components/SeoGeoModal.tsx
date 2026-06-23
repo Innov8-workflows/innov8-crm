@@ -170,7 +170,7 @@ export default function SeoGeoModal({ project, onClose, onLogged }: {
         <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: "1px solid var(--border)" }}>
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-dim)" }}>SEO / GEO Maintenance</p>
-            <h2 className="text-lg font-bold" style={{ color: "var(--text)" }}>{project.business_name}</h2>
+            <h2 className="text-lg font-bold cf-name" style={{ color: "var(--text)" }}>{project.business_name}</h2>
           </div>
           <button onClick={onClose} className="p-1 rounded" style={{ color: "var(--text-muted)" }}><Icon name="x-mark" className="w-5 h-5" /></button>
         </div>
