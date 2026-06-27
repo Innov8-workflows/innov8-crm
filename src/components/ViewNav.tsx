@@ -71,14 +71,14 @@ export default function ViewNav({ active, onChange, projectCount = 0, clientCoun
       <div className="w-8 h-8 rounded-lg flex items-center justify-center font-mono text-xs font-bold text-white flex-shrink-0" style={{ background: "var(--accent)" }}>
         i8
       </div>
-      <div className="flex items-center gap-2 ml-2">
+      <div className="flex items-center gap-1.5 ml-2 min-w-0 overflow-x-auto nav-scroll">
         {views.map((view) => {
           const isActive = active === view.id;
           const count = view.id === "projects" ? projectCount : view.id === "clients" ? clientCount : view.id === "todos" ? todoCount : 0;
           return (
             <button
               key={view.id}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold transition-all"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap flex-shrink-0"
               style={{
                 background: isActive ? "var(--accent)" : "var(--surface2)",
                 color: isActive ? "#fff" : "var(--text-secondary)",
@@ -117,7 +117,7 @@ export default function ViewNav({ active, onChange, projectCount = 0, clientCoun
       </div>
 
       {/* Owner filter dropdown — pushed to the right */}
-      <div className="ml-auto relative" ref={dropdownRef}>
+      <div className="ml-auto relative flex-shrink-0" ref={dropdownRef}>
         <button
           className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors"
           style={{ background: ownerBtnColor ? `${ownerBtnColor}20` : "var(--surface2)", border: `1px solid ${ownerBtnColor || "var(--border-light)"}`, color: ownerBtnColor || "var(--text-muted)" }}
@@ -161,21 +161,20 @@ export default function ViewNav({ active, onChange, projectCount = 0, clientCoun
       {/* Content Filter — blur all client names (for recording demos / TikToks) */}
       <button
         onClick={toggleContentFilter}
-        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-colors text-xs flex-shrink-0"
+        className="flex items-center justify-center p-2 rounded-lg transition-colors flex-shrink-0"
         style={{
           background: contentFilter ? "var(--accent)" : "var(--surface2)",
           border: `1px solid ${contentFilter ? "var(--accent)" : "var(--border-light)"}`,
           color: contentFilter ? "#fff" : "var(--text-muted)",
         }}
-        title="Content Filter — blur all client names across the app (for screen recordings / demos)"
+        title={contentFilter ? "Content Filter ON — client names blurred (click to turn off)" : "Content Filter — blur all client names for screen recordings / demos"}
       >
-        <Icon name="eye" className="w-3.5 h-3.5" />
-        <span className="hidden lg:inline">{contentFilter ? "Filter On" : "Content Filter"}</span>
+        <Icon name="eye" className="w-4 h-4" />
       </button>
 
       {/* Theme toggle */}
       <button
-        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-colors text-xs"
+        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-colors text-xs flex-shrink-0"
         style={{ background: "var(--surface2)", border: "1px solid var(--border-light)", color: "var(--text-muted)" }}
         onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.color = "var(--text)"; }}
         onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--border-light)"; e.currentTarget.style.color = "var(--text-muted)"; }}
