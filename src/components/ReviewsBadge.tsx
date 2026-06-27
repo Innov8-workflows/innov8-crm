@@ -92,13 +92,13 @@ export default function ReviewsBadge({ values, onSave }: {
 function ReviewChip({ color, label, rating, count }: { color: string; label: string; rating: number; count: number }) {
   const set = rating > 0 || count > 0;
   return (
-    <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded"
-      style={{ background: "var(--surface2)", color: set ? "var(--text-secondary)" : "var(--text-dim)" }}>
-      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color }} />
-      {label}
-      <span style={{ color: STAR }}>★</span>
-      {set ? rating.toFixed(1) : "–"}
-      <span style={{ color: "var(--text-quaternary)" }}>({set ? count : "–"})</span>
+    <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md"
+      style={{ background: "var(--surface2)", border: "1px solid var(--border-light)" }}>
+      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
+      <span className="text-[11px] font-semibold" style={{ color: "var(--text-secondary)" }}>{label}</span>
+      <span className="text-xs leading-none" style={{ color: STAR }}>★</span>
+      <span className="text-sm font-bold tabular-nums leading-none" style={{ color: set ? "var(--text)" : "var(--text-dim)" }}>{set ? rating.toFixed(1) : "–"}</span>
+      <span className="text-xs font-semibold tabular-nums" style={{ color: "var(--text-muted)" }}>({set ? count : "–"})</span>
     </span>
   );
 }
