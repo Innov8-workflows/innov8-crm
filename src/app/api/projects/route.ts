@@ -12,6 +12,25 @@ export async function GET(request: NextRequest) {
 
   const ownerFilter = request.nextUrl.searchParams.get("owner");
 
+  // Lightweight nav-badge count — one COUNT(*), no row data and no cover/SEO/task
+  // enrichment. The shell only needs `.length` for the badge; fetching + enriching
+  // the whole project list for that was a ~2s request on every app load.
+  if (request.nextUrl.searchParams.get("count") === "1") {
+    let csql = "SELECT COUNT(*) as count FROM projects p JOIN leads l ON p.lead_id = l.id";
+    const cargs: unknown[] = [];
+    if (paying === "true") csql += " WHERE p.stage != 'onboarding'";
+    else if (completed === "true") csql += " WHERE p.completed_at != ''";
+    else if (completed === "false") csql += " WHERE p.completed_at = ''";
+    if (stage) { csql += (csql.includes("WHERE") ? " AND" : " WHERE") + " p.stage = ?"; cargs.push(stage); }
+    if (clientStatus === "lost") csql += (csql.includes("WHERE") ? " AND" : " WHERE") + " p.client_status = 'lost'";
+    else if (clientStatus === "active") csql += (csql.includes("WHERE") ? " AND" : " WHERE") + " (p.client_status IN ('active','refine') OR p.client_status IS NULL)";
+    else if (completed === "true" || paying === "true") csql += " AND (p.client_status IN ('active','refine') OR p.client_status IS NULL)";
+    if (ownerFilter === "__unassigned__") csql += (csql.includes("WHERE") ? " AND" : " WHERE") + " (l.owner = '' OR l.owner IS NULL)";
+    else if (ownerFilter) { csql += (csql.includes("WHERE") ? " AND" : " WHERE") + " l.owner = ?"; cargs.push(ownerFilter); }
+    const c = first(await db.execute({ sql: csql, args: cargs as never[] }));
+    return NextResponse.json({ count: Number(c?.count) || 0 }, { headers: { "Cache-Control": "private, max-age=5" } });
+  }
+
   let sql = `SELECT p.*, l.business_name, l.contact_name, l.email, l.phone, l.business_type, l.location, l.capex, l.demo_site_url, l.owner
     FROM projects p JOIN leads l ON p.lead_id = l.id`;
   const args: unknown[] = [];

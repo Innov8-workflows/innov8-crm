@@ -36,59 +36,27 @@ export async function GET(request: NextRequest) {
     SUM(CASE WHEN follow_up_date = ? THEN 1 ELSE 0 END) as dueToday
   FROM leads ${ownerWhere}`;
 
-  // Today bindings come first because they appear first in the SELECT
-  const stats = first(await db.execute({ sql: statsSQL, args: [today, today, ...args] }));
+  // Owner filter for the two leads-JOIN queries (custom counts + money forecast).
+  const ownerJoin = ownerParam === "__unassigned__" ? " AND (l.owner = '' OR l.owner IS NULL)"
+    : ownerParam ? " AND l.owner = ?" : "";
 
-  // "Called" count comes from the custom_called checkbox (cumulative — once called, always counted)
-  // "Messaged" needs to include both the WhatsApp column (messaged=1) and the FB Messenger custom field
-  let calledCount = 0;
-  let fbMessengerOnlyCount = 0;
-  try {
-    const customCountsSQL = `SELECT
-      COUNT(DISTINCT CASE WHEN cfv.field_id = 'custom_called' AND cfv.value = '1' THEN cfv.lead_id END) as called,
-      COUNT(DISTINCT CASE WHEN cfv.field_id = 'custom_fb_messenger' AND cfv.value = '1' AND (l.messaged = 0 OR l.messaged IS NULL) THEN cfv.lead_id END) as fb_only
-      FROM custom_field_values cfv JOIN leads l ON cfv.lead_id = l.id
-      WHERE 1=1`;
-    let sql = customCountsSQL;
-    const customArgs: InValue[] = [];
-    if (ownerParam === "__unassigned__") {
-      sql += " AND (l.owner = '' OR l.owner IS NULL)";
-    } else if (ownerParam) {
-      sql += " AND l.owner = ?";
-      customArgs.push(ownerParam);
-    }
-    const r = first(await db.execute({ sql, args: customArgs }));
-    calledCount = Number(r?.called) || 0;
-    fbMessengerOnlyCount = Number(r?.fb_only) || 0;
-  } catch {}
+  // "Called" count = custom_called checkbox; FB-messenger-only adds to "messaged".
+  const customCountsSQL = `SELECT
+    COUNT(DISTINCT CASE WHEN cfv.field_id = 'custom_called' AND cfv.value = '1' THEN cfv.lead_id END) as called,
+    COUNT(DISTINCT CASE WHEN cfv.field_id = 'custom_fb_messenger' AND cfv.value = '1' AND (l.messaged = 0 OR l.messaged IS NULL) THEN cfv.lead_id END) as fb_only
+    FROM custom_field_values cfv JOIN leads l ON cfv.lead_id = l.id
+    WHERE 1=1${ownerJoin}`;
 
-  // Prospect forecast is product-driven: sum the product line items (any status
-  // except declined) attached to open-prospect leads. Open prospect = status not
-  // in won/completed (live clients, in /api/clients/stats), rejected, or dead.
-  // Replaces the old leads.capex + custom_monthly manual fields.
-  let totalMonthly = 0;
-  let totalCapex = 0;
-  try {
-    let psql = `SELECT
-        COALESCE(SUM(es.monthly_upcharge), 0) as monthly,
-        COALESCE(SUM(es.upfront_charged), 0) as capex
-      FROM entity_solutions es
-      JOIN leads l ON es.entity_type = 'lead' AND es.entity_id = l.id
-      WHERE es.status IN ('proposed','sold','delivered')
-        AND l.status NOT IN ('won','completed','rejected','dead')`;
-    const pArgs: InValue[] = [];
-    if (ownerParam === "__unassigned__") {
-      psql += " AND (l.owner = '' OR l.owner IS NULL)";
-    } else if (ownerParam) {
-      psql += " AND l.owner = ?";
-      pArgs.push(ownerParam);
-    }
-    const r = first(await db.execute({ sql: psql, args: pArgs }));
-    totalMonthly = Number(r?.monthly) || 0;
-    totalCapex = Number(r?.capex) || 0;
-  } catch {}
+  // Prospect forecast — product line items (non-declined) on open-prospect leads.
+  const moneySQL = `SELECT
+      COALESCE(SUM(es.monthly_upcharge), 0) as monthly,
+      COALESCE(SUM(es.upfront_charged), 0) as capex
+    FROM entity_solutions es
+    JOIN leads l ON es.entity_type = 'lead' AND es.entity_id = l.id
+    WHERE es.status IN ('proposed','sold','delivered')
+      AND l.status NOT IN ('won','completed','rejected','dead')${ownerJoin}`;
 
-  // Win/rejection breakdown by business type
+  // Win/rejection breakdown by business type.
   const byTypeSQL = `SELECT
     business_type,
     COUNT(*) as total,
@@ -100,7 +68,20 @@ export async function GET(request: NextRequest) {
   GROUP BY business_type
   ORDER BY total DESC`;
 
-  const byTypeRows = all(await db.execute({ sql: byTypeSQL, args }));
+  // Run all four independent aggregates in PARALLEL — one round-trip of latency
+  // instead of four sequential ones (this was the dominant cost of this endpoint).
+  // The custom-fields + money queries stay optional (null on error, as before).
+  const [stats, customCounts, money, byTypeRows] = await Promise.all([
+    db.execute({ sql: statsSQL, args: [today, today, ...args] }).then(first),
+    db.execute({ sql: customCountsSQL, args }).then(first).catch(() => null),
+    db.execute({ sql: moneySQL, args }).then(first).catch(() => null),
+    db.execute({ sql: byTypeSQL, args }).then(all),
+  ]);
+
+  const calledCount = Number(customCounts?.called) || 0;
+  const fbMessengerOnlyCount = Number(customCounts?.fb_only) || 0;
+  const totalMonthly = Number(money?.monthly) || 0;
+  const totalCapex = Number(money?.capex) || 0;
   const byType = byTypeRows.map((r) => ({
     type: r.business_type as string,
     total: Number(r.total) || 0,

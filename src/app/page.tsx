@@ -50,22 +50,19 @@ export default function Home() {
     fetch("/api/clients/stats").then((r) => r.json()).then((d) => {
       setClientCount(d.clientCount || 0);
     });
-    fetch("/api/projects?completed=false").then((r) => r.json()).then((d) => {
-      setProjectCount(d.projects?.length || 0);
-    });
+    fetch("/api/projects?completed=false&count=1").then((r) => r.json()).then((d) => {
+      setProjectCount(d.count || 0);
+    }).catch(() => {});
     fetch("/api/todos?count=1").then((r) => r.json()).then((d) => {
       setTodoCount(d.count || 0);
     }).catch(() => {});
   }, []);
 
+  // Fetch the nav-badge counts once on load. They're kept fresh afterwards by each
+  // view reporting changes up via onCountsChanged / onCountChanged — so we no longer
+  // re-fetch all three (incl. the heavy projects query) on every tab return, which
+  // duplicated the fetch each of those views already makes for itself.
   useEffect(() => { refreshCounts(); }, [refreshCounts]);
-
-  // Re-fetch counts whenever the user navigates back to a count-bearing view
-  useEffect(() => {
-    if (view === "projects" || view === "clients" || view === "dashboard" || view === "todos") {
-      refreshCounts();
-    }
-  }, [view, refreshCounts]);
 
   const handleOwnerChange = (owner: string) => {
     setOwnerFilter(owner);

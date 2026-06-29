@@ -28,8 +28,6 @@ export async function GET(request: NextRequest) {
   JOIN leads l ON p.lead_id = l.id
   WHERE p.stage != 'onboarding'${ownerFilter}`;
 
-  const stats = first(await db.execute({ sql: countsSql, args: args as never[] }));
-
   // Money is product-driven: sum every attached (non-declined) product line item on
   // each client lead — base plan + add-ons — so the board total matches exactly what
   // the cards show. The card value badges come from /api/leads/product-rollup, which
@@ -44,7 +42,12 @@ export async function GET(request: NextRequest) {
       SELECT 1 FROM projects p WHERE p.lead_id = l.id AND p.stage != 'onboarding'
         AND (p.client_status IN ('active','refine') OR p.client_status IS NULL)
     )${ownerFilter}`;
-  const money = first(await db.execute({ sql: moneySql, args: args as never[] }));
+
+  // Counts + money are independent — run them in parallel (one round-trip, not two).
+  const [stats, money] = await Promise.all([
+    db.execute({ sql: countsSql, args: args as never[] }).then(first),
+    db.execute({ sql: moneySql, args: args as never[] }).then(first),
+  ]);
 
   const response = NextResponse.json({
     mrr: Number(money?.mrr) || 0,

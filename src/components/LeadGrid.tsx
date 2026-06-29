@@ -353,13 +353,15 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
     if (skipNextFetch.current) { skipNextFetch.current = false; return; }
     const params = new URLSearchParams();
     if (activeTab !== "All") params.set("business_type", activeTab);
-    if (search) params.set("search", search);
     if (ownerFilter) params.set("owner", ownerFilter);
+    // NB: search is applied client-side (TanStack global filter) — all rows for the
+    // active tab/owner are already in memory and virtualized, so we no longer refetch
+    // the whole lead table on every keystroke.
     const res = await fetch(`/api/leads?${params}`);
     const data = await res.json();
     setLeads(data.leads || []);
     setLoading(false);
-  }, [activeTab, search, ownerFilter]);
+  }, [activeTab, ownerFilter]);
 
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
 
@@ -837,7 +839,9 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
   const table = useReactTable({
     data: leads,
     columns,
-    state: { sorting, columnVisibility, rowSelection, columnSizing, columnOrder },
+    state: { sorting, columnVisibility, rowSelection, columnSizing, columnOrder, globalFilter: search },
+    onGlobalFilterChange: setSearch,
+    globalFilterFn: "includesString",
     onSortingChange: setSorting,
     onColumnVisibilityChange: (updater) => {
       setColumnVisibility((prev) => {
@@ -960,7 +964,7 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
           <h1 className="text-sm font-semibold" style={{ color: "var(--text-muted)" }}>Prospects</h1>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-sm" style={{ color: "var(--text-dim)" }}>{leads.length} leads</span>
+          <span className="text-sm" style={{ color: "var(--text-dim)" }}>{table.getFilteredRowModel().rows.length} leads</span>
           <button onClick={() => setShowImportModal(true)} style={btnStyle} onMouseEnter={btnHover} onMouseLeave={btnLeave}
             className="px-3 py-1.5 text-sm flex items-center gap-1.5">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">

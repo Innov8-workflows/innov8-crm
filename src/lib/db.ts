@@ -27,6 +27,17 @@ export async function initDb() {
 async function doInitDb() {
   const db = getClient();
 
+  // Fast cold-start path: once the schema is at the current version, a freshly
+  // spun-up lambda does ~2 round-trips here instead of ~35 (the 28 ALTER migrations
+  // + index/dedup/seed passes below all skip). On a remote DB each round-trip is
+  // ~100-300ms, so this is the single biggest "slow first load" win. Bump
+  // SCHEMA_VERSION whenever a migration/index/seed below changes → the heavy block
+  // re-runs exactly once on the next deploy, then cold starts go fast again.
+  const SCHEMA_VERSION = "2026-06-29-perf";
+  await db.execute("CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT DEFAULT '')");
+  const schemaMarker = first(await db.execute("SELECT value FROM app_meta WHERE key = 'schema_version'"));
+  if (schemaMarker?.value === SCHEMA_VERSION) return;
+
   await db.executeMultiple(`
     CREATE TABLE IF NOT EXISTS leads (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -317,6 +328,14 @@ async function doInitDb() {
     CREATE INDEX IF NOT EXISTS idx_projects_tracking ON projects(tracking_id);
     CREATE INDEX IF NOT EXISTS idx_schedule_date ON schedule_completions(date);
     CREATE INDEX IF NOT EXISTS idx_seo_geo_project ON seo_geo_logs(project_id, completed_at);
+    CREATE INDEX IF NOT EXISTS idx_leads_sort ON leads(sort_order);
+    CREATE INDEX IF NOT EXISTS idx_projects_sort ON projects(sort_order);
+    CREATE INDEX IF NOT EXISTS idx_leads_location ON leads(location);
+    CREATE INDEX IF NOT EXISTS idx_email_logs_sent ON email_logs(sent_at);
+    CREATE INDEX IF NOT EXISTS idx_activities_lead_created ON activities(lead_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_lead_notes_lead_created ON lead_notes(lead_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_todos_done_created ON todos(done, created_at);
+    CREATE INDEX IF NOT EXISTS idx_site_events_created ON site_events(created_at);
   `);
 
   // Clean up any duplicate solutions left behind by the previous buggy seed check.
@@ -338,6 +357,9 @@ async function doInitDb() {
   // now product-driven dashboard carries current totals forward. Must run AFTER
   // the catalogue seed (needs the "website" base product to exist).
   await migrateBaseProductLineItems(db);
+
+  // Mark the schema current so subsequent cold starts take the fast path at the top.
+  await db.execute({ sql: "INSERT OR REPLACE INTO app_meta (key, value) VALUES ('schema_version', ?)", args: [SCHEMA_VERSION] });
 }
 
 // Module-level flag — dedup runs once per lambda lifetime
