@@ -40,6 +40,7 @@ import TabBar from "./TabBar";
 import EmailLogPanel from "./EmailLogPanel";
 import ProductPicker from "./ProductPicker";
 import DraggableRow from "./DraggableRow";
+import ProspectIntel from "./ProspectIntel";
 import ColumnHeaderEditor from "./ColumnHeaderEditor";
 import StatsBar from "./StatsBar";
 import PipelineBadge from "./PipelineBadge";
@@ -134,7 +135,7 @@ const DEFAULT_LABELS: Record<string, string> = {
   location: "Location", website_status: "Website?", email: "Email", phone: "Number",
   emailed: "Emailed", messaged: "Messaged", responded: "Responded", followed_up: "Followed Up",
   capex: "CAPEX", notes: "Notes", status: "Stage", follow_up_date: "Follow Up", demo_site_url: "Demo Site",
-  owner: "Owner",
+  owner: "Owner", intel: "Intel",
 };
 
 const DEFAULT_TYPES: Record<string, string> = {
@@ -155,6 +156,7 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
   const [sorting, setSorting] = useState<SortingState>([]);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [pickerLead, setPickerLead] = useState<Lead | null>(null);
+  const [intelLead, setIntelLead] = useState<{ lead: Lead; rect: DOMRect } | null>(null);
   const [productRollup, setProductRollup] = useState<Record<string, { count: number; monthly: number; upfront: number }>>({});
   const [statsRefresh, setStatsRefresh] = useState(0);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
@@ -219,7 +221,7 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
       if (!Array.isArray(parsed)) return;
       if (parsed.length === 0 && !columnOrderInitialised.current) return;
 
-      const allBuiltIn = ["select", "drag_handle", "row_num", "owner", "status",
+      const allBuiltIn = ["select", "drag_handle", "row_num", "owner", "status", "intel",
         "business_name", "contact_name", "business_type", "location",
         "follow_up_date", "website_status", "email", "phone", "demo_site_url",
         "emailed", "messaged", "responded", "followed_up", "capex", "products", "notes",
@@ -232,6 +234,17 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
         const statusIdx = parsed.indexOf("status");
         if (statusIdx !== -1) parsed.splice(statusIdx, 0, "owner");
         else parsed.push("owner");
+        changed = true;
+      }
+
+      // Ensure the "intel" column lands right after Stage (status)
+      if (!parsed.includes("intel")) {
+        const statusIdx = parsed.indexOf("status");
+        if (statusIdx !== -1) parsed.splice(statusIdx + 1, 0, "intel");
+        else {
+          const addIdx = parsed.indexOf("add_column");
+          if (addIdx !== -1) parsed.splice(addIdx, 0, "intel"); else parsed.push("intel");
+        }
         changed = true;
       }
 
@@ -665,6 +678,40 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
     );
   }, []);
 
+  // "Intel" cell — a dropdown button opening the cold-call recon popover. Reads
+  // the five reserved custom-field values from the ref (the row re-renders when its
+  // updated_at bumps inside updateCustomField, so the filled/empty state is fresh).
+  const renderIntelCell = useCallback((lead: Lead) => {
+    const cfv = customFieldValuesRef.current[String(lead.id)] || {};
+    const gbp = cfv.custom_intel_gbp, fbp = cfv.custom_intel_fbpage;
+    const gr = cfv.custom_intel_greviews, fr = cfv.custom_intel_freviews, wn = cfv.custom_intel_webnotes;
+    const hasIntel = !!(gbp || fbp || (gr && gr !== "0") || (fr && fr !== "0") || (wn && wn.trim()));
+    const parts: string[] = [];
+    if (gbp) parts.push(`GBP: ${gbp === "1" ? "Yes" : "No"}`);
+    if (gr && gr !== "0") parts.push(`${gr} Google reviews`);
+    if (fbp) parts.push(`FB page: ${fbp === "1" ? "Yes" : "No"}`);
+    if (fr && fr !== "0") parts.push(`${fr} FB reviews`);
+    if (wn && wn.trim()) parts.push(`Notes: ${wn.length > 50 ? wn.slice(0, 50) + "…" : wn}`);
+    const title = hasIntel ? parts.join(" · ") : "Add cold-call intel — GBP, reviews, Facebook, website notes";
+    return (
+      <button onClick={(e) => { e.stopPropagation(); setIntelLead({ lead, rect: (e.currentTarget as HTMLElement).getBoundingClientRect() }); }}
+        title={title}
+        className="flex items-center justify-center mx-auto rounded-md transition-colors"
+        style={{
+          width: 30, height: 22,
+          background: hasIntel ? "var(--accent-subtle)" : "transparent",
+          border: `1px solid ${hasIntel ? "var(--accent)" : "var(--border-light)"}`,
+          color: hasIntel ? "var(--accent)" : "var(--text-quaternary)",
+        }}
+        onMouseEnter={(e) => { if (!hasIntel) { e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.color = "var(--text-muted)"; } }}
+        onMouseLeave={(e) => { if (!hasIntel) { e.currentTarget.style.borderColor = "var(--border-light)"; e.currentTarget.style.color = "var(--text-quaternary)"; } }}>
+        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+    );
+  }, []);
+
   const columns = useMemo<ColumnDef<Lead, unknown>[]>(
     () => [
       columnHelper.display({ id: "select", header: ({ table }) => (
@@ -682,9 +729,9 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
       )}),
       columnHelper.display({ id: "row_num", header: "#", size: 35, enableResizing: false,
         cell: (info) => <span className="text-xs" style={{ color: "var(--text-quaternary)" }}>{info.row.index + 1}</span> }),
-      // Built-in editable columns
-      ...(editableFields.map((field) =>
-        columnHelper.accessor(field as keyof Lead, {
+      // Built-in editable columns — the "Intel" recon column is injected right after Stage.
+      ...(editableFields.flatMap((field) => {
+        const col = columnHelper.accessor(field as keyof Lead, {
           id: field,
           header: ({ column }) => (
             <ColumnHeaderEditor columnId={field} label={getLabel(field)} colType={getColType(field)}
@@ -698,8 +745,17 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
           minSize: 40,
           enableResizing: true,
           cell: (info) => renderCell(info.row.original.id, field, info.getValue(), getColType(field)),
-        })
-      ) as ColumnDef<Lead, unknown>[]),
+        }) as ColumnDef<Lead, unknown>;
+        if (field !== "status") return [col];
+        return [col, columnHelper.display({
+          id: "intel",
+          header: () => <span className="text-xs font-semibold" style={{ color: "var(--text-dim)" }} title="Cold-call intel — GBP, reviews, Facebook, website notes">Intel</span>,
+          size: 52,
+          minSize: 40,
+          enableResizing: true,
+          cell: (info) => renderIntelCell(info.row.original),
+        }) as ColumnDef<Lead, unknown>];
+      }) as ColumnDef<Lead, unknown>[]),
       // Custom columns
       ...customColumns.map((cc) =>
         columnHelper.display({
@@ -775,7 +831,7 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
         ),
       }),
     ],
-    [editableFields, customColumns, getLabel, getColType, saveColConfig, deleteColumn, renderCell, renderProductCell, deleteLead, updateCustomField]
+    [editableFields, customColumns, getLabel, getColType, saveColConfig, deleteColumn, renderCell, renderProductCell, renderIntelCell, deleteLead, updateCustomField]
   );
 
   const table = useReactTable({
@@ -1094,6 +1150,22 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
               onChanged={(esRows) => handleProductChange(pickerLead.id, esRows)} />
           </div>
         </div>
+      )}
+
+      {intelLead && (
+        <ProspectIntel
+          leadName={intelLead.lead.business_name}
+          anchorRect={intelLead.rect}
+          values={{
+            gbp: customFieldValuesRef.current[String(intelLead.lead.id)]?.custom_intel_gbp || "",
+            fbpage: customFieldValuesRef.current[String(intelLead.lead.id)]?.custom_intel_fbpage || "",
+            greviews: customFieldValuesRef.current[String(intelLead.lead.id)]?.custom_intel_greviews || "",
+            freviews: customFieldValuesRef.current[String(intelLead.lead.id)]?.custom_intel_freviews || "",
+            webnotes: customFieldValuesRef.current[String(intelLead.lead.id)]?.custom_intel_webnotes || "",
+          }}
+          onSet={(fieldId, value) => updateCustomField(intelLead.lead.id, fieldId, value)}
+          onClose={() => setIntelLead(null)}
+        />
       )}
 
       {/* Add Lead Modal */}
