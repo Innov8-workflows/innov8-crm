@@ -4,11 +4,35 @@ import { getClient, initDb, all, first } from "@/lib/db";
 export async function GET(request: NextRequest) {
   await initDb();
   const db = getClient();
+
+  // ?file=N → serve a single uploaded file's bytes (lazy + cached) instead of
+  // shipping multi-MB base64 blobs in the list. Mirrors /api/projects/[id]/cover.
+  const fileId = request.nextUrl.searchParams.get("file");
+  if (fileId) {
+    const row = first(await db.execute({ sql: "SELECT url, file_type, name FROM project_files WHERE id = ? LIMIT 1", args: [Number(fileId)] }));
+    if (!row) return new NextResponse("Not found", { status: 404 });
+    const url = String(row.url || "");
+    const m = url.match(/^data:([^;]+);base64,(.*)$/);
+    if (!m) return new NextResponse("Not a stored file", { status: 404 });
+    return new NextResponse(new Uint8Array(Buffer.from(m[2], "base64")), {
+      headers: {
+        "Content-Type": m[1] || String(row.file_type || "application/octet-stream"),
+        "Cache-Control": "private, max-age=86400, immutable",
+        "Content-Disposition": `inline; filename="${String(row.name || "file").replace(/[\r\n"]/g, "")}"`,
+      },
+    });
+  }
+
   const projectId = request.nextUrl.searchParams.get("project_id");
   if (!projectId) return NextResponse.json({ error: "project_id required" }, { status: 400 });
 
+  // List omits the base64 blob (uploaded files) — only external links keep their url.
+  // Uploaded images/files are fetched lazily via ?file=<id>; is_blob tells the client.
   const result = await db.execute({
-    sql: "SELECT * FROM project_files WHERE project_id = ? ORDER BY created_at DESC",
+    sql: `SELECT id, project_id, name, file_type, size, is_cover, created_at,
+                 CASE WHEN url LIKE 'data:%' THEN '' ELSE url END AS url,
+                 CASE WHEN url LIKE 'data:%' THEN 1 ELSE 0 END AS is_blob
+          FROM project_files WHERE project_id = ? ORDER BY created_at DESC`,
     args: [Number(projectId)],
   });
   return NextResponse.json({ files: all(result) });
@@ -74,7 +98,14 @@ export async function POST(request: NextRequest) {
     args: [project_id, name, url, file_type, size, is_cover, now],
   });
 
-  const savedFile = first(await db.execute({ sql: "SELECT * FROM project_files WHERE id = ?", args: [result.lastInsertRowid!] }));
+  // Echo back metadata only — never the just-uploaded base64 blob (doubles the payload).
+  const savedFile = first(await db.execute({
+    sql: `SELECT id, project_id, name, file_type, size, is_cover, created_at,
+                 CASE WHEN url LIKE 'data:%' THEN '' ELSE url END AS url,
+                 CASE WHEN url LIKE 'data:%' THEN 1 ELSE 0 END AS is_blob
+          FROM project_files WHERE id = ?`,
+    args: [result.lastInsertRowid!],
+  }));
   return NextResponse.json(savedFile, { status: 201 });
 }
 

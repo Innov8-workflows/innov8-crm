@@ -31,6 +31,14 @@ export async function POST(request: NextRequest) {
     errors: [],
   };
 
+  // Preload existing names + emails once (in-memory dedup) and the max sort_order
+  // once — instead of 3 SELECTs per prospect. Inserts flush in one batch at the end,
+  // turning a 100-row webhook from ~400 remote round-trips into ~4.
+  const existingNames = new Set(all(await db.execute("SELECT lower(business_name) AS n FROM leads")).map((r) => String(r.n)));
+  const existingEmails = new Set(all(await db.execute("SELECT lower(email) AS e FROM leads WHERE email != ''")).map((r) => String(r.e)));
+  let nextOrder = ((first(await db.execute("SELECT COALESCE(MAX(sort_order), 0) as v FROM leads"))?.v as number) || 0) + 1;
+  const inserts: { sql: string; args: never[] }[] = [];
+
   for (const prospect of prospects) {
     const businessName = String(prospect.business_name || "").trim();
     if (!businessName) {
@@ -38,32 +46,17 @@ export async function POST(request: NextRequest) {
       continue;
     }
 
-    // Duplicate check by business name (case-insensitive)
-    const existing = first(
-      await db.execute({
-        sql: "SELECT id, business_name FROM leads WHERE business_name = ? COLLATE NOCASE",
-        args: [businessName],
-      })
-    );
-
-    if (existing) {
+    // Duplicate check by business name (case-insensitive) — in-memory.
+    if (existingNames.has(businessName.toLowerCase())) {
       results.skipped.push(`${businessName} (already exists)`);
       continue;
     }
 
-    // Also check by email if provided
+    // Also check by email if provided.
     const email = String(prospect.email || "").trim();
-    if (email && email.length > 3) {
-      const emailDup = first(
-        await db.execute({
-          sql: "SELECT id, business_name FROM leads WHERE email = ? COLLATE NOCASE",
-          args: [email],
-        })
-      );
-      if (emailDup) {
-        results.skipped.push(`${businessName} (email ${email} already used by ${emailDup.business_name})`);
-        continue;
-      }
+    if (email && email.length > 3 && existingEmails.has(email.toLowerCase())) {
+      results.skipped.push(`${businessName} (email ${email} already used)`);
+      continue;
     }
 
     // Normalize business type
@@ -89,11 +82,11 @@ export async function POST(request: NextRequest) {
     }
 
     const now = new Date().toISOString();
-    const maxOrder = first(await db.execute("SELECT COALESCE(MAX(sort_order), 0) as v FROM leads"));
-    const nextOrder = ((maxOrder?.v as number) || 0) + 1;
-
-    try {
-      const args = [
+    inserts.push({
+      sql: `INSERT INTO leads (business_name, contact_name, email, phone, business_type, location,
+          website_status, notes, status, demo_site_url, owner, sort_order, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'new', ?, ?, ?, ?, ?)`,
+      args: [
         businessName,
         String(prospect.contact_name || "").trim(),
         email,
@@ -104,19 +97,26 @@ export async function POST(request: NextRequest) {
         String(prospect.notes || "").trim(),
         String(prospect.demo_site_url || prospect.website_url || "").trim(),
         String(prospect.assigned_owner || "").trim(),
-        nextOrder,
+        nextOrder++,
         now,
         now,
-      ] as never[];
-      await db.execute({
-        sql: `INSERT INTO leads (business_name, contact_name, email, phone, business_type, location,
-          website_status, notes, status, demo_site_url, owner, sort_order, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'new', ?, ?, ?, ?, ?)`,
-        args,
-      });
-      results.added.push(businessName);
+      ] as never[],
+    });
+    existingNames.add(businessName.toLowerCase());
+    if (email) existingEmails.add(email.toLowerCase());
+    results.added.push(businessName);
+  }
+
+  // Flush every insert in one batched (transactional) round-trip.
+  if (inserts.length) {
+    try {
+      await db.batch(inserts, "write");
     } catch (err) {
-      results.errors.push(`${businessName}: ${err}`);
+      return NextResponse.json({
+        ok: false,
+        summary: `Insert failed — nothing added`,
+        added: [], skipped: results.skipped, errors: [String(err)],
+      }, { status: 500 });
     }
   }
 

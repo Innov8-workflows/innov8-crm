@@ -447,7 +447,7 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
               ) : (
                 <div className="space-y-2">
                   {files.map((file) => {
-                    const isImage = (file.file_type || "").startsWith("image/") || (file.url || "").startsWith("data:image/");
+                    const isImage = (file.file_type || "").startsWith("image/");
                     const isCover = (file as unknown as Record<string, unknown>).is_cover === 1;
                     return (
                       <div key={file.id} className="rounded-lg overflow-hidden group"
@@ -455,7 +455,7 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
                         {/* Image preview */}
                         {isImage && (
                           <div className="w-full h-32 overflow-hidden" style={{ background: "#111" }}>
-                            <img src={file.url} alt={file.name} className="w-full h-full object-cover" />
+                            <img src={file.is_blob ? `/api/project-files?file=${file.id}` : file.url} alt={file.name} loading="lazy" className="w-full h-full object-cover" />
                           </div>
                         )}
                         <div className="flex items-center gap-3 px-3 py-2.5">
@@ -467,9 +467,9 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
                             </div>
                           )}
                           <div className="flex-1 min-w-0">
-                            <a href={file.url.startsWith("data:") ? undefined : file.url} target="_blank" rel="noreferrer"
+                            <a href={file.is_blob ? `/api/project-files?file=${file.id}` : (file.url || undefined)} target="_blank" rel="noreferrer"
                               className="text-sm font-medium truncate block" style={{ color: "var(--accent)" }}>{file.name}</a>
-                            {!file.url.startsWith("data:") && (
+                            {!file.is_blob && file.url && (
                               <p className="text-xs truncate" style={{ color: "var(--text-tertiary)" }}>{file.url}</p>
                             )}
                           </div>

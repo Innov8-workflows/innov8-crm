@@ -78,11 +78,12 @@ export interface Project {
 export interface SeoReport {
   id: number;
   score: number;
-  report_url: string;   // base64 data URL (uploaded file) OR external link
+  report_url: string;   // external link (uploaded files are served via ?file=<id>, not inlined)
   report_name: string;
   report_type: string;  // mime type, or 'link'
   notes: string;
   logged_at: string;    // the report's date
+  is_file?: number;     // 1 = uploaded file (open via ?file=<id>); 0 = external link
 }
 
 export interface ProjectTask {
@@ -99,10 +100,12 @@ export interface ProjectFile {
   id: number;
   project_id: number;
   name: string;
-  url: string;
+  url: string;          // external link (uploaded files are served via ?file=<id>, not inlined)
   file_type: string;
   size: number;
   created_at: string;
+  is_cover?: number;
+  is_blob?: number;     // 1 = uploaded file (fetch via ?file=<id>); 0 = external link
 }
 
 export interface EmailLog {

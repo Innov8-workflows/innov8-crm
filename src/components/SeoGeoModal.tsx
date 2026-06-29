@@ -242,8 +242,8 @@ export default function SeoGeoModal({ project, onClose, onLogged }: {
                   <div key={r.id} className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
                     <span className="font-semibold w-14 flex-shrink-0" style={{ color: r.score >= 7 ? "#22c55e" : r.score >= 4 ? "#f59e0b" : "#ef4444" }}>{r.score}/10</span>
                     <span className="flex-shrink-0" style={{ color: "var(--text-dim)" }}>{fmtDay(r.logged_at)}</span>
-                    {r.report_url && (
-                      <a href={r.report_url} target="_blank" rel="noopener noreferrer" className="truncate hover:underline" style={{ color: "var(--accent)" }}
+                    {(r.is_file || r.report_url) && (
+                      <a href={r.is_file ? `/api/projects/${project.id}/seo-reports?file=${r.id}` : r.report_url} target="_blank" rel="noopener noreferrer" className="truncate hover:underline" style={{ color: "var(--accent)" }}
                         onClick={(e) => e.stopPropagation()}>
                         {r.report_type === "link" ? "View report ↗" : (r.report_name || "Open file ↗")}
                       </a>
