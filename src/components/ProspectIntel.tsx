@@ -16,6 +16,7 @@ export type IntelValues = {
   fbpage: string;   // "1" yes | "0" no | "" unknown
   greviews: string; // Google review count
   freviews: string; // Facebook review count
+  website: string;  // current website URL (for reference on the call)
   webnotes: string; // free-text notes on their current website
 };
 
@@ -24,6 +25,7 @@ export const INTEL_FIELDS = {
   fbpage: "custom_intel_fbpage",
   greviews: "custom_intel_greviews",
   freviews: "custom_intel_freviews",
+  website: "custom_intel_website",
   webnotes: "custom_intel_webnotes",
 } as const;
 
@@ -43,13 +45,14 @@ export default function ProspectIntel({
   const [fbpage, setFbpage] = useState(values.fbpage);
   const [greviews, setGreviews] = useState(values.greviews);
   const [freviews, setFreviews] = useState(values.freviews);
+  const [website, setWebsite] = useState(values.website);
   const [webnotes, setWebnotes] = useState(values.webnotes);
 
   // saved = last value pushed to the server (so we never re-PUT an unchanged field);
   // latest = current local values, read by the on-close flush to avoid stale closures.
   const saved = useRef<IntelValues>({ ...values });
   const latest = useRef<IntelValues>({ ...values });
-  latest.current = { gbp, fbpage, greviews, freviews, webnotes };
+  latest.current = { gbp, fbpage, greviews, freviews, website, webnotes };
 
   const persist = (key: keyof IntelValues, val: string) => {
     if (saved.current[key] === val) return;
@@ -75,7 +78,7 @@ export default function ProspectIntel({
   }, [onClose]);
 
   // Anchor next to the clicked button; flip/clamp so it stays on-screen.
-  const POP_W = 304, POP_H = 392;
+  const POP_W = 304, POP_H = 452;
   let left = anchorRect.right + 8;
   if (left + POP_W > window.innerWidth - 8) left = anchorRect.left - POP_W - 8;
   if (left < 8) left = 8;
@@ -161,6 +164,22 @@ export default function ProspectIntel({
         </div>
 
         {divider}
+
+        <div>
+          <div className="flex items-center justify-between gap-2 mb-1">
+            <span className="text-xs" style={{ color: "var(--text-secondary)" }}>Current website</span>
+            {website.trim() && (
+              <a href={/^https?:\/\//i.test(website.trim()) ? website.trim() : `https://${website.trim()}`}
+                target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}
+                className="text-[11px] font-semibold hover:underline flex-shrink-0" style={{ color: "var(--accent)" }}>Open ↗</a>
+            )}
+          </div>
+          <input type="text" inputMode="url" value={website}
+            placeholder="theircurrentsite.co.uk"
+            onChange={(e) => setWebsite(e.target.value)} onBlur={() => persist("website", latest.current.website)}
+            className="w-full px-2 py-1.5 text-xs rounded-md cf-name"
+            style={{ background: "var(--surface2)", border: "1px solid var(--border-light)", color: "var(--text)", outline: "none" }} />
+        </div>
 
         <div>
           <span className="text-xs block mb-1" style={{ color: "var(--text-secondary)" }}>Website notes</span>

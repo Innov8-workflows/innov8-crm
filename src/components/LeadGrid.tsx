@@ -687,12 +687,14 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
     const cfv = customFieldValuesRef.current[String(lead.id)] || {};
     const gbp = cfv.custom_intel_gbp, fbp = cfv.custom_intel_fbpage;
     const gr = cfv.custom_intel_greviews, fr = cfv.custom_intel_freviews, wn = cfv.custom_intel_webnotes;
-    const hasIntel = !!(gbp || fbp || (gr && gr !== "0") || (fr && fr !== "0") || (wn && wn.trim()));
+    const web = cfv.custom_intel_website;
+    const hasIntel = !!(gbp || fbp || (gr && gr !== "0") || (fr && fr !== "0") || (web && web.trim()) || (wn && wn.trim()));
     const parts: string[] = [];
     if (gbp) parts.push(`GBP: ${gbp === "1" ? "Yes" : "No"}`);
     if (gr && gr !== "0") parts.push(`${gr} Google reviews`);
     if (fbp) parts.push(`FB page: ${fbp === "1" ? "Yes" : "No"}`);
     if (fr && fr !== "0") parts.push(`${fr} FB reviews`);
+    if (web && web.trim()) parts.push(`Site: ${web}`);
     if (wn && wn.trim()) parts.push(`Notes: ${wn.length > 50 ? wn.slice(0, 50) + "…" : wn}`);
     const title = hasIntel ? parts.join(" · ") : "Add cold-call intel — GBP, reviews, Facebook, website notes";
     return (
@@ -1165,6 +1167,7 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
             fbpage: customFieldValuesRef.current[String(intelLead.lead.id)]?.custom_intel_fbpage || "",
             greviews: customFieldValuesRef.current[String(intelLead.lead.id)]?.custom_intel_greviews || "",
             freviews: customFieldValuesRef.current[String(intelLead.lead.id)]?.custom_intel_freviews || "",
+            website: customFieldValuesRef.current[String(intelLead.lead.id)]?.custom_intel_website || "",
             webnotes: customFieldValuesRef.current[String(intelLead.lead.id)]?.custom_intel_webnotes || "",
           }}
           onSet={(fieldId, value) => updateCustomField(intelLead.lead.id, fieldId, value)}
