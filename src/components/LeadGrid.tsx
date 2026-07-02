@@ -41,6 +41,7 @@ import EmailLogPanel from "./EmailLogPanel";
 import ProductPicker from "./ProductPicker";
 import DraggableRow from "./DraggableRow";
 import ProspectIntel from "./ProspectIntel";
+import NotesCell from "./NotesCell";
 import ColumnHeaderEditor from "./ColumnHeaderEditor";
 import StatsBar from "./StatsBar";
 import PipelineBadge from "./PipelineBadge";
@@ -638,6 +639,9 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
               </button>
             </div>
           : <EditableCell value="" onSave={(v) => updateLead(id, field, v)} />;
+      }
+      if (field === "notes") {
+        return <NotesCell value={(value as string) || ""} onSave={(v) => updateLead(id, field, v)} />;
       }
       if (colType === "checkbox") {
         return <StatusCheckbox checked={!!value} onChange={(v) => updateLead(id, field, v ? 1 : 0)}
