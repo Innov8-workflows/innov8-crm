@@ -42,6 +42,7 @@ import ProductPicker from "./ProductPicker";
 import DraggableRow from "./DraggableRow";
 import ProspectIntel from "./ProspectIntel";
 import NotesCell from "./NotesCell";
+import WarmthBadge from "./WarmthBadge";
 import ColumnHeaderEditor from "./ColumnHeaderEditor";
 import StatsBar from "./StatsBar";
 import PipelineBadge from "./PipelineBadge";
@@ -136,7 +137,7 @@ const DEFAULT_LABELS: Record<string, string> = {
   location: "Location", website_status: "Website?", email: "Email", phone: "Number",
   emailed: "Emailed", messaged: "Messaged", responded: "Responded", followed_up: "Followed Up",
   capex: "CAPEX", notes: "Notes", status: "Stage", follow_up_date: "Follow Up", demo_site_url: "Demo Site",
-  owner: "Owner", intel: "Intel",
+  owner: "Owner", intel: "Intel", warmth: "Warmth",
 };
 
 const DEFAULT_TYPES: Record<string, string> = {
@@ -222,7 +223,7 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
       if (!Array.isArray(parsed)) return;
       if (parsed.length === 0 && !columnOrderInitialised.current) return;
 
-      const allBuiltIn = ["select", "drag_handle", "row_num", "owner", "status", "intel",
+      const allBuiltIn = ["select", "drag_handle", "row_num", "owner", "status", "warmth", "intel",
         "business_name", "contact_name", "business_type", "location",
         "follow_up_date", "website_status", "email", "phone", "demo_site_url",
         "emailed", "messaged", "responded", "followed_up", "capex", "products", "notes",
@@ -245,6 +246,17 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
         else {
           const addIdx = parsed.indexOf("add_column");
           if (addIdx !== -1) parsed.splice(addIdx, 0, "intel"); else parsed.push("intel");
+        }
+        changed = true;
+      }
+
+      // Ensure the "warmth" column lands right after Stage (status), ahead of Intel
+      if (!parsed.includes("warmth")) {
+        const statusIdx = parsed.indexOf("status");
+        if (statusIdx !== -1) parsed.splice(statusIdx + 1, 0, "warmth");
+        else {
+          const addIdx = parsed.indexOf("add_column");
+          if (addIdx !== -1) parsed.splice(addIdx, 0, "warmth"); else parsed.push("warmth");
         }
         changed = true;
       }
@@ -720,6 +732,13 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
     );
   }, []);
 
+  // "Warmth" cell — a Hot/Warm/Cold picker stored as the reserved custom_warmth value
+  // (read from the ref; the row re-renders on its updated_at bump in updateCustomField).
+  const renderWarmthCell = useCallback((lead: Lead) => {
+    const val = customFieldValuesRef.current[String(lead.id)]?.custom_warmth || "";
+    return <WarmthBadge value={val} onChange={(v) => updateCustomField(lead.id, "custom_warmth", v)} />;
+  }, [updateCustomField]);
+
   const columns = useMemo<ColumnDef<Lead, unknown>[]>(
     () => [
       columnHelper.display({ id: "select", header: ({ table }) => (
@@ -756,6 +775,13 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
         }) as ColumnDef<Lead, unknown>;
         if (field !== "status") return [col];
         return [col, columnHelper.display({
+          id: "warmth",
+          header: () => <span className="text-xs font-semibold" style={{ color: "var(--text-dim)" }} title="How warm the prospect is to closing">Warmth</span>,
+          size: 74,
+          minSize: 50,
+          enableResizing: true,
+          cell: (info) => renderWarmthCell(info.row.original),
+        }) as ColumnDef<Lead, unknown>, columnHelper.display({
           id: "intel",
           header: () => <span className="text-xs font-semibold" style={{ color: "var(--text-dim)" }} title="Cold-call intel — GBP, reviews, Facebook, website notes">Intel</span>,
           size: 52,
@@ -839,7 +865,7 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
         ),
       }),
     ],
-    [editableFields, customColumns, getLabel, getColType, saveColConfig, deleteColumn, renderCell, renderProductCell, renderIntelCell, deleteLead, updateCustomField]
+    [editableFields, customColumns, getLabel, getColType, saveColConfig, deleteColumn, renderCell, renderProductCell, renderIntelCell, renderWarmthCell, deleteLead, updateCustomField]
   );
 
   const table = useReactTable({

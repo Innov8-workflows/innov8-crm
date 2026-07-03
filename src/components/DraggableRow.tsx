@@ -42,7 +42,7 @@ function DraggableRowBase({ row }: DraggableRowProps) {
       onMouseEnter={(e) => { if (!bgColor) e.currentTarget.style.background = "rgba(255,255,255,0.02)"; }}
       onMouseLeave={(e) => { if (!bgColor) e.currentTarget.style.background = ""; else e.currentTarget.style.background = bgColor; }}>
       {row.getVisibleCells().map((cell) => {
-        const hasDropdown = cell.column.id === "status" || cell.column.id === "owner";
+        const hasDropdown = cell.column.id === "status" || cell.column.id === "owner" || cell.column.id === "warmth";
         return (
           <td key={cell.id} data-col={cell.column.id} className={`px-1 py-0.5 ${hasDropdown ? "overflow-visible" : "overflow-hidden text-ellipsis whitespace-nowrap"}`}
             style={{ width: cell.column.getSize(), maxWidth: cell.column.getSize(), borderBottom: "1px solid var(--surface2)" }}
