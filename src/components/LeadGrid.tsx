@@ -431,12 +431,21 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
     }
 
     // Update local state (checkbox + stage if auto-changing)
-    setLeads((prev) => prev.map((l) => {
-      if (l.id !== id) return l;
-      const updated = { ...l, [field]: value };
-      if (autoStage) updated.status = autoStage;
-      return updated;
-    }));
+    setLeads((prev) => {
+      const mapped = prev.map((l) => {
+        if (l.id !== id) return l;
+        const updated = { ...l, [field]: value };
+        if (autoStage) updated.status = autoStage;
+        return updated;
+      });
+      // Newly-won leads float to the top of the list immediately (matches the
+      // server's won-first ordering, so it stays put on the next refetch).
+      if (field === "status" && value === "won") {
+        const rank = (l: Lead) => (["won", "completed"].includes(l.status || "") ? 0 : 1);
+        return [...mapped].sort((a, b) => rank(a) - rank(b) || (a.sort_order || 0) - (b.sort_order || 0));
+      }
+      return mapped;
+    });
     skipNextFetch.current = true;
 
     // Send both updates to backend in one call

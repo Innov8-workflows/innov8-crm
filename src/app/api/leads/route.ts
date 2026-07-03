@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
   // Run main query + count in parallel — was sequential, cost ~DB_LATENCY extra per request
   const [result, countResult] = await Promise.all([
     db.execute({
-      sql: `SELECT * FROM leads ${where} ORDER BY sort_order ASC, ${sortCol} ${sortDir}`,
+      sql: `SELECT * FROM leads ${where} ORDER BY (CASE WHEN status IN ('won','completed') THEN 0 ELSE 1 END), sort_order ASC, ${sortCol} ${sortDir}`,
       args: values,
     }),
     db.execute({
