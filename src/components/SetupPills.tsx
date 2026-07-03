@@ -8,12 +8,13 @@ const SETUP_ITEMS = [
   { field: "ga4_conversions", label: "GA4 Conversions", title: "GA4 conversion events / key events configured" },
   { field: "search_console_verified", label: "Search Console", title: "Google Search Console verified" },
   { field: "gbp_setup", label: "Business Profile", title: "Google Business Profile set up" },
+  { field: "mobile_optimised", label: "Mobile", title: "Site is mobile-optimised" },
 ] as const;
 
 export type SetupField = (typeof SETUP_ITEMS)[number]["field"];
 
 export default function SetupPills({ values, onToggle }: {
-  values: { ga4_embedded?: number; ga4_conversions?: number; search_console_verified?: number; gbp_setup?: number };
+  values: { ga4_embedded?: number; ga4_conversions?: number; search_console_verified?: number; gbp_setup?: number; mobile_optimised?: number };
   onToggle: (field: SetupField, next: number) => void;
 }) {
   return (

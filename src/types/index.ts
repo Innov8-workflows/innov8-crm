@@ -45,6 +45,7 @@ export interface Project {
   ga4_conversions?: number;
   search_console_verified?: number;
   gbp_setup?: number;
+  mobile_optimised?: number;
   // Manually-maintained review stats, shown as chips on the cards
   google_rating?: number;
   google_review_count?: number;
