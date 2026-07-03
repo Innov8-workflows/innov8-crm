@@ -56,6 +56,13 @@ export async function GET(request: NextRequest) {
     WHERE es.status IN ('proposed','sold','delivered')
       AND l.status NOT IN ('won','completed','rejected','dead')${ownerJoin}`;
 
+  // Verbal-stage forecast — monthly value of the deals verbally agreed (near close).
+  const verbalSQL = `SELECT COALESCE(SUM(es.monthly_upcharge), 0) as monthly
+    FROM entity_solutions es
+    JOIN leads l ON es.entity_type = 'lead' AND es.entity_id = l.id
+    WHERE es.status IN ('proposed','sold','delivered')
+      AND l.status = 'verbal'${ownerJoin}`;
+
   // Win/rejection breakdown by business type.
   const byTypeSQL = `SELECT
     business_type,
@@ -71,10 +78,11 @@ export async function GET(request: NextRequest) {
   // Run all four independent aggregates in PARALLEL — one round-trip of latency
   // instead of four sequential ones (this was the dominant cost of this endpoint).
   // The custom-fields + money queries stay optional (null on error, as before).
-  const [stats, customCounts, money, byTypeRows] = await Promise.all([
+  const [stats, customCounts, money, verbal, byTypeRows] = await Promise.all([
     db.execute({ sql: statsSQL, args: [today, today, ...args] }).then(first),
     db.execute({ sql: customCountsSQL, args }).then(first).catch(() => null),
     db.execute({ sql: moneySQL, args }).then(first).catch(() => null),
+    db.execute({ sql: verbalSQL, args }).then(first).catch(() => null),
     db.execute({ sql: byTypeSQL, args }).then(all),
   ]);
 
@@ -82,6 +90,7 @@ export async function GET(request: NextRequest) {
   const fbMessengerOnlyCount = Number(customCounts?.fb_only) || 0;
   const totalMonthly = Number(money?.monthly) || 0;
   const totalCapex = Number(money?.capex) || 0;
+  const verbalMonthly = Number(verbal?.monthly) || 0;
   const byType = byTypeRows.map((r) => ({
     type: r.business_type as string,
     total: Number(r.total) || 0,
@@ -104,6 +113,7 @@ export async function GET(request: NextRequest) {
     dueToday: Number(stats?.dueToday) || 0,
     totalCapex,
     totalMonthly,
+    verbalMonthly,
     byType,
   });
   // no-store: prospect monthly/capex are now product-driven — must reflect picker changes immediately.

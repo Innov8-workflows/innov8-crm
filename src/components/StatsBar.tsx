@@ -6,7 +6,7 @@ interface Stats {
   total: number; emailed: number; messaged: number; called: number;
   meetingsBooked: number; maybe: number; won: number; lost: number;
   rejected: number; overdue: number; dueToday: number;
-  totalCapex: number; totalMonthly: number;
+  totalCapex: number; totalMonthly: number; verbalMonthly: number;
 }
 
 export default function StatsBar({ ownerFilter = "", refreshKey = 0 }: { ownerFilter?: string; refreshKey?: number }) {
@@ -69,6 +69,14 @@ export default function StatsBar({ ownerFilter = "", refreshKey = 0 }: { ownerFi
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg" style={{ background: "var(--surface2)", border: "1px solid var(--border)" }}>
             <span className="text-xs" style={{ color: "var(--text-dim)" }}>Prospect ARR</span>
             <span className="text-sm font-bold" style={{ color: "#ea580c" }}>{"\u00A3"}{((stats.totalMonthly || 0) * 12).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/yr</span>
+          </div>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg" style={{ background: "var(--surface2)", border: "1px solid #a855f766" }}>
+            <span className="text-xs" style={{ color: "var(--text-dim)" }}>Verbal MRR</span>
+            <span className="text-sm font-bold" style={{ color: "#a855f7" }}>{"\u00A3"}{(stats.verbalMonthly || 0).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo</span>
+          </div>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg" style={{ background: "var(--surface2)", border: "1px solid #a855f766" }}>
+            <span className="text-xs" style={{ color: "var(--text-dim)" }}>Verbal ARR</span>
+            <span className="text-sm font-bold" style={{ color: "#a855f7" }}>{"\u00A3"}{((stats.verbalMonthly || 0) * 12).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/yr</span>
           </div>
         </div>
         <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 gap-2 px-4 pb-3">
