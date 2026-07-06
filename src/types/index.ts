@@ -199,6 +199,7 @@ export const PIPELINE_STAGES = [
   { value: "verbal", label: "Verbal", color: "#16a34a" },
   { value: "won", label: "Won", color: "#059669" },
   { value: "maybe", label: "Maybe", color: "#ea580c" },
+  { value: "ice", label: "Ice", color: "#38BDF8" },
   { value: "lost", label: "Lost", color: "#EF4444" },
   { value: "rejected", label: "Rejected", color: "#9CA3AF" },
   { value: "dead", label: "Dead", color: "#4B5563" },

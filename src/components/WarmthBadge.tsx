@@ -11,6 +11,7 @@ const WARMTH = [
   { value: "hot", label: "Hot", color: "#ef4444" },
   { value: "warm", label: "Warm", color: "#f59e0b" },
   { value: "cold", label: "Cold", color: "#3b82f6" },
+  { value: "ice", label: "Ice", color: "#38BDF8" },
 ];
 
 function WarmthBadgeBase({ value, onChange }: { value: string; onChange: (v: string) => void }) {
