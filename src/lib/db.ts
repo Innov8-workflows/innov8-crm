@@ -33,7 +33,7 @@ async function doInitDb() {
   // ~100-300ms, so this is the single biggest "slow first load" win. Bump
   // SCHEMA_VERSION whenever a migration/index/seed below changes → the heavy block
   // re-runs exactly once on the next deploy, then cold starts go fast again.
-  const SCHEMA_VERSION = "2026-07-02-mobile";
+  const SCHEMA_VERSION = "2026-07-03-adcampaigns";
   await db.execute("CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT DEFAULT '')");
   const schemaMarker = first(await db.execute("SELECT value FROM app_meta WHERE key = 'schema_version'"));
   if (schemaMarker?.value === SCHEMA_VERSION) return;
@@ -462,6 +462,8 @@ async function seedSolutionsCatalogue(db: Client) {
       { name: "Missed Call Text Back", description: "Never miss a lead — instantly texts back missed calls to keep conversions high.", category: "automation", target_trades: "", upfront: 0, monthly: 25, days: 2, pitch: "Tradies miss 30%+ of calls on the tools. Every missed call gets an instant text — no lead lost." },
       { name: "AI Chatbot", description: "Engages visitors 24/7, answers questions and captures leads automatically.", category: "ai", target_trades: "", upfront: 0, monthly: 45, days: 4, pitch: "Visitors at 11pm are leads — the chatbot captures them while they sleep." },
       { name: "Email Hosting", description: "Professional email addresses that build trust and credibility. £95 setup + £5/pm per inbox — set the monthly to £5 × number of inboxes when attaching.", category: "integration", target_trades: "", upfront: 95, monthly: 5, days: 2, pitch: "name@theirbusiness.co.uk instead of a gmail — instant credibility for a few quid a month." },
+      { name: "Google PPC Ad Campaign", description: "Managed Google Ads (PPC) campaign — keyword research, ad copy and a conversion-focused landing page, with ongoing optimisation to drive high-intent leads. Setup covers the account build + launch; monthly covers management (ad spend billed separately by Google).", category: "marketing", target_trades: "", upfront: 250, monthly: 200, days: 5, pitch: "Puts them at the top of Google for their money terms from day one — instant lead flow while the organic SEO builds." },
+      { name: "Meta Ad Campaign", description: "Managed Facebook & Instagram (Meta) ad campaign — audience targeting, creative and ongoing optimisation to generate leads and build local awareness. Setup covers the pixel + campaign build; monthly covers management (ad spend billed separately by Meta).", category: "marketing", target_trades: "", upfront: 200, monthly: 150, days: 5, pitch: "Gets their before/after work in front of thousands of local homeowners scrolling Facebook & Instagram — high-volume lead gen on tap." },
     ];
 
     // Idempotent seed: insert only solutions whose name doesn't already exist.
