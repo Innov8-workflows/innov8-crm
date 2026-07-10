@@ -46,6 +46,7 @@ export interface Project {
   search_console_verified?: number;
   gbp_setup?: number;
   mobile_optimised?: number;
+  link_card?: number;
   // Manually-maintained review stats, shown as chips on the cards
   google_rating?: number;
   google_review_count?: number;
