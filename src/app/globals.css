@@ -154,8 +154,8 @@
 @theme inline {
   --color-background: var(--bg);
   --color-foreground: var(--text);
-  --font-sans: 'Bricolage Grotesque', sans-serif;
-  --font-mono: 'DM Mono', monospace;
+  --font-sans: var(--font-bricolage), 'Bricolage Grotesque', sans-serif;
+  --font-mono: var(--font-dmmono), 'DM Mono', monospace;
 }
 
 * { scrollbar-width: thin; scrollbar-color: var(--border-light) transparent; }
@@ -167,11 +167,11 @@
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: 'Bricolage Grotesque', sans-serif;
+  font-family: var(--font-bricolage), 'Bricolage Grotesque', sans-serif;
 }
 
 input, select, textarea {
-  font-family: 'Bricolage Grotesque', sans-serif;
+  font-family: var(--font-bricolage), 'Bricolage Grotesque', sans-serif;
 }
 
 ::selection { background: var(--accent-glow); color: #fff; }

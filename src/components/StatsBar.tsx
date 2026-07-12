@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { fetchBootstrap } from "@/lib/bootstrap";
+import { fetchBootstrap, getCachedBootstrap } from "@/lib/bootstrap";
 
 interface Stats {
   total: number; emailed: number; messaged: number; called: number;
@@ -11,7 +11,9 @@ interface Stats {
 }
 
 export default function StatsBar({ ownerFilter = "", refreshKey = 0 }: { ownerFilter?: string; refreshKey?: number }) {
-  const [stats, setStats] = useState<Stats | null>(null);
+  // Instant paint from the session-cached bootstrap; the live fetch replaces it.
+  const [stats, setStats] = useState<Stats | null>(() =>
+    typeof window === "undefined" ? null : getCachedBootstrap(ownerFilter)?.leadStats || null);
   const [expanded, setExpanded] = useState(true);
 
   // First load comes from the shared /api/bootstrap request (one fetch for the

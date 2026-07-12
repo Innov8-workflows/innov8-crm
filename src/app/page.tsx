@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react";
-import { fetchBootstrap } from "@/lib/bootstrap";
+import { fetchBootstrap, getCachedBootstrap, prefetchLeads } from "@/lib/bootstrap";
 import ViewNav from "@/components/ViewNav";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { ToastProvider } from "@/components/Toast";
@@ -21,17 +21,33 @@ const Todos = lazy(() => import("@/components/Todos"));
 
 type ViewId = "prospects" | "projects" | "clients" | "dashboard" | "map" | "ai_solutions" | "schedule" | "todos" | "pricing" | "referrals";
 
+// Fire the two critical-path requests at module-evaluation time — before React
+// hydrates, renders, or the lazy LeadGrid chunk arrives. By the time the grid
+// mounts, both responses are usually already in flight or landed. Also warm the
+// LeadGrid chunk itself (same module promise React.lazy will reuse) since
+// Prospects is always the first view shown.
+if (typeof window !== "undefined") {
+  const owner = localStorage.getItem("crm_ownerFilter") || "";
+  fetchBootstrap(owner).catch(() => {});
+  prefetchLeads(owner);
+  void import("@/components/LeadGrid");
+}
+
 export default function Home() {
   const [view, setView] = useState<ViewId>("prospects");
-  const [projectCount, setProjectCount] = useState(0);
-  const [clientCount, setClientCount] = useState(0);
-  const [todoCount, setTodoCount] = useState(0);
   const [ownerFilter, setOwnerFilter] = useState(() => {
     if (typeof window !== "undefined") {
       return localStorage.getItem("crm_ownerFilter") || "";
     }
     return "";
   });
+  // Nav badges paint instantly from the session-cached bootstrap; the live
+  // response (fetched in the effect below) replaces them.
+  const [cachedCounts] = useState(() =>
+    typeof window === "undefined" ? null : getCachedBootstrap(localStorage.getItem("crm_ownerFilter") || "")?.counts || null);
+  const [projectCount, setProjectCount] = useState(cachedCounts?.projects || 0);
+  const [clientCount, setClientCount] = useState(cachedCounts?.clients || 0);
+  const [todoCount, setTodoCount] = useState(cachedCounts?.todos || 0);
 
   // Track which views have been visited at least once. Heavy views (LeadGrid,
   // KanbanBoard, LiveClients) mount on first visit and stay mounted-but-hidden

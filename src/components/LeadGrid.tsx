@@ -32,7 +32,7 @@ import {
 } from "@dnd-kit/sortable";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { fetchBootstrap, type BootstrapData } from "@/lib/bootstrap";
+import { fetchBootstrap, getCachedBootstrap, takePrefetchedLeads, type BootstrapData } from "@/lib/bootstrap";
 import type { Lead, EntitySolution } from "@/types";
 import { PIPELINE_STAGES, ROW_COLORS } from "@/types";
 import EditableCell from "./EditableCell";
@@ -152,15 +152,25 @@ const DEFAULT_TYPES: Record<string, string> = {
 
 export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string }) {
   const { toast } = useToast();
-  const [leads, setLeads] = useState<Lead[]>([]);
-  const [loading, setLoading] = useState(true);
+  // One-shot read of the last-known bootstrap + leads payloads from this tab
+  // session (stale-while-revalidate): the grid paints INSTANTLY with them, and
+  // the live bootstrap/leads responses replace everything moments later.
+  const [cachedBoot] = useState(() => (typeof window === "undefined" ? null : getCachedBootstrap(ownerFilter)));
+  const [leads, setLeads] = useState<Lead[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const raw = sessionStorage.getItem(`crm_leads_cache_${ownerFilter || "all"}`);
+      return raw ? (JSON.parse(raw) as Lead[]) : [];
+    } catch { return []; }
+  });
+  const [loading, setLoading] = useState(leads.length === 0);
   const [activeTab, setActiveTab] = useState("All");
   const [search, setSearch] = useState("");
   const [sorting, setSorting] = useState<SortingState>([]);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [pickerLead, setPickerLead] = useState<Lead | null>(null);
   const [intelLead, setIntelLead] = useState<{ lead: Lead; rect: DOMRect } | null>(null);
-  const [productRollup, setProductRollup] = useState<Record<string, { count: number; monthly: number; upfront: number }>>({});
+  const [productRollup, setProductRollup] = useState<Record<string, { count: number; monthly: number; upfront: number }>>(() => cachedBoot?.productRollup || {});
   const [statsRefresh, setStatsRefresh] = useState(0);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({});
@@ -176,12 +186,17 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
   const [newColType, setNewColType] = useState("text");
   const [newLead, setNewLead] = useState({ business_name: "", email: "", contact_name: "" });
   const [duplicateWarning, setDuplicateWarning] = useState("");
-  const [colConfigs, setColConfigs] = useState<Record<string, ColConfig>>({});
-  const [customColumns, setCustomColumns] = useState<ColConfig[]>([]);
-  const [customFieldValues, setCustomFieldValues] = useState<Record<string, Record<string, string>>>({});
+  const [colConfigs, setColConfigs] = useState<Record<string, ColConfig>>(() => {
+    const configs: Record<string, ColConfig> = {};
+    for (const col of cachedBoot?.columns || []) configs[col.id] = col as ColConfig;
+    return configs;
+  });
+  const [customColumns, setCustomColumns] = useState<ColConfig[]>(() =>
+    (cachedBoot?.columns || []).filter((c) => c.id.startsWith("custom_")) as ColConfig[]);
+  const [customFieldValues, setCustomFieldValues] = useState<Record<string, Record<string, string>>>(() => cachedBoot?.customFields || {});
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [currentUser, setCurrentUser] = useState("");
-  const [usersList, setUsersList] = useState<string[]>([]);
+  const [currentUser, setCurrentUser] = useState(() => cachedBoot?.me?.username || "");
+  const [usersList, setUsersList] = useState<string[]>(() => cachedBoot?.users || []);
   const [showUserMenu, setShowUserMenu] = useState(false);
   // Ref to prevent re-fetch on inline edit
   const skipNextFetch = useRef(false);
@@ -391,10 +406,24 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
     // NB: search is applied client-side (TanStack global filter) — all rows for the
     // active tab/owner are already in memory and virtualized, so we no longer refetch
     // the whole lead table on every keystroke.
-    const res = await fetch(`/api/leads?${params}`);
-    const data = await res.json();
-    setLeads(data.leads || []);
+    // First load consumes the request page.tsx fired at module-eval time (take*
+    // clears it, so every later call goes to the network as before).
+    let data: { leads?: unknown[] } | null = null;
+    const prefetched = activeTab === "All" ? takePrefetchedLeads(ownerFilter) : null;
+    if (prefetched) {
+      try { data = await prefetched; } catch { data = null; }
+    }
+    if (!data) {
+      const res = await fetch(`/api/leads?${params}`);
+      data = await res.json();
+    }
+    const fresh = (data?.leads || []) as Lead[];
+    setLeads(fresh);
     setLoading(false);
+    // Persist the default view for instant paint on the next load.
+    if (activeTab === "All") {
+      try { sessionStorage.setItem(`crm_leads_cache_${ownerFilter || "all"}`, JSON.stringify(fresh)); } catch {}
+    }
   }, [activeTab, ownerFilter]);
 
   useEffect(() => { fetchLeads(); }, [fetchLeads]);
@@ -1078,6 +1107,8 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
                   onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
                   onClick={async () => {
                     await fetch("/api/auth/logout", { method: "POST" });
+                    // Cached grid/bootstrap data must not leak across sign-ins.
+                    try { sessionStorage.clear(); } catch {}
                     window.location.href = "/login";
                   }}>
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
