@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react";
+import { fetchBootstrap } from "@/lib/bootstrap";
 import ViewNav from "@/components/ViewNav";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { ToastProvider } from "@/components/Toast";
@@ -58,11 +59,18 @@ export default function Home() {
     }).catch(() => {});
   }, []);
 
-  // Fetch the nav-badge counts once on load. They're kept fresh afterwards by each
-  // view reporting changes up via onCountsChanged / onCountChanged — so we no longer
-  // re-fetch all three (incl. the heavy projects query) on every tab return, which
-  // duplicated the fetch each of those views already makes for itself.
-  useEffect(() => { refreshCounts(); }, [refreshCounts]);
+  // Initial nav-badge counts ride along on the ONE /api/bootstrap request (shared
+  // with ViewNav/LeadGrid/StatsBar) instead of three separate fetches. They're kept
+  // fresh afterwards by each view reporting changes up via onCountsChanged /
+  // onCountChanged, which still hit the individual count endpoints.
+  useEffect(() => {
+    fetchBootstrap(ownerFilter).then((b) => {
+      setClientCount(b.counts.clients || 0);
+      setProjectCount(b.counts.projects || 0);
+      setTodoCount(b.counts.todos || 0);
+    }).catch(() => refreshCounts());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleOwnerChange = (owner: string) => {
     setOwnerFilter(owner);

@@ -5,10 +5,29 @@ let client: Client | null = null;
 export function getClient(): Client {
   if (client) return client;
 
-  client = createClient({
-    url: process.env.TURSO_DATABASE_URL || "file:crm.db",
-    authToken: process.env.TURSO_AUTH_TOKEN,
-  });
+  const remoteUrl = process.env.TURSO_DATABASE_URL;
+
+  // Embedded replica (opt-in via TURSO_EMBEDDED_REPLICA=1 in Vercel env):
+  // libsql keeps a local SQLite copy in the lambda's /tmp and serves ALL reads
+  // from it (~0ms instead of the ~200ms/query network floor to the Turso
+  // region). Writes still go straight to the remote primary, and the client
+  // guarantees read-your-writes within this lambda instance. syncInterval
+  // pulls other writers' changes — a single-user CRM tolerates that lag.
+  // Cost: the first request on a cold lambda downloads the DB once.
+  // Roll back any time by unsetting the env var — no code change needed.
+  const useReplica = process.env.TURSO_EMBEDDED_REPLICA === "1" && !!remoteUrl && !!process.env.TURSO_AUTH_TOKEN;
+
+  client = useReplica
+    ? createClient({
+        url: `file:${process.env.TURSO_REPLICA_PATH || "/tmp/crm-replica.db"}`,
+        syncUrl: remoteUrl,
+        authToken: process.env.TURSO_AUTH_TOKEN,
+        syncInterval: Number(process.env.TURSO_SYNC_INTERVAL || "30"),
+      })
+    : createClient({
+        url: remoteUrl || "file:crm.db",
+        authToken: process.env.TURSO_AUTH_TOKEN,
+      });
 
   return client;
 }

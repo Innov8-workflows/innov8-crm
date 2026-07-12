@@ -32,6 +32,7 @@ import {
 } from "@dnd-kit/sortable";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { fetchBootstrap, type BootstrapData } from "@/lib/bootstrap";
 import type { Lead, EntitySolution } from "@/types";
 import { PIPELINE_STAGES, ROW_COLORS } from "@/types";
 import EditableCell from "./EditableCell";
@@ -302,20 +303,17 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
     } catch {}
   }, [customColumns, colConfigs]);
 
-  // Load mount-time data in parallel (was 4 sequential fetches → now 1 round-trip)
+  // Mount-time data (me, users, columns, custom-field values, product rollup) all
+  // rides along on the ONE shared /api/bootstrap request — see src/lib/bootstrap.ts.
+  // Falls back to the standalone endpoints if bootstrap errors.
   useEffect(() => {
-    Promise.all([
-      fetch("/api/auth/me").then((r) => r.json()).catch(() => ({})),
-      fetch("/api/users").then((r) => r.json()).catch(() => ({})),
-      fetch("/api/columns").then((r) => r.json()).catch(() => ({})),
-      fetch("/api/custom-fields").then((r) => r.json()).catch(() => ({})),
-    ]).then(([meData, usersData, colsData, fieldsData]) => {
-      if (meData.username) setCurrentUser(meData.username);
-      setUsersList(usersData.users || []);
+    const apply = (b: Pick<BootstrapData, "me" | "users" | "columns" | "customFields" | "productRollup">) => {
+      if (b.me?.username) setCurrentUser(b.me.username);
+      setUsersList(b.users || []);
 
       const configs: Record<string, ColConfig> = {};
       const custom: ColConfig[] = [];
-      for (const col of colsData.columns || []) {
+      for (const col of b.columns || []) {
         const c = col as ColConfig;
         configs[c.id] = c;
         if (c.id.startsWith("custom_")) custom.push(c);
@@ -323,14 +321,37 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
       setColConfigs(configs);
       setCustomColumns(custom);
 
-      const map: Record<string, Record<string, string>> = {};
-      for (const v of fieldsData.values || []) {
-        const leadId = String(v.lead_id);
-        if (!map[leadId]) map[leadId] = {};
-        map[leadId][v.field_id as string] = v.value as string;
-      }
-      setCustomFieldValues(map);
+      customFieldValuesRef.current = b.customFields || {};
+      setCustomFieldValues(b.customFields || {});
+      productRollupRef.current = b.productRollup || {};
+      setProductRollup(b.productRollup || {});
+    };
+
+    fetchBootstrap(ownerFilter).then(apply).catch(() => {
+      // Legacy path — bootstrap unavailable; fetch the pieces individually.
+      Promise.all([
+        fetch("/api/auth/me").then((r) => r.json()).catch(() => ({})),
+        fetch("/api/users").then((r) => r.json()).catch(() => ({})),
+        fetch("/api/columns").then((r) => r.json()).catch(() => ({})),
+        fetch("/api/custom-fields").then((r) => r.json()).catch(() => ({})),
+        fetch("/api/leads/product-rollup").then((r) => r.json()).catch(() => ({})),
+      ]).then(([meData, usersData, colsData, fieldsData, rollupData]) => {
+        const map: Record<string, Record<string, string>> = {};
+        for (const v of fieldsData.values || []) {
+          const leadId = String(v.lead_id);
+          if (!map[leadId]) map[leadId] = {};
+          map[leadId][v.field_id as string] = v.value as string;
+        }
+        apply({
+          me: meData.username ? { username: meData.username } : null,
+          users: usersData.users || [],
+          columns: colsData.columns || [],
+          customFields: map,
+          productRollup: rollupData.rollup || {},
+        });
+      });
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const getLabel = useCallback((id: string) => colConfigs[id]?.label || DEFAULT_LABELS[id] || id, [colConfigs]);
@@ -387,14 +408,6 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
   useEffect(() => { leadsRef.current = leads; }, [leads]);
   useEffect(() => { customFieldValuesRef.current = customFieldValues; }, [customFieldValues]);
   useEffect(() => { productRollupRef.current = productRollup; }, [productRollup]);
-
-  // Per-lead product summaries for the "Plan / Products" column (one grouped query).
-  useEffect(() => {
-    fetch("/api/leads/product-rollup").then((r) => r.json()).then((d) => {
-      productRollupRef.current = d.rollup || {};
-      setProductRollup(d.rollup || {});
-    }).catch(() => {});
-  }, []);
 
   // getAutoStage must be 100% stable (empty deps) so updateLead/updateCustomField
   // don't recreate → renderCell doesn't recreate → columns memo doesn't bust.

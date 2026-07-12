@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { fetchBootstrap } from "@/lib/bootstrap";
 
 interface Stats {
   total: number; emailed: number; messaged: number; called: number;
@@ -13,9 +14,20 @@ export default function StatsBar({ ownerFilter = "", refreshKey = 0 }: { ownerFi
   const [stats, setStats] = useState<Stats | null>(null);
   const [expanded, setExpanded] = useState(true);
 
+  // First load comes from the shared /api/bootstrap request (one fetch for the
+  // whole shell); owner changes and refreshKey bumps re-fetch the live endpoint.
+  const firstLoad = useRef(true);
   useEffect(() => {
-    const params = ownerFilter ? `?owner=${encodeURIComponent(ownerFilter)}` : "";
-    fetch(`/api/leads/stats${params}`).then((r) => r.json()).then(setStats);
+    const fetchLive = () => {
+      const params = ownerFilter ? `?owner=${encodeURIComponent(ownerFilter)}` : "";
+      fetch(`/api/leads/stats${params}`).then((r) => r.json()).then(setStats).catch(() => {});
+    };
+    if (firstLoad.current) {
+      firstLoad.current = false;
+      fetchBootstrap(ownerFilter).then((b) => setStats(b.leadStats)).catch(fetchLive);
+      return;
+    }
+    fetchLive();
   }, [ownerFilter, refreshKey]);
 
   if (!stats) return null;

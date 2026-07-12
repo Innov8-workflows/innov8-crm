@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { fetchBootstrap } from "@/lib/bootstrap";
 import Icon, { type IconName } from "./Icon";
 
 type ViewId = "prospects" | "projects" | "clients" | "dashboard" | "map" | "ai_solutions" | "schedule" | "todos" | "pricing" | "referrals";
@@ -35,7 +36,12 @@ export default function ViewNav({ active, onChange, projectCount = 0, clientCoun
   const [contentFilter, setContentFilter] = useState(false);
 
   useEffect(() => {
-    fetch("/api/users").then((r) => r.json()).then((d) => setUsers(d.users || []));
+    // Users ride along on the shared /api/bootstrap request (one fetch for the
+    // whole shell); fall back to the standalone endpoint if bootstrap fails.
+    fetchBootstrap(ownerFilter)
+      .then((b) => setUsers(b.users || []))
+      .catch(() => fetch("/api/users").then((r) => r.json()).then((d) => setUsers(d.users || [])).catch(() => {}));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

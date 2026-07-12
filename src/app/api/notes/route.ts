@@ -7,7 +7,8 @@ export async function GET(request: NextRequest) {
   const leadId = request.nextUrl.searchParams.get("lead_id");
   if (!leadId) return NextResponse.json({ error: "lead_id required" }, { status: 400 });
 
-  const result = await db.execute({ sql: "SELECT * FROM lead_notes WHERE lead_id = ? ORDER BY created_at DESC", args: [Number(leadId)] });
+  // LIMIT: recent-history feed — unbounded rows on old leads just inflate the payload.
+  const result = await db.execute({ sql: "SELECT * FROM lead_notes WHERE lead_id = ? ORDER BY created_at DESC LIMIT 200", args: [Number(leadId)] });
   return NextResponse.json({ notes: all(result) }, {
     headers: { "Cache-Control": "private, max-age=10" },
   });

@@ -30,7 +30,12 @@ export async function GET(request: NextRequest) {
       LEFT JOIN leads l ON es.entity_type = 'lead' AND l.id = es.entity_id
       LEFT JOIN projects p ON es.entity_type = 'project' AND p.id = es.entity_id
       LEFT JOIN leads pl ON p.lead_id = pl.id
+      ORDER BY es.updated_at DESC
+      LIMIT 2000
     `;
+    // LIMIT 2000: safety valve — the matrix renders every row it gets, and an
+    // unbounded query grows with (leads × products) forever. Newest first so
+    // anything dropped is ancient history.
     const result = await db.execute(sql);
     return NextResponse.json({ entity_solutions: all(result) }, {
       headers: { "Cache-Control": "private, max-age=10" },

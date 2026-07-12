@@ -30,9 +30,23 @@ export default function KanbanBoard({ ownerFilter = "", onCountsChanged }: { own
       }));
     setProjects(projs);
     setLoading(false);
+    try { sessionStorage.setItem(`crm_projects_cache_${ownerFilter || "all"}`, JSON.stringify(projs)); } catch {}
   }, [ownerFilter]);
 
-  useEffect(() => { fetchProjects(); }, [fetchProjects]);
+  useEffect(() => {
+    // Stale-while-revalidate: this view unmounts on tab-away (persist=false frees
+    // the memory), so every return used to re-run the full enriched projects query
+    // behind a spinner. Paint the last-known board from sessionStorage instantly,
+    // then let the fetch replace it when fresh data lands.
+    try {
+      const cached = sessionStorage.getItem(`crm_projects_cache_${ownerFilter || "all"}`);
+      if (cached) {
+        setProjects(JSON.parse(cached));
+        setLoading(false);
+      }
+    } catch {}
+    fetchProjects();
+  }, [fetchProjects, ownerFilter]);
 
   // Toggle a setup milestone (GA4 / Search Console / Business Profile) — optimistic.
   const toggleSetup = useCallback((projectId: number, field: SetupField, next: number) => {

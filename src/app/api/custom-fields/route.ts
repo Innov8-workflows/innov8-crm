@@ -17,8 +17,10 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  // Return all custom field values grouped by lead_id
-  const result = await db.execute("SELECT * FROM custom_field_values");
+  // Return all custom field values (legacy fallback — the grid normally gets these
+  // via /api/bootstrap). Empty values render identically to missing ones, so
+  // don't ship them — on a mature DB they're a large share of the rows.
+  const result = await db.execute("SELECT lead_id, field_id, value FROM custom_field_values WHERE value != '' AND value IS NOT NULL");
   return NextResponse.json({ values: all(result) }, {
     headers: { "Cache-Control": "private, max-age=5" },
   });
