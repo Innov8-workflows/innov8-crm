@@ -48,6 +48,7 @@ export interface Project {
   mobile_optimised?: number;
   link_card?: number;
   bing_console?: number;
+  secure_file?: number;
   // Manually-maintained review stats, shown as chips on the cards
   google_rating?: number;
   google_review_count?: number;
