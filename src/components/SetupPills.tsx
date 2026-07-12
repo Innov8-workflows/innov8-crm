@@ -7,6 +7,7 @@ const SETUP_ITEMS = [
   { field: "ga4_embedded", label: "GA4", title: "Google Analytics 4 embedded" },
   { field: "ga4_conversions", label: "GA4 Conversions", title: "GA4 conversion events / key events configured" },
   { field: "search_console_verified", label: "Search Console", title: "Google Search Console verified" },
+  { field: "bing_console", label: "Bing Console", title: "Bing Webmaster Tools verified" },
   { field: "gbp_setup", label: "Business Profile", title: "Google Business Profile set up" },
   { field: "mobile_optimised", label: "Mobile", title: "Site is mobile-optimised" },
   { field: "link_card", label: "Link card", title: "Social link-preview (Open Graph) card set up" },
@@ -15,7 +16,7 @@ const SETUP_ITEMS = [
 export type SetupField = (typeof SETUP_ITEMS)[number]["field"];
 
 export default function SetupPills({ values, onToggle }: {
-  values: { ga4_embedded?: number; ga4_conversions?: number; search_console_verified?: number; gbp_setup?: number; mobile_optimised?: number; link_card?: number };
+  values: { ga4_embedded?: number; ga4_conversions?: number; search_console_verified?: number; bing_console?: number; gbp_setup?: number; mobile_optimised?: number; link_card?: number };
   onToggle: (field: SetupField, next: number) => void;
 }) {
   return (
