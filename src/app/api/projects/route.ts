@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getClient, initDb, all, first } from "@/lib/db";
 import { DEFAULT_PROJECT_TASKS } from "@/lib/projectTasks";
+import { computeAndStoreCover, computeAndStoreSeo, parseSeoCache } from "@/lib/projectCache";
+
+// Headroom for the one-off lazy backfill of cover/SEO caches on projects that
+// predate those columns (each backfilled project persists individually, so even
+// a timeout mid-way just resumes on the next request).
+export const maxDuration = 60;
 
 export async function GET(request: NextRequest) {
   await initDb();
@@ -72,82 +78,39 @@ export async function GET(request: NextRequest) {
   const result = await db.execute({ sql, args: args as never[] });
   const projects = all(result);
 
-  // Flag projects that HAVE a cover image, but don't include the base64 data.
-  // Images are served lazily via /api/projects/[id]/cover with browser caching.
+  // Cover + SEO-trend info comes from the cached columns on projects — the old
+  // per-request window queries over project_files/seo_reports walked every
+  // stored base64 blob's overflow pages and took ~30s (see src/lib/projectCache.ts).
+  // NULL/'' caches (projects predating the columns) are computed per-project and
+  // persisted right here — each one survives independently, so a slow first
+  // request after deploy self-heals and every later request skips the blobs.
   if (projects.length > 0) {
     const ids = projects.map((p: Record<string, unknown>) => p.id);
     const placeholders = ids.map(() => "?").join(",");
 
-    const batchQueries: Promise<unknown>[] = [
-      // Per project, the id of the file the cover endpoint WOULD serve (same WHERE
-      // + ORDER BY). We hand this back as cover_version so the card's <img> can
-      // cache-bust: /cover is cached immutable, so without a version that changes
-      // when the cover changes the browser keeps showing the old image. No base64
-      // data is transferred — just the id.
-      db.execute({
-        sql: `SELECT project_id, id AS cover_id FROM (
-                 SELECT project_id, id,
-                        ROW_NUMBER() OVER (PARTITION BY project_id ORDER BY is_cover DESC, created_at ASC) AS rn
-                 FROM project_files
-                 WHERE project_id IN (${placeholders}) AND (file_type LIKE 'image/%' OR url LIKE 'data:image/%' OR is_cover = 1)
-               ) WHERE rn = 1`,
-        args: ids as never[],
-      }),
-      // Per project, the latest two SEO report scores (+ latest date) so the client
-      // card can show "score/10 + ↑/↓ trend" without an N-call fan-out. rn=1 is the
-      // latest, rn=2 the previous. (Same window-function shape as cover_version.)
-      db.execute({
-        sql: `SELECT project_id, score, logged_at, rn FROM (
-                 SELECT project_id, score, logged_at,
-                        ROW_NUMBER() OVER (PARTITION BY project_id ORDER BY logged_at DESC, id DESC) AS rn
-                 FROM seo_reports
-                 WHERE project_id IN (${placeholders})
-               ) WHERE rn <= 2`,
-        args: ids as never[],
-      }),
-    ];
-
-    if (completed === "true" || paying === "true") {
-      batchQueries.push(
-        db.execute({ sql: `SELECT project_id, COUNT(*) as total, SUM(CASE WHEN completed = 1 THEN 1 ELSE 0 END) as done FROM project_tasks WHERE project_id IN (${placeholders}) GROUP BY project_id`, args: ids as never[] }),
-      );
-    }
-
-    const results = await Promise.all(batchQueries);
-    const hasCoverResult = results[0] as import("@libsql/client").ResultSet;
-
-    const coverId: Record<number, number> = {};
-    for (const row of all(hasCoverResult)) {
-      coverId[row.project_id as number] = row.cover_id as number;
-    }
-
-    for (const p of projects) {
+    await Promise.all(projects.map(async (p) => {
       const pid = p.id as number;
-      const cid = coverId[pid];
-      (p as Record<string, unknown>).has_cover = cid !== undefined;
-      (p as Record<string, unknown>).cover_version = cid ?? 0;
-    }
-
-    // Latest + previous SEO report score per project (for the card trend).
-    const seoResult = results[1] as import("@libsql/client").ResultSet;
-    const seoLatest: Record<number, { score: number; date: string }> = {};
-    const seoPrev: Record<number, number> = {};
-    for (const row of all(seoResult)) {
-      const pid = row.project_id as number;
-      if ((row.rn as number) === 1) seoLatest[pid] = { score: Number(row.score), date: String(row.logged_at) };
-      else seoPrev[pid] = Number(row.score);
-    }
-    for (const p of projects) {
-      const pid = p.id as number;
-      if (seoLatest[pid]) {
-        (p as Record<string, unknown>).seo_score = seoLatest[pid].score;
-        (p as Record<string, unknown>).seo_report_date = seoLatest[pid].date;
+      let coverId = p.cover_file_id as number | null;
+      if (coverId === null || coverId === undefined) {
+        try { coverId = await computeAndStoreCover(db, pid); } catch { coverId = 0; }
       }
-      if (seoPrev[pid] !== undefined) (p as Record<string, unknown>).seo_score_prev = seoPrev[pid];
-    }
+      (p as Record<string, unknown>).has_cover = Number(coverId) > 0;
+      (p as Record<string, unknown>).cover_version = Number(coverId) || 0;
+
+      let seo = parseSeoCache(p.seo_cache);
+      if (seo === null) {
+        try { seo = await computeAndStoreSeo(db, pid); } catch { seo = {}; }
+      }
+      if (seo.s !== undefined) {
+        (p as Record<string, unknown>).seo_score = seo.s;
+        (p as Record<string, unknown>).seo_report_date = seo.d;
+      }
+      if (seo.p !== undefined) (p as Record<string, unknown>).seo_score_prev = seo.p;
+      delete (p as Record<string, unknown>).seo_cache;
+    }));
 
     if (completed === "true" || paying === "true") {
-      const taskResult = results[2] as import("@libsql/client").ResultSet;
+      const taskResult = await db.execute({ sql: `SELECT project_id, COUNT(*) as total, SUM(CASE WHEN completed = 1 THEN 1 ELSE 0 END) as done FROM project_tasks WHERE project_id IN (${placeholders}) GROUP BY project_id`, args: ids as never[] });
       const taskStats: Record<number, { total: number; done: number }> = {};
       for (const row of all(taskResult)) {
         taskStats[row.project_id as number] = { total: row.total as number, done: row.done as number };

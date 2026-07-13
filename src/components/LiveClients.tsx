@@ -48,6 +48,15 @@ export default function LiveClients({ ownerFilter = "", onCountsChanged }: { own
   const [invoiceResult, setInvoiceResult] = useState<{ id: number; msg: string; ok: boolean } | null>(null);
 
   const fetchClients = useCallback(async () => {
+    // Stale-while-revalidate: paint the last-known list instantly, refresh behind it.
+    const cacheKey = `crm_clients_cache_${clientFilter}_${ownerFilter || "all"}`;
+    try {
+      const cached = sessionStorage.getItem(cacheKey);
+      if (cached) {
+        setClients(JSON.parse(cached));
+        setLoading(false);
+      }
+    } catch {}
     const ownerParam = ownerFilter ? `&owner=${encodeURIComponent(ownerFilter)}` : "";
     // "paying=true" = any project past Onboarding stage. The moment they sign
     // and move into Design & Content they're a paying customer being delivered.
@@ -55,6 +64,7 @@ export default function LiveClients({ ownerFilter = "", onCountsChanged }: { own
     const data = await res.json();
     setClients(data.projects || []);
     setLoading(false);
+    try { sessionStorage.setItem(cacheKey, JSON.stringify(data.projects || [])); } catch {}
   }, [clientFilter, ownerFilter]);
 
   const fetchStats = useCallback(async () => {

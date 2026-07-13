@@ -98,6 +98,20 @@ export async function POST(request: NextRequest) {
     args: [project_id, name, url, file_type, size, is_cover, now],
   });
 
+  // Keep the cached cover pointer fresh (see src/lib/projectCache.ts): an
+  // explicit cover always wins; otherwise the first image on a project without
+  // a cover becomes it (matches the is_cover DESC, created_at ASC rule).
+  const newId = Number(result.lastInsertRowid!);
+  const isImage = file_type.startsWith("image/") || url.startsWith("data:image/");
+  if (is_cover) {
+    await db.execute({ sql: "UPDATE projects SET cover_file_id = ? WHERE id = ?", args: [newId, project_id] });
+  } else if (isImage) {
+    await db.execute({
+      sql: "UPDATE projects SET cover_file_id = ? WHERE id = ? AND (cover_file_id IS NULL OR cover_file_id = 0)",
+      args: [newId, project_id],
+    });
+  }
+
   // Echo back metadata only — never the just-uploaded base64 blob (doubles the payload).
   const savedFile = first(await db.execute({
     sql: `SELECT id, project_id, name, file_type, size, is_cover, created_at,
@@ -122,6 +136,14 @@ export async function PUT(request: NextRequest) {
       await db.execute({ sql: "UPDATE project_files SET is_cover = 0 WHERE project_id = ?", args: [file.project_id as number] });
     }
     await db.execute({ sql: "UPDATE project_files SET is_cover = ? WHERE id = ?", args: [is_cover ? 1 : 0, id] });
+    // Cached pointer: explicit cover set → point at it; cover unset → NULL
+    // (unknown) so the next list/cover request recomputes the fallback.
+    if (file) {
+      await db.execute({
+        sql: is_cover ? "UPDATE projects SET cover_file_id = ? WHERE id = ?" : "UPDATE projects SET cover_file_id = NULL WHERE id = ?",
+        args: is_cover ? [id, file.project_id as number] : [file.project_id as number],
+      });
+    }
   }
 
   return NextResponse.json({ ok: true });
@@ -132,6 +154,16 @@ export async function DELETE(request: NextRequest) {
   const db = getClient();
   const { id } = await request.json();
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
+  // If this file was the cached cover, mark it unknown (NULL) so the next
+  // list/cover request recomputes it. project_id is an early column — reading
+  // it never touches the blob.
+  const file = first(await db.execute({ sql: "SELECT project_id FROM project_files WHERE id = ?", args: [id] }));
   await db.execute({ sql: "DELETE FROM project_files WHERE id = ?", args: [id] });
+  if (file) {
+    await db.execute({
+      sql: "UPDATE projects SET cover_file_id = NULL WHERE id = ? AND cover_file_id = ?",
+      args: [file.project_id as number, id],
+    });
+  }
   return NextResponse.json({ ok: true });
 }

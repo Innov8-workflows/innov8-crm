@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getClient, initDb, first } from "@/lib/db";
+import { computeAndStoreCover } from "@/lib/projectCache";
 
-// Serves a single project's cover image. Uses window-function query to pick
-// the explicit cover (is_cover=1) if set, else the oldest image.
+// Serves a single project's cover image — explicit cover (is_cover=1) if set,
+// else the oldest image. The file id comes from the cached projects.cover_file_id
+// (computed + persisted on miss) so this reads exactly ONE project_files row
+// instead of scanning the blob-heavy table per request.
 // Heavily cached in the browser so kanban cards don't re-fetch on every render.
 export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   await initDb();
@@ -11,14 +14,16 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
   if (!projectId) return new NextResponse("Bad request", { status: 400 });
 
   const db = getClient();
-  const row = first(await db.execute({
-    sql: `SELECT url FROM project_files
-          WHERE project_id = ?
-            AND (file_type LIKE 'image/%' OR url LIKE 'data:image/%' OR is_cover = 1)
-          ORDER BY is_cover DESC, created_at ASC
-          LIMIT 1`,
-    args: [projectId],
-  }));
+  const proj = first(await db.execute({ sql: "SELECT cover_file_id FROM projects WHERE id = ?", args: [projectId] }));
+  if (!proj) return new NextResponse("Not found", { status: 404 });
+
+  let coverId = proj.cover_file_id as number | null;
+  if (coverId === null || coverId === undefined) {
+    coverId = await computeAndStoreCover(db, projectId);
+  }
+  if (!coverId) return new NextResponse("Not found", { status: 404 });
+
+  const row = first(await db.execute({ sql: "SELECT url FROM project_files WHERE id = ?", args: [Number(coverId)] }));
 
   if (!row?.url) return new NextResponse("Not found", { status: 404 });
 

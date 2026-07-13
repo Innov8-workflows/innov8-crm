@@ -52,7 +52,7 @@ async function doInitDb() {
   // ~100-300ms, so this is the single biggest "slow first load" win. Bump
   // SCHEMA_VERSION whenever a migration/index/seed below changes → the heavy block
   // re-runs exactly once on the next deploy, then cold starts go fast again.
-  const SCHEMA_VERSION = "2026-07-03-securefile";
+  const SCHEMA_VERSION = "2026-07-13-projcache";
   await db.execute("CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT DEFAULT '')");
   const schemaMarker = first(await db.execute("SELECT value FROM app_meta WHERE key = 'schema_version'"));
   if (schemaMarker?.value === SCHEMA_VERSION) return;
@@ -157,6 +157,8 @@ async function doInitDb() {
       google_review_count INTEGER DEFAULT 0,
       facebook_rating REAL DEFAULT 0,
       facebook_review_count INTEGER DEFAULT 0,
+      cover_file_id INTEGER,
+      seo_cache TEXT DEFAULT '',
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (lead_id) REFERENCES leads(id)
@@ -313,6 +315,14 @@ async function doInitDb() {
     "ALTER TABLE projects ADD COLUMN google_review_count INTEGER DEFAULT 0",
     "ALTER TABLE projects ADD COLUMN facebook_rating REAL DEFAULT 0",
     "ALTER TABLE projects ADD COLUMN facebook_review_count INTEGER DEFAULT 0",
+    // Cached cover + SEO-trend lookups (see /api/projects). project_files and
+    // seo_reports rows carry multi-MB base64 blobs, and their metadata columns
+    // sit AFTER the blob in the record — so ANY scan of those tables walks every
+    // blob's overflow pages (measured ~30s on prod). These two narrow columns on
+    // projects hold the answers instead: NULL/'' = unknown → computed lazily
+    // per-project (bounded) and persisted; write sites keep them fresh.
+    "ALTER TABLE projects ADD COLUMN cover_file_id INTEGER",
+    "ALTER TABLE projects ADD COLUMN seo_cache TEXT DEFAULT ''",
     // Retire the 20 generic placeholder solutions in favour of Jay's real product line.
     // Soft-delete (active=0) keeps any historical entity_solutions intact (no FK cascade).
     `UPDATE solutions_catalogue SET active = 0 WHERE name IN (

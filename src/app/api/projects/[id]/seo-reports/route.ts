@@ -93,6 +93,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     args: [projectId, score, report_url, report_name, report_type, notes, logged_at, now],
   });
+  // Invalidate the cached latest/previous scores on the project card — the next
+  // projects list recomputes + re-persists them (see src/lib/projectCache.ts).
+  await db.execute({ sql: "UPDATE projects SET seo_cache = '' WHERE id = ?", args: [projectId] });
   // Echo back metadata only — never the just-uploaded base64 blob.
   const saved = first(await db.execute({
     sql: `SELECT id, score, report_name, report_type, notes, logged_at,
@@ -113,5 +116,7 @@ export async function DELETE(request: NextRequest, context: { params: Promise<{ 
   if (!projectId || !reportId) return NextResponse.json({ error: "bad params" }, { status: 400 });
   const db = getClient();
   await db.execute({ sql: "DELETE FROM seo_reports WHERE id = ? AND project_id = ?", args: [reportId, projectId] });
+  // Invalidate the cached card scores — recomputed on the next projects list.
+  await db.execute({ sql: "UPDATE projects SET seo_cache = '' WHERE id = ?", args: [projectId] });
   return NextResponse.json({ ok: true });
 }
