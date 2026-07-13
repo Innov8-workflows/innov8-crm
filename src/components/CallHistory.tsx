@@ -25,6 +25,11 @@ export default function CallHistory({
   const [outcome, setOutcome] = useState<CallLog["outcome"]>("answered");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  // Double-click a history entry to edit it in place.
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editDate, setEditDate] = useState("");
+  const [editOutcome, setEditOutcome] = useState<CallLog["outcome"]>("answered");
+  const [editNotes, setEditNotes] = useState("");
 
   useEffect(() => {
     fetch(`/api/call-logs?lead_id=${lead.id}`)
@@ -58,6 +63,35 @@ export default function CallHistory({
     onChanged(next, false);
     await fetch(`/api/call-logs?id=${log.id}`, { method: "DELETE" });
   }, [calls, onChanged]);
+
+  const startEdit = useCallback((log: CallLog) => {
+    setEditingId(log.id);
+    setEditDate(log.called_at);
+    setEditOutcome(log.outcome);
+    setEditNotes(log.notes);
+  }, []);
+
+  const saveEdit = useCallback(async () => {
+    if (editingId === null || saving) return;
+    setSaving(true);
+    try {
+      const res = await fetch("/api/call-logs", {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: editingId, called_at: editDate, outcome: editOutcome, notes: editNotes.trim() }),
+      });
+      if (!res.ok) return;
+      const updated = (await res.json()) as CallLog;
+      // Re-sort in case the date changed (list shows newest first).
+      const next = (calls || [])
+        .map((c) => (c.id === updated.id ? updated : c))
+        .sort((a, b) => (a.called_at === b.called_at ? b.id - a.id : a.called_at < b.called_at ? 1 : -1));
+      setCalls(next);
+      setEditingId(null);
+      onChanged(next, false);
+    } finally {
+      setSaving(false);
+    }
+  }, [editingId, saving, editDate, editOutcome, editNotes, calls, onChanged]);
 
   const cardRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -149,8 +183,57 @@ export default function CallHistory({
         ) : (
           calls.map((c) => {
             const meta = outcomeMeta(c.outcome);
+            if (editingId === c.id) {
+              return (
+                <div key={c.id} className="rounded-lg px-2.5 py-2 space-y-2" style={{ background: "var(--surface2)", border: "1px solid var(--accent)" }}>
+                  <div className="flex items-center gap-2">
+                    <input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)}
+                      className="px-2 py-1 text-xs rounded-md flex-shrink-0"
+                      style={{ background: "var(--surface)", border: "1px solid var(--border-light)", color: "var(--text)", outline: "none", colorScheme: "dark" }} />
+                    <div className="flex gap-1 flex-1 justify-end">
+                      {CALL_OUTCOMES.map((o) => {
+                        const active = editOutcome === o.value;
+                        return (
+                          <button key={o.value} type="button" onClick={() => setEditOutcome(o.value)}
+                            className="px-1.5 py-1 text-[10px] font-semibold rounded-md transition-colors whitespace-nowrap"
+                            style={{
+                              background: active ? o.color : "var(--surface)",
+                              color: active ? "#fff" : "var(--text-muted)",
+                              border: `1px solid ${active ? o.color : "var(--border-light)"}`,
+                            }}>
+                            {o.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <textarea rows={2} value={editNotes} autoFocus
+                    onChange={(e) => setEditNotes(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) saveEdit();
+                      if (e.key === "Escape") { e.stopPropagation(); setEditingId(null); }
+                    }}
+                    className="w-full px-2 py-1.5 text-xs rounded-md resize-none"
+                    style={{ background: "var(--surface)", border: "1px solid var(--border-light)", color: "var(--text)", outline: "none" }} />
+                  <div className="flex gap-1.5">
+                    <button type="button" onClick={saveEdit} disabled={saving}
+                      className="flex-1 py-1 text-[11px] font-semibold rounded-md"
+                      style={{ background: "var(--accent)", color: "#fff", opacity: saving ? 0.6 : 1 }}>
+                      {saving ? "Saving…" : "Save"}
+                    </button>
+                    <button type="button" onClick={() => setEditingId(null)}
+                      className="px-3 py-1 text-[11px] rounded-md"
+                      style={{ background: "var(--surface)", border: "1px solid var(--border-light)", color: "var(--text-muted)" }}>
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              );
+            }
             return (
-              <div key={c.id} className="rounded-lg px-2.5 py-2 group" style={{ background: "var(--surface2)", border: "1px solid var(--border)" }}>
+              <div key={c.id} className="rounded-lg px-2.5 py-2 group cursor-pointer" title="Double-click to edit"
+                style={{ background: "var(--surface2)", border: "1px solid var(--border)" }}
+                onDoubleClick={() => startEdit(c)}>
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="text-xs font-semibold flex-shrink-0" style={{ color: "var(--text)" }}>{fmtDate(c.called_at)}</span>

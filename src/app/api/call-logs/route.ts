@@ -49,6 +49,28 @@ export async function POST(request: NextRequest) {
   return NextResponse.json(log, { status: 201 });
 }
 
+// PUT { id, called_at?, outcome?, notes? } → edit a logged call
+export async function PUT(request: NextRequest) {
+  await initDb();
+  const db = getClient();
+  const { id, called_at, outcome, notes } = await request.json();
+
+  if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
+
+  const updates: string[] = [];
+  const args: (string | number)[] = [];
+  if (/^\d{4}-\d{2}-\d{2}$/.test(called_at || "")) { updates.push("called_at = ?"); args.push(called_at); }
+  if (OUTCOMES.includes(outcome)) { updates.push("outcome = ?"); args.push(outcome); }
+  if (notes !== undefined) { updates.push("notes = ?"); args.push(String(notes).slice(0, 2000)); }
+  if (updates.length === 0) return NextResponse.json({ error: "nothing to update" }, { status: 400 });
+
+  args.push(Number(id));
+  await db.execute({ sql: `UPDATE call_logs SET ${updates.join(", ")} WHERE id = ?`, args });
+
+  const log = first(await db.execute({ sql: "SELECT * FROM call_logs WHERE id = ?", args: [Number(id)] }));
+  return NextResponse.json(log);
+}
+
 // DELETE ?id=N → remove one log entry
 export async function DELETE(request: NextRequest) {
   await initDb();
