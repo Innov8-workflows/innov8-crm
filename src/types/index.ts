@@ -138,6 +138,21 @@ export interface LeadNote {
   created_at: string;
 }
 
+export interface CallLog {
+  id: number;
+  lead_id: number;
+  called_at: string; // YYYY-MM-DD
+  outcome: "answered" | "no_answer" | "voicemail";
+  notes: string;
+  created_at: string;
+}
+
+export const CALL_OUTCOMES = [
+  { value: "answered", label: "Answered", color: "#22c55e" },
+  { value: "no_answer", label: "No answer", color: "#ef4444" },
+  { value: "voicemail", label: "Voicemail", color: "#f59e0b" },
+] as const;
+
 export type LeadUpdate = Partial<Omit<Lead, "id" | "created_at" | "updated_at">>;
 
 export interface Solution {

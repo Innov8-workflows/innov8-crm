@@ -52,7 +52,7 @@ async function doInitDb() {
   // ~100-300ms, so this is the single biggest "slow first load" win. Bump
   // SCHEMA_VERSION whenever a migration/index/seed below changes → the heavy block
   // re-runs exactly once on the next deploy, then cold starts go fast again.
-  const SCHEMA_VERSION = "2026-07-13-projcache";
+  const SCHEMA_VERSION = "2026-07-13-calllogs";
   await db.execute("CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT DEFAULT '')");
   const schemaMarker = first(await db.execute("SELECT value FROM app_meta WHERE key = 'schema_version'"));
   if (schemaMarker?.value === SCHEMA_VERSION) return;
@@ -116,6 +116,16 @@ async function doInitDb() {
       content TEXT NOT NULL,
       created_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (lead_id) REFERENCES leads(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS call_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      lead_id INTEGER NOT NULL,
+      called_at TEXT NOT NULL,
+      outcome TEXT DEFAULT 'answered',
+      notes TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE CASCADE
     );
 
     CREATE TABLE IF NOT EXISTS users (
@@ -344,6 +354,7 @@ async function doInitDb() {
     CREATE INDEX IF NOT EXISTS idx_email_logs_lead ON email_logs(lead_id);
     CREATE INDEX IF NOT EXISTS idx_activities_lead ON activities(lead_id);
     CREATE INDEX IF NOT EXISTS idx_lead_notes_lead ON lead_notes(lead_id);
+    CREATE INDEX IF NOT EXISTS idx_call_logs_lead ON call_logs(lead_id, called_at);
     CREATE INDEX IF NOT EXISTS idx_projects_lead ON projects(lead_id);
     CREATE INDEX IF NOT EXISTS idx_projects_completed ON projects(completed_at);
     CREATE INDEX IF NOT EXISTS idx_projects_status ON projects(client_status);

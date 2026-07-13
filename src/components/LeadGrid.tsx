@@ -33,7 +33,9 @@ import {
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { fetchBootstrap, getCachedBootstrap, takePrefetchedLeads, type BootstrapData } from "@/lib/bootstrap";
-import type { Lead, EntitySolution } from "@/types";
+import type { Lead, EntitySolution, CallLog } from "@/types";
+import { CALL_OUTCOMES } from "@/types";
+import CallHistory from "./CallHistory";
 import { PIPELINE_STAGES, ROW_COLORS } from "@/types";
 import EditableCell from "./EditableCell";
 import StatusCheckbox from "./StatusCheckbox";
@@ -138,7 +140,7 @@ const DEFAULT_LABELS: Record<string, string> = {
   location: "Location", website_status: "Website?", email: "Email", phone: "Number",
   emailed: "Emailed", messaged: "Messaged", responded: "Responded", followed_up: "Followed Up",
   capex: "CAPEX", notes: "Notes", status: "Stage", follow_up_date: "Follow Up", demo_site_url: "Demo Site",
-  owner: "Owner", intel: "Intel", warmth: "Warmth",
+  owner: "Owner", intel: "Intel", warmth: "Warmth", call_history: "History",
 };
 
 const DEFAULT_TYPES: Record<string, string> = {
@@ -170,7 +172,9 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [pickerLead, setPickerLead] = useState<Lead | null>(null);
   const [intelLead, setIntelLead] = useState<{ lead: Lead; rect: DOMRect } | null>(null);
+  const [callHistoryLead, setCallHistoryLead] = useState<{ lead: Lead; rect: DOMRect } | null>(null);
   const [productRollup, setProductRollup] = useState<Record<string, { count: number; monthly: number; upfront: number }>>(() => cachedBoot?.productRollup || {});
+  const [callRollup, setCallRollup] = useState<BootstrapData["callRollup"]>(() => cachedBoot?.callRollup || {});
   const [statsRefresh, setStatsRefresh] = useState(0);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({});
@@ -239,7 +243,7 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
       if (!Array.isArray(parsed)) return;
       if (parsed.length === 0 && !columnOrderInitialised.current) return;
 
-      const allBuiltIn = ["select", "drag_handle", "row_num", "owner", "status", "warmth", "intel",
+      const allBuiltIn = ["select", "drag_handle", "row_num", "owner", "status", "warmth", "intel", "call_history",
         "business_name", "contact_name", "business_type", "location",
         "follow_up_date", "website_status", "email", "phone", "demo_site_url",
         "emailed", "messaged", "responded", "followed_up", "capex", "products", "notes",
@@ -262,6 +266,17 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
         else {
           const addIdx = parsed.indexOf("add_column");
           if (addIdx !== -1) parsed.splice(addIdx, 0, "intel"); else parsed.push("intel");
+        }
+        changed = true;
+      }
+
+      // Ensure the "call_history" column lands right after Intel
+      if (!parsed.includes("call_history")) {
+        const intelIdx = parsed.indexOf("intel");
+        if (intelIdx !== -1) parsed.splice(intelIdx + 1, 0, "call_history");
+        else {
+          const addIdx = parsed.indexOf("add_column");
+          if (addIdx !== -1) parsed.splice(addIdx, 0, "call_history"); else parsed.push("call_history");
         }
         changed = true;
       }
@@ -322,7 +337,7 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
   // rides along on the ONE shared /api/bootstrap request — see src/lib/bootstrap.ts.
   // Falls back to the standalone endpoints if bootstrap errors.
   useEffect(() => {
-    const apply = (b: Pick<BootstrapData, "me" | "users" | "columns" | "customFields" | "productRollup">) => {
+    const apply = (b: Pick<BootstrapData, "me" | "users" | "columns" | "customFields" | "productRollup"> & Partial<Pick<BootstrapData, "callRollup">>) => {
       if (b.me?.username) setCurrentUser(b.me.username);
       setUsersList(b.users || []);
 
@@ -340,6 +355,8 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
       setCustomFieldValues(b.customFields || {});
       productRollupRef.current = b.productRollup || {};
       setProductRollup(b.productRollup || {});
+      callRollupRef.current = b.callRollup || {};
+      setCallRollup(b.callRollup || {});
     };
 
     fetchBootstrap(ownerFilter).then(apply).catch(() => {
@@ -350,7 +367,8 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
         fetch("/api/columns").then((r) => r.json()).catch(() => ({})),
         fetch("/api/custom-fields").then((r) => r.json()).catch(() => ({})),
         fetch("/api/leads/product-rollup").then((r) => r.json()).catch(() => ({})),
-      ]).then(([meData, usersData, colsData, fieldsData, rollupData]) => {
+        fetch("/api/call-logs?rollup=1").then((r) => r.json()).catch(() => ({})),
+      ]).then(([meData, usersData, colsData, fieldsData, rollupData, callRollupData]) => {
         const map: Record<string, Record<string, string>> = {};
         for (const v of fieldsData.values || []) {
           const leadId = String(v.lead_id);
@@ -363,6 +381,7 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
           columns: colsData.columns || [],
           customFields: map,
           productRollup: rollupData.rollup || {},
+          callRollup: callRollupData.rollup || {},
         });
       });
     });
@@ -434,9 +453,11 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
   const leadsRef = useRef<Lead[]>(leads);
   const customFieldValuesRef = useRef(customFieldValues);
   const productRollupRef = useRef(productRollup);
+  const callRollupRef = useRef(callRollup);
   useEffect(() => { leadsRef.current = leads; }, [leads]);
   useEffect(() => { customFieldValuesRef.current = customFieldValues; }, [customFieldValues]);
   useEffect(() => { productRollupRef.current = productRollup; }, [productRollup]);
+  useEffect(() => { callRollupRef.current = callRollup; }, [callRollup]);
 
   // getAutoStage must be 100% stable (empty deps) so updateLead/updateCustomField
   // don't recreate → renderCell doesn't recreate → columns memo doesn't bust.
@@ -790,6 +811,59 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
     return <WarmthBadge value={val} onChange={(v) => updateCustomField(lead.id, "custom_warmth", v)} />;
   }, [updateCustomField]);
 
+  // "History" cell — last call date + count, tinted by the last call's outcome.
+  // Reads the callRollup ref (fresh via the row's updated_at bump in
+  // handleCallsChanged); click opens the CallHistory popover.
+  const renderCallHistoryCell = useCallback((lead: Lead) => {
+    const r = callRollupRef.current[String(lead.id)];
+    const meta = r ? (CALL_OUTCOMES.find((o) => o.value === r.last_outcome) || CALL_OUTCOMES[0]) : null;
+    const dt = r ? new Date(`${r.last_date}T00:00:00`) : null;
+    const dateLabel = dt && !isNaN(dt.getTime()) ? dt.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : r?.last_date;
+    return (
+      <button onClick={(e) => { e.stopPropagation(); setCallHistoryLead({ lead, rect: (e.currentTarget as HTMLElement).getBoundingClientRect() }); }}
+        title={r ? `${r.count} call${r.count > 1 ? "s" : ""} — last ${dateLabel} (${meta!.label})` : "Log a call — date, outcome, what was discussed"}
+        className="flex items-center justify-center gap-1 mx-auto rounded-md transition-colors px-1.5"
+        style={{
+          height: 22, minWidth: 30,
+          background: r ? `${meta!.color}1a` : "transparent",
+          border: `1px solid ${r ? `${meta!.color}66` : "var(--border-light)"}`,
+          color: r ? meta!.color : "var(--text-quaternary)",
+        }}
+        onMouseEnter={(e) => { if (!r) { e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.color = "var(--text-muted)"; } }}
+        onMouseLeave={(e) => { if (!r) { e.currentTarget.style.borderColor = "var(--border-light)"; e.currentTarget.style.color = "var(--text-quaternary)"; } }}>
+        {r ? (
+          <span className="text-[10px] font-bold whitespace-nowrap">{dateLabel}{r.count > 1 ? ` ×${r.count}` : ""}</span>
+        ) : (
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" />
+          </svg>
+        )}
+      </button>
+    );
+  }, []);
+
+  // Recompute a lead's call rollup from the popover's post-change list, bump the
+  // row so the cell re-renders, and on a NEW log auto-tick Called (which also
+  // auto-advances the stage — same non-downgrading rules as the checkbox).
+  const handleCallsChanged = useCallback((leadId: number, calls: CallLog[], didLog: boolean) => {
+    const next = { ...callRollupRef.current };
+    if (calls.length === 0) {
+      delete next[String(leadId)];
+    } else {
+      let last = calls[0];
+      for (const c of calls) {
+        if (c.called_at > last.called_at || (c.called_at === last.called_at && c.id > last.id)) last = c;
+      }
+      next[String(leadId)] = { count: calls.length, last_date: last.called_at, last_outcome: last.outcome };
+    }
+    callRollupRef.current = next;
+    setCallRollup(next);
+    setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, updated_at: new Date().toISOString() } : l)));
+    if (didLog && customFieldValuesRef.current[String(leadId)]?.custom_called !== "1") {
+      updateCustomField(leadId, "custom_called", "1");
+    }
+  }, [updateCustomField]);
+
   const columns = useMemo<ColumnDef<Lead, unknown>[]>(
     () => [
       columnHelper.display({ id: "select", header: ({ table }) => (
@@ -839,6 +913,13 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
           minSize: 40,
           enableResizing: true,
           cell: (info) => renderIntelCell(info.row.original),
+        }) as ColumnDef<Lead, unknown>, columnHelper.display({
+          id: "call_history",
+          header: () => <span className="text-xs font-semibold" style={{ color: "var(--text-dim)" }} title="Call history — every call's date, outcome and notes">History</span>,
+          size: 86,
+          minSize: 50,
+          enableResizing: true,
+          cell: (info) => renderCallHistoryCell(info.row.original),
         }) as ColumnDef<Lead, unknown>];
       }) as ColumnDef<Lead, unknown>[]),
       // Custom columns
@@ -916,7 +997,7 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
         ),
       }),
     ],
-    [editableFields, customColumns, getLabel, getColType, saveColConfig, deleteColumn, renderCell, renderProductCell, renderIntelCell, renderWarmthCell, deleteLead, updateCustomField]
+    [editableFields, customColumns, getLabel, getColType, saveColConfig, deleteColumn, renderCell, renderProductCell, renderIntelCell, renderWarmthCell, renderCallHistoryCell, deleteLead, updateCustomField]
   );
 
   const table = useReactTable({
@@ -1239,6 +1320,15 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
               onChanged={(esRows) => handleProductChange(pickerLead.id, esRows)} />
           </div>
         </div>
+      )}
+
+      {callHistoryLead && (
+        <CallHistory
+          lead={callHistoryLead.lead}
+          anchorRect={callHistoryLead.rect}
+          onChanged={(calls, didLog) => handleCallsChanged(callHistoryLead.lead.id, calls, didLog)}
+          onClose={() => setCallHistoryLead(null)}
+        />
       )}
 
       {intelLead && (

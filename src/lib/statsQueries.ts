@@ -177,6 +177,26 @@ export async function getClientStats(db: Client, ownerParam: string | null): Pro
   };
 }
 
+// Per-lead call-history summary for the Prospects grid "History" cell — one
+// query, reduced in JS (rows are tiny; ASC order means the last row seen per
+// lead is the most recent call).
+export type CallRollup = Record<string, { count: number; last_date: string; last_outcome: string }>;
+
+export async function getCallRollup(db: Client): Promise<CallRollup> {
+  const rows = all(await db.execute(
+    "SELECT lead_id, called_at, outcome FROM call_logs ORDER BY called_at ASC, id ASC"
+  ));
+  const rollup: CallRollup = {};
+  for (const r of rows) {
+    const id = String(r.lead_id);
+    if (!rollup[id]) rollup[id] = { count: 0, last_date: "", last_outcome: "" };
+    rollup[id].count += 1;
+    rollup[id].last_date = String(r.called_at);
+    rollup[id].last_outcome = String(r.outcome);
+  }
+  return rollup;
+}
+
 // Per-lead summary of attached products (entity_solutions on the lead) so the
 // Prospects grid cell + the client cards can render without an N-call fan-out.
 // Excludes 'declined' (not part of what they're buying).
