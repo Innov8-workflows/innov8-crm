@@ -805,7 +805,7 @@ function CardView({ clients, productRollup, formatDate, isOverdue, onOpenProject
                 <div className="flex-1 min-w-0">
                   <h3 className="text-sm font-semibold truncate cf-name" style={{ color: "var(--text)" }}>{client.business_name}</h3>
                   <p className="text-xs truncate" style={{ color: "var(--text-dim)" }}>
-                    <span className="cf-name">{client.contact_name}</span>{client.business_type ? ` · ${client.business_type}` : ""}
+                    <span className="cf-name">{client.contact_name}</span>{client.business_type ? ` · ${client.business_type}` : ""}{client.location ? ` · ${client.location}` : ""}
                   </p>
                 </div>
                 <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
