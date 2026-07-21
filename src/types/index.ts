@@ -49,6 +49,7 @@ export interface Project {
   link_card?: number;
   bing_console?: number;
   secure_file?: number;
+  google_sheet?: number;
   // Manually-maintained review stats, shown as chips on the cards
   google_rating?: number;
   google_review_count?: number;

@@ -52,7 +52,7 @@ async function doInitDb() {
   // ~100-300ms, so this is the single biggest "slow first load" win. Bump
   // SCHEMA_VERSION whenever a migration/index/seed below changes → the heavy block
   // re-runs exactly once on the next deploy, then cold starts go fast again.
-  const SCHEMA_VERSION = "2026-07-13-calllogs";
+  const SCHEMA_VERSION = "2026-07-13-googlesheet";
   await db.execute("CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT DEFAULT '')");
   const schemaMarker = first(await db.execute("SELECT value FROM app_meta WHERE key = 'schema_version'"));
   if (schemaMarker?.value === SCHEMA_VERSION) return;
@@ -163,6 +163,7 @@ async function doInitDb() {
       link_card INTEGER DEFAULT 0,
       bing_console INTEGER DEFAULT 0,
       secure_file INTEGER DEFAULT 0,
+      google_sheet INTEGER DEFAULT 0,
       google_rating REAL DEFAULT 0,
       google_review_count INTEGER DEFAULT 0,
       facebook_rating REAL DEFAULT 0,
@@ -321,6 +322,7 @@ async function doInitDb() {
     "ALTER TABLE projects ADD COLUMN link_card INTEGER DEFAULT 0",
     "ALTER TABLE projects ADD COLUMN bing_console INTEGER DEFAULT 0",
     "ALTER TABLE projects ADD COLUMN secure_file INTEGER DEFAULT 0",
+    "ALTER TABLE projects ADD COLUMN google_sheet INTEGER DEFAULT 0",
     "ALTER TABLE projects ADD COLUMN google_rating REAL DEFAULT 0",
     "ALTER TABLE projects ADD COLUMN google_review_count INTEGER DEFAULT 0",
     "ALTER TABLE projects ADD COLUMN facebook_rating REAL DEFAULT 0",

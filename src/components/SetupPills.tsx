@@ -12,12 +12,13 @@ const SETUP_ITEMS = [
   { field: "mobile_optimised", label: "Mobile", title: "Site is mobile-optimised" },
   { field: "link_card", label: "Link card", title: "Social link-preview (Open Graph) card set up" },
   { field: "secure_file", label: "Secure File", title: "Secure file / login details stored" },
+  { field: "google_sheet", label: "Google Sheet", title: "Lead-logging Google Sheet connected (form/call leads land in the sheet)" },
 ] as const;
 
 export type SetupField = (typeof SETUP_ITEMS)[number]["field"];
 
 export default function SetupPills({ values, onToggle }: {
-  values: { ga4_embedded?: number; ga4_conversions?: number; search_console_verified?: number; bing_console?: number; gbp_setup?: number; mobile_optimised?: number; link_card?: number; secure_file?: number };
+  values: { ga4_embedded?: number; ga4_conversions?: number; search_console_verified?: number; bing_console?: number; gbp_setup?: number; mobile_optimised?: number; link_card?: number; secure_file?: number; google_sheet?: number };
   onToggle: (field: SetupField, next: number) => void;
 }) {
   return (
