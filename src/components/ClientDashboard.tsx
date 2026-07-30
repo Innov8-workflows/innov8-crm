@@ -665,39 +665,74 @@ function SetupPanel({ projectId, trackingId, toast }: { projectId: number; track
 
   const trackSnippet = `<script defer src="https://crm.innov8workflows.co.uk/track.js" data-id="${trackingId}"></script>`;
   const appsScript = `// ─── innov8 CRM lead sync ───────────────────────────────────────────
-// 1. Paste this at the BOTTOM of the client's Apps Script.
-// 2. Under your existing sheet.appendRow([...]), add one line:
-//      innov8SendLead({ name: name, email: email, phone: phone,
-//                       message: message, form: 'Contact' });
+// 1. Paste this whole block at the BOTTOM of the Apps Script.
+// 2. In doPost(e), directly under the line that writes the row
+//    (sheet.appendRow([...])), add this ONE line:
+//
+//        innov8Forward(e);
+//
+// Nothing else changes. It reads the same data your script just received,
+// so there are no field names to map. Click events (call/WhatsApp taps)
+// are skipped — only real enquiries become CRM leads.
 var INNOV8_CRM_URL = 'https://crm.innov8workflows.co.uk/api/webhook/client-leads';
-var INNOV8_KEY     = '${key}';
+var INNOV8_KEY     = '${key}';   // unique to this client — do not reuse
 
-function innov8SendLead(lead, evt) {
+function innov8Forward(e) {
   try {
-    var eventId = '';
-    if (evt && evt.range) eventId = evt.range.getSheet().getName() + '!' + evt.range.getRow();
-    else { var sh = SpreadsheetApp.getActiveSheet(); if (sh) eventId = sh.getName() + '!' + sh.getLastRow(); }
+    var d = {};
+    try { d = JSON.parse(e.postData.contents); } catch (err) { d = (e && e.parameter) || {}; }
+
+    // Skip call/WhatsApp click pings — they carry no contact details and are
+    // already counted by the tracking script.
+    var type = String(d.type || d.event || 'form').toLowerCase();
+    if (type.indexOf('click') !== -1) return;
+
+    var pick = function () {
+      for (var i = 0; i < arguments.length; i++) {
+        var v = d[arguments[i]];
+        if (v !== undefined && v !== null && String(v).trim() !== '') return String(v).trim();
+      }
+      return '';
+    };
+
+    // Fold any extra qualifying fields into the message so nothing is lost.
+    var message = pick('msg', 'message', 'enquiry', 'details', 'comments', 'notes');
+    var extras = [];
+    ['service', 'area', 'postcode', 'budget', 'timeframe', 'make', 'model', 'year', 'condition']
+      .forEach(function (k) { if (pick(k)) extras.push(k + ': ' + pick(k)); });
+    if (extras.length) message = (message ? message + '\\n' : '') + extras.join(' · ');
+
+    var lead = {
+      name: pick('name', 'fullname', 'full_name', 'fname', 'contact'),
+      email: pick('email', 'emailAddress', 'e-mail'),
+      phone: pick('phone', 'tel', 'telephone', 'mobile', 'number'),
+      message: message,
+      source: type,
+      form_name: pick('form', 'formName', 'where', 'location'),
+      page_url: pick('page', 'page_url', 'url'),
+      submitted_at: new Date().toISOString(),
+      event_id: ''
+    };
+
+    // No way to contact them = not a lead.
+    if (!lead.name && !lead.email && !lead.phone) return;
+
+    // Idempotency: the row just written pins this submission exactly, so a
+    // retry or a double-fire can never create a duplicate.
+    try {
+      var sh = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+      if (sh) lead.event_id = sh.getName() + '!' + sh.getLastRow();
+    } catch (err2) {}
+
     var res = UrlFetchApp.fetch(INNOV8_CRM_URL, {
       method: 'post', contentType: 'application/json',
       headers: { 'x-innov8-key': INNOV8_KEY },
-      payload: JSON.stringify({
-        name: String(lead.name || ''), email: String(lead.email || ''),
-        phone: String(lead.phone || ''), message: String(lead.message || ''),
-        source: String(lead.source || 'form'), form_name: String(lead.form || ''),
-        page_url: String(lead.page || ''), submitted_at: new Date().toISOString(),
-        event_id: eventId }),
-      muteHttpExceptions: true
+      payload: JSON.stringify(lead), muteHttpExceptions: true
     });
-    if (res.getResponseCode() !== 200) console.error('innov8 CRM sync failed: ' + res.getContentText());
-  } catch (err) { console.error('innov8 CRM sync error: ' + err); }
-}
-
-// OPTIONAL — sync with no changes to your existing handler. Install once via
-// Triggers → Add Trigger → innov8OnFormSubmit → On form submit.
-// Assumes columns A=Timestamp B=Name C=Email D=Phone E=Message.
-function innov8OnFormSubmit(e) {
-  var v = (e && e.values) || [];
-  innov8SendLead({ name: v[1], email: v[2], phone: v[3], message: v[4], form: 'Sheet form' }, e);
+    if (res.getResponseCode() !== 200) console.error('innov8 CRM sync: ' + res.getContentText());
+  } catch (err) {
+    console.error('innov8 CRM sync error: ' + err);   // never break the client's form
+  }
 }`;
 
   const block = (label: string, code: string, which: string, note: string) => (
@@ -722,7 +757,7 @@ function innov8OnFormSubmit(e) {
         "Paste into the site's HTML just before </body>, then push.")}
       {key
         ? block("2. Lead sync (name, phone, what they asked for)", appsScript, "apps",
-            "Paste at the bottom of this client's Apps Script. This key is unique to them — don't reuse it elsewhere.")
+            "Paste at the bottom of this client's Apps Script, then add innov8Forward(e); under the appendRow line in doPost. This key is unique to them — don't reuse it elsewhere.")
         : <p className="text-xs" style={{ color: "var(--text-dim)" }}>Loading key…</p>}
       <button onClick={rotate} className="text-[11px] px-2.5 py-1 rounded-md"
         style={{ background: "transparent", border: "1px solid var(--border-light)", color: "var(--text-dim)" }}>
