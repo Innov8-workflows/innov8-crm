@@ -1,7 +1,8 @@
 import type { Client } from "@libsql/client";
 import crypto from "crypto";
 import { all, first } from "@/lib/db";
-import type { ClientObjective, ObjectiveMetric } from "@/types";
+import { OBJECTIVE_METRICS, type ClientObjective, type ObjectiveMetric } from "@/types";
+import type { ReportSnapshot } from "@/lib/reportTemplate";
 
 // Shared per-project, per-period aggregates behind the Client Dashboard and the
 // monthly client report.
@@ -290,4 +291,76 @@ export async function getObjectivesWithActuals(
       pct,
     };
   });
+}
+
+// --- Report snapshot --------------------------------------------------------
+
+const AGENCY = {
+  name: "innov8 Workflows",
+  url: "https://innov8workflows.co.uk",
+  reply_to: process.env.RESEND_REPLY_TO || "",
+};
+
+/**
+ * Everything the client-facing report renders, resolved for one project+period.
+ * Explicit column list on purpose — this leaves the building, so monthly_fee,
+ * login_details and project_notes must not be able to ride along.
+ */
+export async function buildReportSnapshot(
+  db: Client, projectId: number, period: string, note = ""
+): Promise<ReportSnapshot | null> {
+  const range = monthRange(period);
+  const prev = monthRange(prevPeriod(period));
+
+  const project = first(await db.execute({
+    sql: `SELECT p.id, p.domain, l.business_name, l.contact_name
+          FROM projects p JOIN leads l ON p.lead_id = l.id WHERE p.id = ?`,
+    args: [projectId],
+  }));
+  if (!project) return null;
+
+  const [leads, prevLeads, site, prevSite, seo] = await Promise.all([
+    getLeadCounts(db, projectId, range),
+    getLeadTotal(db, projectId, prev),
+    getSiteMetrics(db, projectId, range),
+    getSiteMetrics(db, projectId, prev),
+    getSeoSnapshot(db, projectId, range),
+  ]);
+
+  const objectives = await getObjectivesWithActuals(db, projectId, period, { leads, site, seo: seo.score });
+
+  return {
+    business_name: String(project.business_name || ""),
+    contact_name: String(project.contact_name || ""),
+    period,
+    period_label: periodLabel(period),
+    domain: String(project.domain || ""),
+    leads: {
+      total: leads.total,
+      prev_total: prevLeads,
+      unique_contacts: leads.unique_contacts,
+      by_source: leads.by_source,
+    },
+    site: {
+      page_views: site.page_views,
+      unique_visitors: site.unique_visitors,
+      calls: site.calls,
+      forms: site.forms,
+      interactions: site.interactions,
+      prev_page_views: prevSite.page_views,
+    },
+    seo: { score: seo.score, prev_score: seo.prev },
+    objectives: objectives
+      .filter((o) => o.status !== "dropped")
+      .map((o) => ({
+        title: o.title,
+        target: o.target,
+        actual: o.actual ?? 0,
+        pct: o.pct ?? 0,
+        status: o.status,
+        unit: OBJECTIVE_METRICS.find((m) => m.value === o.metric)?.unit || "",
+      })),
+    note,
+    agency: AGENCY,
+  };
 }

@@ -237,6 +237,9 @@ export default function ClientDashboard({
 
             <ObjectivesPanel projectId={data.project.id} period={data.period} objectives={data.objectives} onChanged={fetchDashboard} />
 
+            <ReportPanel projectId={data.project.id} period={data.period} periodName={periodLabel(data.period)}
+              clientName={data.project.business_name} report={data.report} onChanged={fetchDashboard} toast={toast} />
+
             <LeadsTable projectId={data.project.id} leads={data.leads.recent} total={data.leads.total} onChanged={fetchDashboard} toast={toast} />
 
             {/* Lead capture setup */}
@@ -372,6 +375,180 @@ function ObjectivesPanel({ projectId, period, objectives, onChanged }: {
               </div>
             );
           })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// --- Monthly report ---------------------------------------------------------
+
+function ReportPanel({ projectId, period, periodName, clientName, report, onChanged, toast }: {
+  projectId: number; period: string; periodName: string; clientName: string;
+  report: DashboardData["report"]; onChanged: () => void;
+  toast: (m: string, t?: "success" | "error" | "info") => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [preview, setPreview] = useState<{ html: string; subject: string; recipient: string; cc: string; email_configured: boolean } | null>(null);
+  const [note, setNote] = useState("");
+  const [subject, setSubject] = useState("");
+  const [to, setTo] = useState("");
+  const [cc, setCc] = useState("");
+  const [busy, setBusy] = useState<"" | "preview" | "test" | "send">("");
+  const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null);
+
+  // Re-render the preview server-side — never rebuild it client-side, or the
+  // preview silently drifts from what actually gets sent.
+  const loadPreview = useCallback(async (withNote?: string) => {
+    setBusy("preview");
+    try {
+      const q = new URLSearchParams({ period });
+      if (withNote !== undefined) q.set("note", withNote);
+      const d = await fetch(`/api/projects/${projectId}/report?${q}`).then((r) => r.json());
+      setPreview(d);
+      if (withNote === undefined) setNote(d.snapshot?.note || "");
+      setSubject(d.subject || "");
+      setTo(d.recipient || "");
+      setCc(d.cc || "");
+    } finally { setBusy(""); }
+  }, [projectId, period]);
+
+  useEffect(() => { setPreview(null); setResult(null); setOpen(false); }, [period, projectId]);
+
+  const openPanel = async () => {
+    setOpen(true);
+    if (!preview) await loadPreview();
+  };
+
+  const post = async (payload: Record<string, unknown>, kind: "test" | "send") => {
+    setBusy(kind);
+    setResult(null);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/report`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ period, subject, note, cc, to, ...payload }),
+      });
+      const d = await res.json();
+      if (d.ok) {
+        setResult({ ok: true, msg: kind === "test" ? `Test sent to ${d.recipient}` : `Sent to ${d.recipient}` });
+        toast(kind === "test" ? "Test email sent" : "Report sent", "success");
+        if (kind === "send") onChanged();
+      } else {
+        setResult({ ok: false, msg: d.error || "Send failed" });
+      }
+    } catch (err) {
+      setResult({ ok: false, msg: String(err) });
+    } finally { setBusy(""); }
+  };
+
+  const send = () => {
+    if (!confirm(`Send the ${periodName} report to ${to}?\n\nThis emails ${clientName} directly.`)) return;
+    post({}, "send");
+  };
+
+  const sent = report?.status === "sent";
+
+  return (
+    <div className="rounded-xl" style={{ background: "var(--surface)", border: `1px solid ${sent ? "#22c55e40" : "var(--border)"}` }}>
+      <div className="flex items-center justify-between px-4 py-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <Icon name="paper-plane" className="w-4 h-4 flex-shrink-0" style={{ color: sent ? "#22c55e" : "var(--accent)" }} />
+          <span className="text-xs uppercase tracking-wider" style={{ color: "var(--text-dim)" }}>{periodName} report</span>
+          {sent && (
+            <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: "#22c55e22", color: "#22c55e", border: "1px solid #22c55e55" }}>
+              Sent{report?.send_count && report.send_count > 1 ? ` ×${report.send_count}` : ""}
+            </span>
+          )}
+          {report?.status === "failed" && (
+            <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: "#ef444422", color: "#ef4444", border: "1px solid #ef444455" }}>Failed</span>
+          )}
+        </div>
+        <button onClick={() => (open ? setOpen(false) : openPanel())}
+          className="text-xs font-semibold px-3 py-1.5 rounded-md"
+          style={{ background: open ? "var(--surface2)" : "var(--accent)", color: open ? "var(--text-muted)" : "#fff", border: open ? "1px solid var(--border-light)" : "none" }}>
+          {open ? "Close" : sent ? "View / resend" : "Generate report"}
+        </button>
+      </div>
+
+      {open && (
+        <div className="px-4 pb-4 space-y-3" style={{ borderTop: "1px solid var(--border)" }}>
+          {busy === "preview" && !preview ? (
+            <div className="py-8 flex justify-center"><LoadingAI message="Building report" /></div>
+          ) : preview ? (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-3">
+                <label className="text-xs" style={{ color: "var(--text-dim)" }}>
+                  To
+                  <input value={to} onChange={(e) => setTo(e.target.value)}
+                    className="w-full mt-1 px-2 py-1.5 text-xs rounded-md cf-name"
+                    style={{ background: "var(--surface2)", border: "1px solid var(--border-light)", color: "var(--text)", outline: "none" }} />
+                </label>
+                <label className="text-xs" style={{ color: "var(--text-dim)" }}>
+                  CC (optional)
+                  <input value={cc} onChange={(e) => setCc(e.target.value)}
+                    className="w-full mt-1 px-2 py-1.5 text-xs rounded-md"
+                    style={{ background: "var(--surface2)", border: "1px solid var(--border-light)", color: "var(--text)", outline: "none" }} />
+                </label>
+              </div>
+              <label className="text-xs block" style={{ color: "var(--text-dim)" }}>
+                Subject
+                <input value={subject} onChange={(e) => setSubject(e.target.value)}
+                  className="w-full mt-1 px-2 py-1.5 text-xs rounded-md"
+                  style={{ background: "var(--surface2)", border: "1px solid var(--border-light)", color: "var(--text)", outline: "none" }} />
+              </label>
+              <label className="text-xs block" style={{ color: "var(--text-dim)" }}>
+                What we did this month (appears in the report)
+                <textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)}
+                  onBlur={() => loadPreview(note)}
+                  placeholder="e.g. Published two new service pages, refreshed the gallery, submitted the updated sitemap…"
+                  className="w-full mt-1 px-2 py-1.5 text-xs rounded-md resize-none"
+                  style={{ background: "var(--surface2)", border: "1px solid var(--border-light)", color: "var(--text)", outline: "none" }} />
+              </label>
+
+              <div className="rounded-lg overflow-hidden" style={{ border: "1px solid var(--border)" }}>
+                <iframe title="Report preview" srcDoc={preview.html} sandbox="" style={{ width: "100%", height: 620, background: "#fff", border: "none" }} />
+              </div>
+
+              {!preview.email_configured && (
+                <p className="text-xs px-3 py-2 rounded-md" style={{ background: "#f59e0b18", border: "1px solid #f59e0b55", color: "#f59e0b" }}>
+                  Email isn&apos;t configured yet — add RESEND_API_KEY and RESEND_FROM in Vercel (and verify the domain) before sending.
+                </p>
+              )}
+              {result && (
+                <p className="text-xs px-3 py-2 rounded-md" style={{
+                  background: result.ok ? "#22c55e18" : "#ef444418",
+                  border: `1px solid ${result.ok ? "#22c55e55" : "#ef444455"}`,
+                  color: result.ok ? "#22c55e" : "#ef4444",
+                }}>{result.msg}</p>
+              )}
+
+              <div className="flex items-center gap-2 flex-wrap">
+                <button onClick={() => post({ test: true }, "test")} disabled={busy !== ""}
+                  className="text-xs font-semibold px-3 py-1.5 rounded-md"
+                  style={{ background: "var(--surface2)", border: "1px solid var(--border-light)", color: "var(--text-secondary)", opacity: busy ? 0.6 : 1 }}>
+                  {busy === "test" ? "Sending…" : "Send test to me"}
+                </button>
+                <button onClick={send} disabled={busy !== "" || !to}
+                  className="text-xs font-semibold px-3 py-1.5 rounded-md"
+                  style={{ background: "var(--accent)", color: "#fff", opacity: busy || !to ? 0.6 : 1 }}>
+                  {busy === "send" ? "Sending…" : sent ? `Resend to ${clientName}` : `Send to ${clientName}`}
+                </button>
+                <button onClick={() => { fetch(`/api/projects/${projectId}/report`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ period, subject, note, cc, to, draft: true }) }); toast("Draft saved", "info"); }}
+                  className="text-xs px-3 py-1.5 rounded-md"
+                  style={{ background: "transparent", border: "1px solid var(--border-light)", color: "var(--text-dim)" }}>
+                  Save draft
+                </button>
+                {report?.sent_at && (
+                  <span className="text-[11px] ml-auto" style={{ color: "var(--text-quaternary)" }}>
+                    Last sent {new Date(report.sent_at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })} to {report.recipient}
+                  </span>
+                )}
+              </div>
+              {report?.error && (
+                <p className="text-[11px]" style={{ color: "#ef4444" }}>Last error: {report.error}</p>
+              )}
+            </>
+          ) : null}
         </div>
       )}
     </div>
