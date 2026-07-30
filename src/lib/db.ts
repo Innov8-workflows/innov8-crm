@@ -52,7 +52,7 @@ async function doInitDb() {
   // ~100-300ms, so this is the single biggest "slow first load" win. Bump
   // SCHEMA_VERSION whenever a migration/index/seed below changes → the heavy block
   // re-runs exactly once on the next deploy, then cold starts go fast again.
-  const SCHEMA_VERSION = "2026-07-13-googlesheet";
+  const SCHEMA_VERSION = "2026-08-01-clientleads";
   await db.execute("CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT DEFAULT '')");
   const schemaMarker = first(await db.execute("SELECT value FROM app_meta WHERE key = 'schema_version'"));
   if (schemaMarker?.value === SCHEMA_VERSION) return;
@@ -118,6 +118,75 @@ async function doInitDb() {
       FOREIGN KEY (lead_id) REFERENCES leads(id)
     );
 
+    -- Inbound enquiries from client websites, pushed by each client's Apps Script
+    -- (see /api/webhook/client-leads). received_at is the authoritative clock for
+    -- "leads this month" — the client's own submitted_at arrives in arbitrary
+    -- timezones/formats and would skew month buckets. message/raw are capped at
+    -- 2000 chars on write so this table stays narrow (see the blob-walk note in
+    -- src/lib/projectCache.ts — never let wide columns sit on a hot path).
+    CREATE TABLE IF NOT EXISTS client_leads (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      project_id INTEGER NOT NULL,
+      received_at TEXT NOT NULL DEFAULT (datetime('now')),
+      submitted_at TEXT DEFAULT '',
+      name TEXT DEFAULT '',
+      email TEXT DEFAULT '',
+      phone TEXT DEFAULT '',
+      message TEXT DEFAULT '',
+      source TEXT DEFAULT '',
+      form_name TEXT DEFAULT '',
+      page_url TEXT DEFAULT '',
+      raw TEXT DEFAULT '',
+      dedup_hash TEXT NOT NULL,
+      status TEXT DEFAULT 'new',
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+    );
+
+    -- Per-client monthly objectives shown on the Client Dashboard and in the
+    -- monthly report. period = 'YYYY-MM', or '' for a standing objective that
+    -- applies to every month (evaluated in place, not materialised per month).
+    -- metric drives whether the actual value is computed server-side or read from
+    -- manual_value — see getObjectivesWithActuals in src/lib/clientReporting.ts.
+    CREATE TABLE IF NOT EXISTS client_objectives (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      project_id INTEGER NOT NULL,
+      period TEXT NOT NULL DEFAULT '',
+      title TEXT NOT NULL,
+      detail TEXT DEFAULT '',
+      metric TEXT DEFAULT 'manual',
+      target REAL DEFAULT 0,
+      manual_value REAL DEFAULT 0,
+      status TEXT DEFAULT 'open',
+      sort_order INTEGER DEFAULT 0,
+      completed_at TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+    );
+
+    -- One row per client per month. snapshot holds the NUMBERS as sent (compact
+    -- JSON, ~500b) — deliberately not the rendered HTML, which would put multi-KB
+    -- blobs back on a queried table. A resend updates the row and bumps send_count.
+    CREATE TABLE IF NOT EXISTS client_reports (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      project_id INTEGER NOT NULL,
+      period TEXT NOT NULL,
+      status TEXT DEFAULT 'draft',
+      recipient TEXT DEFAULT '',
+      cc TEXT DEFAULT '',
+      subject TEXT DEFAULT '',
+      snapshot TEXT DEFAULT '',
+      provider_id TEXT DEFAULT '',
+      send_count INTEGER DEFAULT 0,
+      error TEXT DEFAULT '',
+      sent_at TEXT DEFAULT '',
+      sent_by TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+    );
+
     CREATE TABLE IF NOT EXISTS call_logs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       lead_id INTEGER NOT NULL,
@@ -170,6 +239,7 @@ async function doInitDb() {
       facebook_review_count INTEGER DEFAULT 0,
       cover_file_id INTEGER,
       seo_cache TEXT DEFAULT '',
+      lead_ingest_key TEXT DEFAULT '',
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (lead_id) REFERENCES leads(id)
@@ -323,6 +393,13 @@ async function doInitDb() {
     "ALTER TABLE projects ADD COLUMN bing_console INTEGER DEFAULT 0",
     "ALTER TABLE projects ADD COLUMN secure_file INTEGER DEFAULT 0",
     "ALTER TABLE projects ADD COLUMN google_sheet INTEGER DEFAULT 0",
+    // Per-project write key for the Apps Script lead push. Deliberately NOT the
+    // shared WEBHOOK_SECRET (CRM-wide blast radius) and NOT tracking_id (public —
+    // it sits in every visitor's page source, so anyone could inject fake leads
+    // into a report Jay bills against). Minted lazily; rotatable per client.
+    // NEVER add this to the Project type or the [id] PUT `allowed` whitelist, and
+    // strip it from /api/projects responses the way seo_cache is stripped.
+    "ALTER TABLE projects ADD COLUMN lead_ingest_key TEXT DEFAULT ''",
     "ALTER TABLE projects ADD COLUMN google_rating REAL DEFAULT 0",
     "ALTER TABLE projects ADD COLUMN google_review_count INTEGER DEFAULT 0",
     "ALTER TABLE projects ADD COLUMN facebook_rating REAL DEFAULT 0",
@@ -357,6 +434,13 @@ async function doInitDb() {
     CREATE INDEX IF NOT EXISTS idx_activities_lead ON activities(lead_id);
     CREATE INDEX IF NOT EXISTS idx_lead_notes_lead ON lead_notes(lead_id);
     CREATE INDEX IF NOT EXISTS idx_call_logs_lead ON call_logs(lead_id, called_at);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_client_leads_dedup ON client_leads(project_id, dedup_hash);
+    CREATE INDEX IF NOT EXISTS idx_client_leads_project ON client_leads(project_id, received_at);
+    CREATE INDEX IF NOT EXISTS idx_client_objectives_project ON client_objectives(project_id, period);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_client_reports_period ON client_reports(project_id, period);
+    -- Partial unique: '' is the not-yet-minted sentinel and would collide across
+    -- every project under a plain UNIQUE.
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_projects_lead_key ON projects(lead_ingest_key) WHERE lead_ingest_key != '';
     CREATE INDEX IF NOT EXISTS idx_projects_lead ON projects(lead_id);
     CREATE INDEX IF NOT EXISTS idx_projects_completed ON projects(completed_at);
     CREATE INDEX IF NOT EXISTS idx_projects_status ON projects(client_status);

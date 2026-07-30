@@ -29,8 +29,13 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     });
   }
 
-  // Aggregate counts by event_type for the period (single CASE/WHEN)
-  const cutoff = new Date(Date.now() - days * 86400000).toISOString();
+  // Aggregate counts by event_type for the period (single CASE/WHEN).
+  // Date-only cutoff ('YYYY-MM-DD'): site_events.created_at is written by SQLite
+  // datetime('now') as "YYYY-MM-DD HH:MM:SS", so comparing it against a full
+  // toISOString() ("...THH:MM:SS.sssZ") silently dropped the whole cutoff day —
+  // ' ' (0x20) sorts before 'T' (0x54). A date-only bound is correct for both
+  // formats and still uses idx_site_events_project(project_id, created_at).
+  const cutoff = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
   const stats = first(await db.execute({
     sql: `SELECT
       COUNT(*) as total,

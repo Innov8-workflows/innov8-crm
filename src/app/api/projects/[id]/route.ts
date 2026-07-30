@@ -16,6 +16,8 @@ export async function GET(
   }));
 
   if (!project) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  // Never ship the Apps Script write key to the browser (see db.ts migration note).
+  delete project.lead_ingest_key;
   return NextResponse.json(project);
 }
 
@@ -74,6 +76,7 @@ export async function PUT(
     sql: `SELECT p.*, l.business_name, l.contact_name, l.email, l.phone FROM projects p JOIN leads l ON p.lead_id = l.id WHERE p.id = ?`,
     args: [Number(id)],
   }));
+  if (updated) delete updated.lead_ingest_key;
 
   return NextResponse.json(updated);
 }

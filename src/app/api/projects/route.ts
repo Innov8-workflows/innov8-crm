@@ -107,6 +107,10 @@ export async function GET(request: NextRequest) {
       }
       if (seo.p !== undefined) (p as Record<string, unknown>).seo_score_prev = seo.p;
       delete (p as Record<string, unknown>).seo_cache;
+      // The Apps Script write key must never reach the browser — this response is
+      // persisted into sessionStorage by LiveClients. Fetch it deliberately via
+      // /api/projects/[id]/lead-key when the snippet is actually being shown.
+      delete (p as Record<string, unknown>).lead_ingest_key;
     }));
 
     if (completed === "true" || paying === "true") {

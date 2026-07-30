@@ -148,6 +148,72 @@ export interface CallLog {
   created_at: string;
 }
 
+// An enquiry that came in through a client's own website — pushed to the CRM by
+// that client's Apps Script. Distinct from `Lead` (Jay's prospects pipeline).
+export interface ClientLead {
+  id: number;
+  project_id: number;
+  received_at: string;
+  submitted_at: string;
+  name: string;
+  email: string;
+  phone: string;
+  message: string;
+  source: string;
+  form_name: string;
+  page_url: string;
+  status: "new" | "seen";
+  created_at: string;
+}
+
+export interface ClientObjective {
+  id: number;
+  project_id: number;
+  period: string; // 'YYYY-MM', or '' = standing (applies every month)
+  title: string;
+  detail: string;
+  metric: ObjectiveMetric;
+  target: number;
+  manual_value: number;
+  status: "open" | "done" | "carried" | "dropped";
+  sort_order: number;
+  completed_at: string;
+  // Computed server-side per period (not stored):
+  actual?: number;
+  pct?: number;
+}
+
+export type ObjectiveMetric =
+  | "manual" | "leads" | "unique_contacts" | "page_views"
+  | "unique_visitors" | "calls" | "form_submits" | "seo_score";
+
+export const OBJECTIVE_METRICS: { value: ObjectiveMetric; label: string; unit: string }[] = [
+  { value: "manual", label: "Manual / checklist", unit: "" },
+  { value: "leads", label: "Leads received", unit: "leads" },
+  { value: "unique_contacts", label: "Unique enquirers", unit: "people" },
+  { value: "page_views", label: "Page views", unit: "views" },
+  { value: "unique_visitors", label: "Unique visitors", unit: "visitors" },
+  { value: "calls", label: "Call clicks", unit: "calls" },
+  { value: "form_submits", label: "Form submissions", unit: "forms" },
+  { value: "seo_score", label: "SEO score", unit: "/10" },
+];
+
+export interface ClientReport {
+  id: number;
+  project_id: number;
+  period: string;
+  status: "draft" | "sent" | "failed";
+  recipient: string;
+  cc: string;
+  subject: string;
+  provider_id: string;
+  send_count: number;
+  error: string;
+  sent_at: string;
+  sent_by: string;
+  created_at: string;
+}
+
 export const CALL_OUTCOMES = [
   { value: "answered", label: "Answered", color: "#22c55e" },
   { value: "no_answer", label: "No answer", color: "#ef4444" },
