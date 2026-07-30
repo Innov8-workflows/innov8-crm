@@ -733,6 +733,27 @@ function innov8Forward(e) {
   } catch (err) {
     console.error('innov8 CRM sync error: ' + err);   // never break the client's form
   }
+}
+
+// ── Run this ONCE from the editor before going live ──
+// Select "innov8Test" in the function dropdown and press Run. It asks for
+// permission to reach the CRM (required — the script has never made an external
+// request before), then sends one obvious test lead you can delete afterwards.
+// Expected in the log: 200 {"ok":true,"inserted":1,...}
+function innov8Test() {
+  var res = UrlFetchApp.fetch(INNOV8_CRM_URL, {
+    method: 'post', contentType: 'application/json',
+    headers: { 'x-innov8-key': INNOV8_KEY },
+    payload: JSON.stringify({
+      name: 'TEST - connection check',
+      phone: '00000 000000',
+      message: 'If this shows in the CRM the lead sync works. Safe to delete.',
+      source: 'form', form_name: 'Setup test',
+      event_id: 'innov8-setup-test'
+    }),
+    muteHttpExceptions: true
+  });
+  Logger.log(res.getResponseCode() + ' ' + res.getContentText());
 }`;
 
   const block = (label: string, code: string, which: string, note: string) => (
