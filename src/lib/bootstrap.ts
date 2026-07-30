@@ -1,6 +1,7 @@
 "use client";
 
 import type { LeadStats, ClientStats, ProductRollup, CallRollup } from "@/lib/statsQueries";
+import type { ClientLeadRollup } from "@/lib/clientReporting";
 
 // Client-side single-flight cache for /api/bootstrap. The shell (page.tsx),
 // ViewNav, LeadGrid and StatsBar all mount in the same render pass and each
@@ -16,6 +17,7 @@ export interface BootstrapData {
   customFields: Record<string, Record<string, string>>;
   productRollup: ProductRollup;
   callRollup: CallRollup;
+  clientLeadRollup: ClientLeadRollup;
   leadStats: LeadStats;
   counts: { clients: number; projects: number; todos: number };
   clientStats?: ClientStats;

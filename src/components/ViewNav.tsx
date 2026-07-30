@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { fetchBootstrap } from "@/lib/bootstrap";
 import Icon, { type IconName } from "./Icon";
 
-type ViewId = "prospects" | "projects" | "clients" | "dashboard" | "map" | "ai_solutions" | "schedule" | "todos" | "pricing" | "referrals";
+type ViewId = "prospects" | "projects" | "clients" | "client_dash" | "dashboard" | "map" | "ai_solutions" | "schedule" | "todos" | "pricing" | "referrals";
 
 interface ViewNavProps {
   active: ViewId;
@@ -20,6 +20,7 @@ const views: { id: ViewId; label: string; icon: IconName }[] = [
   { id: "prospects", label: "Prospects", icon: "clipboard" },
   { id: "projects", label: "Projects", icon: "kanban" },
   { id: "clients", label: "Live Clients", icon: "badge-check" },
+  { id: "client_dash", label: "Client Dash", icon: "trending-up" },
   { id: "dashboard", label: "Dashboard", icon: "chart-bar" },
   { id: "map", label: "Scrape Map", icon: "map" },
   { id: "ai_solutions", label: "AI Solutions", icon: "cpu-chip" },

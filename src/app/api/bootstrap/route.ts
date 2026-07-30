@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getClient, initDb, all, first } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { getLeadStats, getClientStats, getProductRollup, getCallRollup } from "@/lib/statsQueries";
+import { getClientLeadRollup } from "@/lib/clientReporting";
 
 // GET /api/bootstrap?owner= — everything the app shell + default Prospects view
 // need on first paint, in ONE request. Replaces the 8-10 separate fetches
@@ -25,6 +26,7 @@ export async function GET(request: NextRequest) {
     fieldsRes,
     productRollup,
     callRollup,
+    clientLeadRollup,
     leadStats,
     clientStats,
     projectCountRes,
@@ -36,6 +38,7 @@ export async function GET(request: NextRequest) {
     db.execute("SELECT lead_id, field_id, value FROM custom_field_values WHERE value != '' AND value IS NOT NULL"),
     getProductRollup(db),
     getCallRollup(db),
+    getClientLeadRollup(db),
     getLeadStats(db, owner),
     // Nav-badge counts are global (the shell never passes an owner to them).
     getClientStats(db, null),
@@ -59,6 +62,7 @@ export async function GET(request: NextRequest) {
     customFields,
     productRollup,
     callRollup,
+    clientLeadRollup,
     leadStats,
     counts: {
       clients: clientStats.clientCount,

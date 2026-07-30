@@ -18,8 +18,9 @@ const MapView = lazy(() => import("@/components/MapView"));
 const AISolutions = lazy(() => import("@/components/AISolutions"));
 const Schedule = lazy(() => import("@/components/Schedule"));
 const Todos = lazy(() => import("@/components/Todos"));
+const ClientDashboard = lazy(() => import("@/components/ClientDashboard"));
 
-type ViewId = "prospects" | "projects" | "clients" | "dashboard" | "map" | "ai_solutions" | "schedule" | "todos" | "pricing" | "referrals";
+type ViewId = "prospects" | "projects" | "clients" | "client_dash" | "dashboard" | "map" | "ai_solutions" | "schedule" | "todos" | "pricing" | "referrals";
 
 // Fire the two critical-path requests at module-evaluation time — before React
 // hydrates, renders, or the lazy LeadGrid chunk arrives. By the time the grid
@@ -45,6 +46,7 @@ export default function Home() {
   // response (fetched in the effect below) replaces them.
   const [cachedCounts] = useState(() =>
     typeof window === "undefined" ? null : getCachedBootstrap(localStorage.getItem("crm_ownerFilter") || "")?.counts || null);
+  const [dashClientId, setDashClientId] = useState<number | null>(null);
   const [projectCount, setProjectCount] = useState(cachedCounts?.projects || 0);
   const [clientCount, setClientCount] = useState(cachedCounts?.clients || 0);
   const [todoCount, setTodoCount] = useState(cachedCounts?.todos || 0);
@@ -119,7 +121,9 @@ export default function Home() {
         <Suspense fallback={<LoadingAI message="Loading" />}>
           {persistedView("prospects",    "Prospects failed to load",    () => <LeadGrid ownerFilter={ownerFilter} />)}
           {persistedView("projects",     "Projects failed to load",     () => <KanbanBoard ownerFilter={ownerFilter} onCountsChanged={refreshCounts} />, false)}
-          {persistedView("clients",      "Clients failed to load",      () => <LiveClients ownerFilter={ownerFilter} onCountsChanged={refreshCounts} />)}
+          {persistedView("clients",      "Clients failed to load",      () => <LiveClients ownerFilter={ownerFilter} onCountsChanged={refreshCounts}
+            onOpenDashboard={(id) => { setDashClientId(id); setView("client_dash"); }} />)}
+          {persistedView("client_dash",  "Client Dashboard failed to load", () => <ClientDashboard projectId={dashClientId} onSelectClient={setDashClientId} active={view === "client_dash"} />)}
           {persistedView("dashboard",    "Dashboard failed to load",    () => <Dashboard ownerFilter={ownerFilter} active={view === "dashboard"} />)}
           {persistedView("map",          "Map failed to load",          () => <MapView ownerFilter={ownerFilter} />, false)}
           {persistedView("ai_solutions", "AI Solutions failed to load", () => <AISolutions />, false)}

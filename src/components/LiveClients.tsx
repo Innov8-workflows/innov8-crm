@@ -6,6 +6,7 @@ import { SOLUTION_CATEGORIES } from "@/types";
 import ProjectDetailModal from "./ProjectDetailModal";
 import SetupPills from "./SetupPills";
 import ReviewsBadge, { type ReviewValues } from "./ReviewsBadge";
+import { getCachedBootstrap } from "@/lib/bootstrap";
 import LoadingAI from "./LoadingAI";
 import SiteAnalyticsModal from "./SiteAnalyticsModal";
 import SeoGeoModal from "./SeoGeoModal";
@@ -28,8 +29,13 @@ type SortDir = "asc" | "desc";
 type ViewMode = "grid" | "card";
 type ClientFilter = "active" | "lost";
 
-export default function LiveClients({ ownerFilter = "", onCountsChanged }: { ownerFilter?: string; onCountsChanged?: () => void }) {
+export default function LiveClients({ ownerFilter = "", onCountsChanged, onOpenDashboard }: { ownerFilter?: string; onCountsChanged?: () => void; onOpenDashboard?: (projectId: number) => void }) {
   const [clients, setClients] = useState<Project[]>([]);
+  // Seeded from the shared bootstrap payload so the chips paint with the rest of
+  // the card instead of after a second round-trip; fetchRollup refreshes it.
+  const [leadRollup, setLeadRollup] = useState<Record<string, { month: number; prev: number; unseen: number; last_at: string }>>(
+    () => (typeof window === "undefined" ? {} : getCachedBootstrap("")?.clientLeadRollup || {})
+  );
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<ClientStats | null>(null);
   const [productRollup, setProductRollup] = useState<ProductRollup>({});
@@ -73,11 +79,16 @@ export default function LiveClients({ ownerFilter = "", onCountsChanged }: { own
     setStats(await res.json());
   }, [ownerFilter]);
 
-  // Per-client product list (attached to the client's lead) for the card chips.
+  // Per-client product list (attached to the client's lead) for the card chips,
+  // plus the website-enquiry counts. Both are single bounded aggregates and run
+  // together, so the card row costs one extra query and zero extra round-trips.
   const fetchRollup = useCallback(async () => {
-    const res = await fetch("/api/leads/product-rollup");
-    const data = await res.json();
-    setProductRollup(data.rollup || {});
+    const [products, leads] = await Promise.all([
+      fetch("/api/leads/product-rollup").then((r) => r.json()).catch(() => ({})),
+      fetch("/api/client-leads/rollup").then((r) => r.json()).catch(() => ({})),
+    ]);
+    setProductRollup(products.rollup || {});
+    setLeadRollup(leads.rollup || {});
   }, []);
 
   useEffect(() => { fetchClients(); fetchStats(); fetchRollup(); }, [clientFilter, ownerFilter]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -374,6 +385,8 @@ export default function LiveClients({ ownerFilter = "", onCountsChanged }: { own
             onShowSeo={setSeoClient}
             onToggleSetup={updateClient}
             onSaveReviews={saveReviews}
+            leadRollup={leadRollup}
+            onOpenDashboard={onOpenDashboard}
           />
         )}
       </div>
@@ -679,12 +692,14 @@ interface CardProps {
   invoicing: number | null;
   onToggleInvoiceStatus: (id: number, currentStatus: string, e?: React.MouseEvent) => void;
   onShowAnalytics: (p: Project) => void;
+  leadRollup: Record<string, { month: number; prev: number; unseen: number; last_at: string }>;
+  onOpenDashboard?: (projectId: number) => void;
   onShowSeo: (p: Project) => void;
   onToggleSetup: (id: number, field: string, value: number) => void;
   onSaveReviews: (id: number, fields: ReviewValues) => void;
 }
 
-function CardView({ clients, productRollup, formatDate, isOverdue, onOpenProject, isLostView, onMarkLost, onReactivate, onDelete, onCycleStatus, onSendInvoice, invoicing, onToggleInvoiceStatus, onShowAnalytics, onShowSeo, onToggleSetup, onSaveReviews }: CardProps) {
+function CardView({ clients, productRollup, formatDate, isOverdue, onOpenProject, isLostView, onMarkLost, onReactivate, onDelete, onCycleStatus, onSendInvoice, invoicing, onToggleInvoiceStatus, onShowAnalytics, onShowSeo, onToggleSetup, onSaveReviews, leadRollup, onOpenDashboard }: CardProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4">
       {clients.map((client) => {
@@ -891,6 +906,27 @@ function CardView({ clients, productRollup, formatDate, isOverdue, onOpenProject
                       <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" />
                     </svg>
                   )}
+                  {/* Enquiries their own site produced this month — click through to
+                      the Client Dashboard. Data comes from one bounded rollup query. */}
+                  {(() => {
+                    const r = leadRollup[String(client.id)];
+                    const count = r?.month ?? 0;
+                    const delta = r ? r.month - r.prev : 0;
+                    const col = count === 0 ? "var(--text-dim)" : delta >= 0 ? "#22c55e" : "#f59e0b";
+                    return (
+                      <button onClick={(e) => { e.stopPropagation(); onOpenDashboard?.(client.id); }}
+                        className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded transition-colors"
+                        style={{ color: col }}
+                        title={`${count} enquir${count === 1 ? "y" : "ies"} this month${r ? ` (${r.prev} last month)` : ""} — open Client Dashboard`}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = "var(--surface2)")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
+                        {r && r.unseen > 0 && <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--accent)" }} />}
+                        <span className="font-semibold">{count}</span>
+                        <span style={{ color: "var(--text-dim)" }}>lead{count === 1 ? "" : "s"}</span>
+                        {delta !== 0 && <span className="font-semibold">{delta > 0 ? "↑" : "↓"}{Math.abs(delta)}</span>}
+                      </button>
+                    );
+                  })()}
                 </div>
                 <div className="flex items-center gap-2">
                   {client.renewal_date && (
