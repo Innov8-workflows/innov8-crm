@@ -52,7 +52,7 @@ async function doInitDb() {
   // ~100-300ms, so this is the single biggest "slow first load" win. Bump
   // SCHEMA_VERSION whenever a migration/index/seed below changes → the heavy block
   // re-runs exactly once on the next deploy, then cold starts go fast again.
-  const SCHEMA_VERSION = "2026-08-01-clientleads";
+  const SCHEMA_VERSION = "2026-08-04-sitehealth";
   await db.execute("CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT DEFAULT '')");
   const schemaMarker = first(await db.execute("SELECT value FROM app_meta WHERE key = 'schema_version'"));
   if (schemaMarker?.value === SCHEMA_VERSION) return;
@@ -240,9 +240,35 @@ async function doInitDb() {
       cover_file_id INTEGER,
       seo_cache TEXT DEFAULT '',
       lead_ingest_key TEXT DEFAULT '',
+      health_status TEXT DEFAULT '',
+      health_checked_at TEXT DEFAULT '',
+      health_status_code INTEGER DEFAULT 0,
+      health_response_ms INTEGER DEFAULT 0,
+      health_fail_count INTEGER DEFAULT 0,
+      health_error TEXT DEFAULT '',
+      ssl_expires_at TEXT DEFAULT '',
+      ssl_checked_at TEXT DEFAULT '',
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (lead_id) REFERENCES leads(id)
+    );
+
+    -- Site-health history. Deliberately NOT one row per check: at 15-minute
+    -- intervals across ~13 clients that would be ~1,250 rows a day. Current
+    -- state lives in the projects.health_* columns (a cheap UPDATE), and this
+    -- table only records status TRANSITIONS plus one heartbeat per site per
+    -- day — so it stays a readable incident log instead of becoming the
+    -- biggest table in the database.
+    CREATE TABLE IF NOT EXISTS site_checks (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      project_id INTEGER NOT NULL,
+      checked_at TEXT DEFAULT (datetime('now')),
+      status TEXT NOT NULL,
+      http_status INTEGER DEFAULT 0,
+      response_ms INTEGER DEFAULT 0,
+      error TEXT DEFAULT '',
+      is_transition INTEGER DEFAULT 0,
+      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
     );
 
     CREATE TABLE IF NOT EXISTS project_tasks (
@@ -393,6 +419,16 @@ async function doInitDb() {
     "ALTER TABLE projects ADD COLUMN bing_console INTEGER DEFAULT 0",
     "ALTER TABLE projects ADD COLUMN secure_file INTEGER DEFAULT 0",
     "ALTER TABLE projects ADD COLUMN google_sheet INTEGER DEFAULT 0",
+    // Site-health monitoring. Current state is denormalised onto the project so
+    // the Live Clients cards get it free from the existing `SELECT p.*`.
+    "ALTER TABLE projects ADD COLUMN health_status TEXT DEFAULT ''",
+    "ALTER TABLE projects ADD COLUMN health_checked_at TEXT DEFAULT ''",
+    "ALTER TABLE projects ADD COLUMN health_status_code INTEGER DEFAULT 0",
+    "ALTER TABLE projects ADD COLUMN health_response_ms INTEGER DEFAULT 0",
+    "ALTER TABLE projects ADD COLUMN health_fail_count INTEGER DEFAULT 0",
+    "ALTER TABLE projects ADD COLUMN health_error TEXT DEFAULT ''",
+    "ALTER TABLE projects ADD COLUMN ssl_expires_at TEXT DEFAULT ''",
+    "ALTER TABLE projects ADD COLUMN ssl_checked_at TEXT DEFAULT ''",
     // Per-project write key for the Apps Script lead push. Deliberately NOT the
     // shared WEBHOOK_SECRET (CRM-wide blast radius) and NOT tracking_id (public —
     // it sits in every visitor's page source, so anyone could inject fake leads
@@ -470,6 +506,7 @@ async function doInitDb() {
     CREATE INDEX IF NOT EXISTS idx_lead_notes_lead_created ON lead_notes(lead_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_todos_done_created ON todos(done, created_at);
     CREATE INDEX IF NOT EXISTS idx_site_events_created ON site_events(created_at);
+    CREATE INDEX IF NOT EXISTS idx_site_checks_project ON site_checks(project_id, checked_at);
   `);
 
   // Clean up any duplicate solutions left behind by the previous buggy seed check.

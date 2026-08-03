@@ -6,6 +6,7 @@ import { SOLUTION_CATEGORIES } from "@/types";
 import ProjectDetailModal from "./ProjectDetailModal";
 import SetupPills from "./SetupPills";
 import ReviewsBadge, { type ReviewValues } from "./ReviewsBadge";
+import HealthBadge from "./HealthBadge";
 import { getCachedBootstrap } from "@/lib/bootstrap";
 import LoadingAI from "./LoadingAI";
 import SiteAnalyticsModal from "./SiteAnalyticsModal";
@@ -824,18 +825,23 @@ function CardView({ clients, productRollup, formatDate, isOverdue, onOpenProject
               )}
 
               {client.domain && (
-                <a
-                  href={/^https?:\/\//i.test(client.domain) ? client.domain : `https://${client.domain}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title={`Open ${client.domain}`}
-                  onClick={(e) => e.stopPropagation()}
-                  onMouseDown={(e) => e.stopPropagation()}
-                  className="block text-xs mt-1 truncate hover:underline cf-name"
-                  style={{ color: "var(--accent)" }}
-                >
-                  {client.domain}
-                </a>
+                <div className="flex items-center gap-1.5 mt-1 min-w-0">
+                  <a
+                    href={/^https?:\/\//i.test(client.domain) ? client.domain : `https://${client.domain}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={`Open ${client.domain}`}
+                    onClick={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    className="block text-xs truncate hover:underline cf-name min-w-0"
+                    style={{ color: "var(--accent)" }}
+                  >
+                    {client.domain}
+                  </a>
+                  {/* Sits with the domain because that's what it describes.
+                      Compact — the label would crowd the card. */}
+                  <HealthBadge values={client} compact />
+                </div>
               )}
 
               {client.tasks_total !== undefined && client.tasks_total > 0 && (

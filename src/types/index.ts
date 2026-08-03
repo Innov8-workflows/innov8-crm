@@ -55,6 +55,16 @@ export interface Project {
   google_review_count?: number;
   facebook_rating?: number;
   facebook_review_count?: number;
+  // Site health — written by the monitor, read straight off the existing
+  // `SELECT p.*` in /api/projects so the client cards need no extra request.
+  health_status?: string;        // up | slow | down | '' (never checked)
+  health_checked_at?: string;
+  health_status_code?: number;
+  health_response_ms?: number;
+  health_fail_count?: number;
+  health_error?: string;
+  ssl_expires_at?: string;
+  ssl_checked_at?: string;
   created_at: string;
   updated_at: string;
   // Joined from leads

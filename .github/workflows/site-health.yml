@@ -1,0 +1,47 @@
+# Pings the CRM's site-health worker every 15 minutes.
+#
+# Why not a Vercel cron: this project is on the Hobby plan, where cron jobs only
+# fire once per day. A client's site could then be down for up to 24 hours before
+# the CRM noticed, which defeats the point — the whole aim is to know before the
+# client rings. GitHub's scheduler is free and runs at a useful cadence.
+#
+# Setup (one-off, both values must match):
+#   1. Vercel → project → Settings → Environment Variables → CRON_SECRET
+#   2. GitHub → this repo → Settings → Secrets and variables → Actions → CRON_SECRET
+# Until CRON_SECRET is set in Vercel the endpoint returns 401 by design — it
+# fails closed rather than running unauthenticated.
+#
+# Note: GitHub's scheduled runners are best-effort and can lag when the platform
+# is busy. 15 minutes is a target, not a guarantee — fine for this purpose.
+
+name: Site health check
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}
+
+# Overlapping runs would just repeat work against the same rows.
+concurrency:
+  group: site-health
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Trigger health check
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "CRON_SECRET is not set on this repository — add it under Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+          # --fail-with-body so a 401/500 fails the run AND shows why.
+          curl --fail-with-body --silent --show-error \
+            --max-time 120 \
+            -X POST "https://crm.innov8workflows.co.uk/api/health/check" \
+            -H "Authorization: Bearer $CRON_SECRET"
+          echo
