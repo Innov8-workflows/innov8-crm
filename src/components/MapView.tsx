@@ -38,6 +38,13 @@ interface MapStats {
 const UK_CENTER: [number, number] = [54.5, -2.5];
 const UK_ZOOM = 6;
 
+type Segment = "all" | "clients" | "prospects";
+const SEGMENTS: { value: Segment; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "clients", label: "Clients" },
+  { value: "prospects", label: "Prospects" },
+];
+
 // Used to pick a colour per pin based on stage
 function stageColour(status: string): string {
   const stage = PIPELINE_STAGES.find((s) => s.value === status);
@@ -150,6 +157,9 @@ export default function MapView({ ownerFilter = "" }: { ownerFilter?: string }) 
   const [loading, setLoading] = useState(true);
   const [businessTypeFilter, setBusinessTypeFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
+  // Which slice of the book to plot. "clients" uses the same definition as the
+  // Live Clients badge, so the pin count matches what the nav says.
+  const [segment, setSegment] = useState<Segment>("all");
   const [geocoding, setGeocoding] = useState(false);
   const isDark = useIsDarkTheme();
   const { toast } = useToast();
@@ -169,6 +179,7 @@ export default function MapView({ ownerFilter = "" }: { ownerFilter?: string }) 
     if (businessTypeFilter !== "All") params.set("business_type", businessTypeFilter);
     if (statusFilter !== "All") params.set("status", statusFilter);
     if (ownerFilter) params.set("owner", ownerFilter);
+    if (segment !== "all") params.set("segment", segment);
 
     const res = await fetch(`/api/leads/map?${params.toString()}`);
     const data = await res.json();
@@ -176,7 +187,7 @@ export default function MapView({ ownerFilter = "" }: { ownerFilter?: string }) 
     setMarkers(data.markers || []);
     setStats(data.stats || null);
     setLoading(false);
-  }, [businessTypeFilter, statusFilter, ownerFilter]);
+  }, [businessTypeFilter, statusFilter, ownerFilter, segment]);
 
   useEffect(() => { fetchMarkers(); }, [fetchMarkers]);
 
@@ -232,7 +243,8 @@ export default function MapView({ ownerFilter = "" }: { ownerFilter?: string }) 
       {/* Stats strip */}
       <div style={{ background: "var(--stats-bg)", borderBottom: "1px solid var(--border)" }} className="px-4 py-3">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <StatCard label="Total Leads" value={stats?.totalLeads ?? 0} color="var(--text)" />
+          <StatCard label={segment === "clients" ? "Total Clients" : segment === "prospects" ? "Total Prospects" : "Total Leads"}
+            value={stats?.totalLeads ?? 0} color="var(--text)" />
           <StatCard label="On Map" value={markers.length} color="var(--accent)" />
           <StatCard label="Pending Geocode" value={stats?.pending ?? 0} color="#f59e0b" />
           <StatCard label="Unique Locations" value={stats?.uniqueLocations ?? 0} color="#3b82f6" />
@@ -241,6 +253,21 @@ export default function MapView({ ownerFilter = "" }: { ownerFilter?: string }) 
 
       {/* Filters bar */}
       <div style={{ background: "var(--surface)", borderBottom: "1px solid var(--border)" }} className="px-4 py-3 flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-dim)" }}>Show</span>
+          <div className="flex items-center rounded-lg overflow-hidden" style={{ border: "1px solid var(--border-light)" }}>
+            {SEGMENTS.map((s) => {
+              const on = segment === s.value;
+              return (
+                <button key={s.value} onClick={() => setSegment(s.value)}
+                  className="text-sm font-semibold px-3 py-1.5 transition-colors"
+                  style={{ background: on ? "var(--accent)" : "transparent", color: on ? "#fff" : "var(--text-dim)" }}>
+                  {s.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-dim)" }}>Type</span>
           <select value={businessTypeFilter} onChange={(e) => setBusinessTypeFilter(e.target.value)}
