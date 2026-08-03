@@ -5,16 +5,17 @@ import { all, first } from "@/lib/db";
 // /api/bootstrap — one implementation so the consolidated bootstrap response
 // can never drift from the standalone endpoints.
 
-// What counts as a live (paying) client: a project past onboarding that hasn't
-// been marked lost. This is THE definition behind the "Live Clients" nav badge,
-// so anything else that wants to segment clients vs prospects (e.g. the map)
-// must build on this rather than re-spelling it and drifting.
+// What counts as a live (paying) client: a project that has reached the Build
+// stage or beyond (Jay's rule — before Build it's still a prospect being
+// worked up), and hasn't been written off as lost. Single definition so the
+// map segment and the client money query can't drift apart.
+const CLIENT_STAGES = "('build','review','launch','completed')";
 export function liveClientExistsSql(leadAlias: string): string {
   return `EXISTS (
     SELECT 1 FROM projects p
     WHERE p.lead_id = ${leadAlias}.id
-      AND p.stage != 'onboarding'
-      AND (p.client_status IN ('active','refine') OR p.client_status IS NULL)
+      AND p.stage IN ${CLIENT_STAGES}
+      AND (p.client_status != 'lost' OR p.client_status IS NULL)
   )`;
 }
 

@@ -1,6 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getClient, initDb, all } from "@/lib/db";
 import { geocodeUK, sleep, GEOCODE_FAILED_SENTINEL, TransientGeocodeError } from "@/lib/geocode";
+import { liveClientExistsSql } from "@/lib/statsQueries";
+
+// Restrict the pending-location scan to one slice of the book. Without this,
+// locations are worked alphabetically across every lead — so a handful of
+// client locations sit behind a queue of a couple of hundred prospects and the
+// client map stays empty for ~13 calls. Mirrors /api/leads/map's segment param.
+function segmentWhere(segment: string | null): string {
+  if (segment === "clients") return `AND ${liveClientExistsSql("leads")}`;
+  if (segment === "prospects") return `AND NOT ${liveClientExistsSql("leads")}`;
+  return "";
+}
 
 // Extend Vercel timeout to 60s (Hobby plan max). Default 10s is too short
 // for bulk geocoding with Nominatim's 1 req/sec limit.
@@ -12,14 +23,18 @@ export const maxDuration = 60;
 //
 // With maxDuration=60s, we safely process ~15 locations per call.
 // Client loops calling this until remaining=0.
-export async function POST(_request: NextRequest) {
+export async function POST(request: NextRequest) {
   await initDb();
   const db = getClient();
 
-  // Get all unique locations that need geocoding
+  const scope = segmentWhere(request.nextUrl.searchParams.get("segment"));
+
+  // Get all unique locations that need geocoding. The location comes straight
+  // off the lead's own location line — clients are just leads with a project,
+  // so there's no separate client address to reconcile.
   const result = await db.execute({
     sql: `SELECT DISTINCT location FROM leads
-          WHERE lat IS NULL AND location IS NOT NULL AND location != ''
+          WHERE lat IS NULL AND location IS NOT NULL AND location != '' ${scope}
           ORDER BY location`,
   });
   const locations = all(result).map((r) => r.location as string);
@@ -87,12 +102,13 @@ export async function POST(_request: NextRequest) {
 }
 
 // GET returns how many leads still need geocoding — lightweight status check
-export async function GET() {
+export async function GET(request: NextRequest) {
   await initDb();
   const db = getClient();
+  const scope = segmentWhere(request.nextUrl.searchParams.get("segment"));
   const result = await db.execute({
     sql: `SELECT COUNT(DISTINCT location) as v FROM leads
-          WHERE lat IS NULL AND location IS NOT NULL AND location != ''`,
+          WHERE lat IS NULL AND location IS NOT NULL AND location != '' ${scope}`,
   });
   const pending = Number(all(result)[0]?.v) || 0;
   return NextResponse.json({ pending });

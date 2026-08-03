@@ -203,7 +203,9 @@ export default function MapView({ ownerFilter = "" }: { ownerFilter?: string }) 
     try {
       // Loop calling the endpoint until nothing remains. Max 30 iterations as a safety cap.
       for (let i = 0; i < 30; i++) {
-        const res = await fetch("/api/leads/geocode", { method: "POST" });
+        // Scope the geocode run to whatever's on screen — on Clients that's a
+        // dozen locations (one call) instead of grinding the whole book.
+        const res = await fetch(`/api/leads/geocode${segment !== "all" ? `?segment=${segment}` : ""}`, { method: "POST" });
         if (!res.ok) throw new Error("geocode failed");
         const data = await res.json();
         totalGeocoded += data.geocoded || 0;
@@ -319,7 +321,8 @@ export default function MapView({ ownerFilter = "" }: { ownerFilter?: string }) 
               cursor: geocoding ? "wait" : "pointer",
             }}
           >
-            {geocoding ? "Geocoding…" : <span className="inline-flex items-center gap-1.5"><Icon name="refresh" className="w-4 h-4" /> Refresh Geocoding</span>}
+            {geocoding ? "Geocoding…" : <span className="inline-flex items-center gap-1.5"><Icon name="refresh" className="w-4 h-4" />
+              {segment === "clients" ? "Geocode Clients" : segment === "prospects" ? "Geocode Prospects" : "Refresh Geocoding"}</span>}
           </button>
         </div>
       </div>
