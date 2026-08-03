@@ -7,7 +7,7 @@ const SECRET = new TextEncoder().encode(
 
 // NB: matched with startsWith — keep entries specific enough not to shadow
 // future routes (e.g. "/api/report" would also open "/api/reports/...").
-const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/auth/setup", "/api/webhook/gmail", "/api/webhook/prospects", "/api/webhook/client-leads", "/api/invoices/auto", "/api/track", "/track.js"];
+const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/auth/setup", "/api/webhook/gmail", "/api/webhook/prospects", "/api/webhook/client-leads", "/api/track", "/track.js"];
 
 // In-memory cache for verified JWTs. Cold-start safe (cache resets on new lambda).
 // 60s TTL — short enough that revocation via logout still takes effect quickly.

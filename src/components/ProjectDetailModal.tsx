@@ -27,7 +27,6 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
   const [showUrlForm, setShowUrlForm] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [stripeProducts, setStripeProducts] = useState<{ price_id: string; name: string; amount: number; recurring: boolean; interval: string }[]>([]);
   const [saving, setSaving] = useState(false);
 
   const fetchTasks = useCallback(async () => {
@@ -43,9 +42,6 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
   }, [project.id]);
 
   useEffect(() => { fetchTasks(); fetchFiles(); }, [fetchTasks, fetchFiles]);
-  useEffect(() => {
-    fetch("/api/stripe/products").then((r) => r.json()).then((d) => setStripeProducts(d.products || [])).catch(() => {});
-  }, []);
 
   const stageOrder: string[] = PROJECT_STAGES.map((s) => s.value).filter((s) => s !== "completed");
 
@@ -166,9 +162,9 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
     setHasUnsavedChanges(true);
   };
 
-  // Products are the source of truth for the dashboard, but invoice automation
-  // still keys off projects.monthly_fee — so mirror the sold/delivered monthly
-  // total back to the project whenever the picker changes.
+  // Products are the source of truth for the dashboard, but the client cards
+  // and monthly report still read projects.monthly_fee — so mirror the
+  // sold/delivered monthly total back to the project whenever the picker changes.
   const handleProductsChanged = useCallback(async (esRows: EntitySolution[]) => {
     const sold = esRows.filter((r) => r.status === "sold" || r.status === "delivered");
     const monthly = sold.reduce((s, r) => s + (Number(r.monthly_upcharge) || 0), 0);
@@ -194,7 +190,6 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
         renewal_date: details.renewal_date,
         login_details: details.login_details,
         project_notes: details.project_notes,
-        stripe_price_id: (details as unknown as Record<string, unknown>).stripe_price_id || "",
       }),
     });
     setSaving(false);
@@ -505,93 +500,9 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
                 <ProductPicker leadId={project.lead_id} businessName={details.business_name} onChanged={handleProductsChanged} />
               </div>
               <p className="text-[11px] -mt-2" style={{ color: "var(--text-dim)" }}>
-                The dashboard totals these products. The Stripe / manual fields below are for billing only.
+                The dashboard totals these products. The fields below are for your own reference — invoicing is done in Stripe.
               </p>
 
-              {/* Stripe Products selector (multiple) */}
-              {stripeProducts.length > 0 && (() => {
-                const currentIds = ((details as unknown as Record<string, unknown>).stripe_price_id as string || "").split(",").filter(Boolean);
-                const selectedProducts = currentIds.map((id) => stripeProducts.find((p) => p.price_id === id)).filter(Boolean);
-                const availableProducts = stripeProducts.filter((p) => !currentIds.includes(p.price_id));
-                const totalRecurring = selectedProducts.reduce((sum, p) => sum + (p && p.recurring ? p.amount : 0), 0);
-                const totalOneTime = selectedProducts.reduce((sum, p) => sum + (p && !p.recurring ? p.amount : 0), 0);
-
-                const recalcFees = (products: typeof selectedProducts) => {
-                  const recurring = products.reduce((sum, p) => sum + (p && p.recurring ? p.amount : 0), 0);
-                  const oneTime = products.reduce((sum, p) => sum + (p && !p.recurring ? p.amount : 0), 0);
-                  const updates: Record<string, unknown> = {};
-                  if (recurring > 0) updates.monthly_fee = recurring;
-                  if (oneTime > 0) updates.capex = oneTime;
-                  return updates;
-                };
-
-                const addProduct = (priceId: string) => {
-                  const newIds = [...currentIds, priceId].join(",");
-                  const product = stripeProducts.find((p) => p.price_id === priceId);
-                  const newProducts = [...selectedProducts, product];
-                  const fees = recalcFees(newProducts);
-                  setDetails((prev) => ({ ...prev, stripe_price_id: newIds, ...fees } as typeof prev));
-                  setHasUnsavedChanges(true);
-                };
-
-                const removeProduct = (priceId: string) => {
-                  const newIds = currentIds.filter((id) => id !== priceId).join(",");
-                  const newProducts = selectedProducts.filter((p) => p?.price_id !== priceId);
-                  const fees = recalcFees(newProducts);
-                  // If no recurring left, keep current monthly_fee. Same for capex.
-                  const updates: Record<string, unknown> = {};
-                  if (fees.monthly_fee !== undefined) updates.monthly_fee = fees.monthly_fee;
-                  else if (totalRecurring > 0) updates.monthly_fee = 0; // had recurring, now removed
-                  if (fees.capex !== undefined) updates.capex = fees.capex;
-                  else if (totalOneTime > 0) updates.capex = 0;
-                  setDetails((prev) => ({ ...prev, stripe_price_id: newIds, ...updates } as typeof prev));
-                  setHasUnsavedChanges(true);
-                };
-
-                return (
-                  <div>
-                    <label className="block text-xs font-medium mb-1 uppercase" style={{ color: "var(--text-dim)" }}>Products / Tiers</label>
-                    {/* Selected products as tags */}
-                    {selectedProducts.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 mb-2">
-                        {selectedProducts.map((p) => p && (
-                          <span key={p.price_id} className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium"
-                            style={{ background: "#3b82f620", border: "1px solid #3b82f640", color: "#3b82f6" }}>
-                            {p.name} — £{p.amount.toFixed(2)}{p.recurring ? `/${p.interval === "month" ? "mo" : p.interval}` : ""}
-                            <button onClick={() => removeProduct(p.price_id)}
-                              className="ml-0.5 hover:text-red-400 transition-colors" style={{ color: "#3b82f6" }}>×</button>
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    {/* Product fee summary */}
-                    {(totalRecurring > 0 || totalOneTime > 0) && (
-                      <div className="flex gap-3 mb-2 text-xs" style={{ color: "var(--text-dim)" }}>
-                        {totalRecurring > 0 && <span>Recurring: <span style={{ color: "#22c55e" }}>£{totalRecurring.toFixed(2)}/mo</span></span>}
-                        {totalOneTime > 0 && <span>One-time: <span style={{ color: "var(--accent)" }}>£{totalOneTime.toFixed(2)}</span></span>}
-                      </div>
-                    )}
-                    {/* Add product dropdown */}
-                    {availableProducts.length > 0 && (
-                      <select
-                        className="w-full px-3 py-2 text-sm rounded-md cursor-pointer"
-                        style={{ background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--text-muted)", outline: "none" }}
-                        value=""
-                        onChange={(e) => { if (e.target.value) addProduct(e.target.value); }}
-                      >
-                        <option value="" style={{ background: "var(--surface2)", color: "var(--text-muted)" }}>
-                          {selectedProducts.length > 0 ? "+ Add another product..." : "Select a product..."}
-                        </option>
-                        {availableProducts.map((p) => (
-                          <option key={p.price_id} value={p.price_id} style={{ background: "var(--surface2)", color: "var(--text)" }}>
-                            {p.name} — £{p.amount.toFixed(2)}{p.recurring ? `/${p.interval === "month" ? "mo" : p.interval}` : " one-time"}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                  </div>
-                );
-              })()}
               {[
                 { key: "domain", label: "Domain", placeholder: "e.g. smithplumbing.co.uk" },
                 { key: "hosting_info", label: "Hosting", placeholder: "e.g. GitHub Pages, Vercel" },
@@ -651,27 +562,6 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
                   </span>
                 )}
                 <div className="flex items-center gap-2">
-                  {details.monthly_fee > 0 && details.email && (
-                    <button
-                      onClick={async () => {
-                        const res = await fetch("/api/invoices/send", {
-                          method: "POST", headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ project_id: project.id }),
-                        });
-                        const data = await res.json();
-                        alert(data.ok ? `Invoice sent for £${data.amount}` : `Error: ${data.error}`);
-                      }}
-                      className="px-4 py-2 text-sm font-semibold rounded-lg transition-all flex items-center gap-1.5"
-                      style={{ background: "#3b82f6", color: "#fff" }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = "#2563eb"}
-                      onMouseLeave={(e) => e.currentTarget.style.background = "#3b82f6"}
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
-                      </svg>
-                      Send Invoice
-                    </button>
-                  )}
                   <button
                     onClick={saveAllDetails}
                     disabled={!hasUnsavedChanges || saving}

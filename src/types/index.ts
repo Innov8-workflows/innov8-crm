@@ -18,7 +18,6 @@ export interface Lead {
   follow_up_date: string;
   demo_site_url: string;
   owner: string;
-  stripe_customer_id: string;
   lat?: number | null;
   lng?: number | null;
   created_at: string;
@@ -38,7 +37,8 @@ export interface Project {
   project_notes: string;
   completed_at: string;
   client_status: string;
-  stripe_price_id: string;
+  // Manual "have I invoiced them this month" marker. Invoicing itself happens
+  // in Stripe directly — the CRM no longer sends anything.
   invoice_status: string;
   // Foundational setup milestones, shown as toggle pills on the cards
   ga4_embedded?: number;

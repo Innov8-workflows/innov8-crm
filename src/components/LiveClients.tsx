@@ -48,10 +48,8 @@ export default function LiveClients({ ownerFilter = "", onCountsChanged, onOpenD
   const [editValue, setEditValue] = useState("");
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
-  const [invoicing, setInvoicing] = useState<number | null>(null);
   const [analyticsClient, setAnalyticsClient] = useState<Project | null>(null);
   const [seoClient, setSeoClient] = useState<Project | null>(null);
-  const [invoiceResult, setInvoiceResult] = useState<{ id: number; msg: string; ok: boolean } | null>(null);
 
   const fetchClients = useCallback(async () => {
     // Stale-while-revalidate: paint the last-known list instantly, refresh behind it.
@@ -150,27 +148,6 @@ export default function LiveClients({ ownerFilter = "", onCountsChanged, onOpenD
       method: "PUT", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ invoice_status: next }),
     });
-  }, []);
-
-  const sendInvoice = useCallback(async (projectId: number, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    setInvoicing(projectId);
-    setInvoiceResult(null);
-    try {
-      const res = await fetch("/api/invoices/send", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ project_id: projectId }),
-      });
-      const data = await res.json();
-      if (data.ok) {
-        setInvoiceResult({ id: projectId, msg: `Invoice sent to ${data.customer} for £${data.amount}`, ok: true });
-      } else {
-        setInvoiceResult({ id: projectId, msg: data.error || "Failed to send invoice", ok: false });
-      }
-    } catch {
-      setInvoiceResult({ id: projectId, msg: "Network error", ok: false });
-    }
-    setInvoicing(null);
   }, []);
 
   const deleteClient = useCallback(async (id: number) => {
@@ -363,8 +340,6 @@ export default function LiveClients({ ownerFilter = "", onCountsChanged, onOpenD
             onReactivate={reactivateClient}
             onDelete={setConfirmDelete}
             onCycleStatus={cycleStatus}
-            onSendInvoice={sendInvoice}
-            invoicing={invoicing}
           />
         ) : (
           <CardView
@@ -378,8 +353,6 @@ export default function LiveClients({ ownerFilter = "", onCountsChanged, onOpenD
             onReactivate={reactivateClient}
             onDelete={setConfirmDelete}
             onCycleStatus={cycleStatus}
-            onSendInvoice={sendInvoice}
-            invoicing={invoicing}
             onToggleInvoiceStatus={toggleInvoiceStatus}
             onShowAnalytics={setAnalyticsClient}
             onShowSeo={setSeoClient}
@@ -453,15 +426,6 @@ export default function LiveClients({ ownerFilter = "", onCountsChanged, onOpenD
         </div>
       )}
 
-      {/* Invoice result toast */}
-      {invoiceResult && (
-        <div className="fixed bottom-4 right-4 z-50 px-4 py-3 rounded-lg shadow-xl flex items-center gap-3 max-w-sm"
-          style={{ background: invoiceResult.ok ? "#052e16" : "#450a0a", border: `1px solid ${invoiceResult.ok ? "#22c55e40" : "#ef444440"}` }}>
-          <span className="text-sm" style={{ color: invoiceResult.ok ? "#22c55e" : "#ef4444" }}>{invoiceResult.msg}</span>
-          <button className="text-xs px-2 py-0.5 rounded" style={{ color: "var(--text-muted)" }}
-            onClick={() => setInvoiceResult(null)}>Dismiss</button>
-        </div>
-      )}
     </div>
   );
 }
@@ -487,8 +451,6 @@ interface GridProps {
   onReactivate: (id: number, e?: React.MouseEvent) => void;
   onDelete: (id: number) => void;
   onCycleStatus: (id: number, currentStatus: string, e?: React.MouseEvent) => void;
-  onSendInvoice: (id: number, e?: React.MouseEvent) => void;
-  invoicing: number | null;
 }
 
 const STATUS_BADGE: Record<string, { label: string; color: string; bg: string }> = {
@@ -508,7 +470,7 @@ const GRID_COLUMNS: { key: SortKey; label: string; width: string; editable?: boo
   { key: "completed_at", label: "Completed", width: "minmax(110px, 0.7fr)" },
 ];
 
-function GridView({ clients, sortKey, sortDir, onSort, editingCell, editValue, onStartEdit, onEditChange, onCommitEdit, onCancelEdit, formatDate, isOverdue, onOpenProject, isLostView, onMarkLost, onReactivate, onDelete, onCycleStatus, onSendInvoice, invoicing }: GridProps) {
+function GridView({ clients, sortKey, sortDir, onSort, editingCell, editValue, onStartEdit, onEditChange, onCommitEdit, onCancelEdit, formatDate, isOverdue, onOpenProject, isLostView, onMarkLost, onReactivate, onDelete, onCycleStatus }: GridProps) {
   const gridTemplate = `40px 70px ${GRID_COLUMNS.map((c) => c.width).join(" ")} 100px`;
 
   return (
@@ -688,8 +650,6 @@ interface CardProps {
   onReactivate: (id: number, e?: React.MouseEvent) => void;
   onDelete: (id: number) => void;
   onCycleStatus: (id: number, currentStatus: string, e?: React.MouseEvent) => void;
-  onSendInvoice: (id: number, e?: React.MouseEvent) => void;
-  invoicing: number | null;
   onToggleInvoiceStatus: (id: number, currentStatus: string, e?: React.MouseEvent) => void;
   onShowAnalytics: (p: Project) => void;
   leadRollup: Record<string, { month: number; prev: number; unseen: number; last_at: string }>;
@@ -699,7 +659,7 @@ interface CardProps {
   onSaveReviews: (id: number, fields: ReviewValues) => void;
 }
 
-function CardView({ clients, productRollup, formatDate, isOverdue, onOpenProject, isLostView, onMarkLost, onReactivate, onDelete, onCycleStatus, onSendInvoice, invoicing, onToggleInvoiceStatus, onShowAnalytics, onShowSeo, onToggleSetup, onSaveReviews, leadRollup, onOpenDashboard }: CardProps) {
+function CardView({ clients, productRollup, formatDate, isOverdue, onOpenProject, isLostView, onMarkLost, onReactivate, onDelete, onCycleStatus, onToggleInvoiceStatus, onShowAnalytics, onShowSeo, onToggleSetup, onSaveReviews, leadRollup, onOpenDashboard }: CardProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4">
       {clients.map((client) => {

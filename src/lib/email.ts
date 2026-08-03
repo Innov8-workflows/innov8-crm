@@ -2,9 +2,8 @@
 //
 // Structured after src/lib/geocode.ts (the only other hand-rolled third-party
 // call): explicit timeout, and transient failures separated from permanent ones
-// so the caller can retry the first and surface the second. Deliberately NOT
-// modelled on stripe.ts, which swallows send failures — a report that silently
-// didn't send is worse than one that visibly failed.
+// so the caller can retry the first and surface the second — a report that
+// silently didn't send is worse than one that visibly failed.
 //
 // Raw fetch rather than the `resend` SDK: this is one authenticated POST, and
 // adding a dependency would mean package.json + lockfile changes in both the

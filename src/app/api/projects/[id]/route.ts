@@ -30,7 +30,7 @@ export async function PUT(
   const db = getClient();
   const body = await request.json();
 
-  const allowed = ["stage", "sort_order", "domain", "hosting_info", "monthly_fee", "renewal_date", "login_details", "project_notes", "completed_at", "client_status", "stripe_price_id", "invoice_status", "ga4_embedded", "ga4_conversions", "search_console_verified", "bing_console", "gbp_setup", "mobile_optimised", "link_card", "secure_file", "google_sheet", "google_rating", "google_review_count", "facebook_rating", "facebook_review_count"];
+  const allowed = ["stage", "sort_order", "domain", "hosting_info", "monthly_fee", "renewal_date", "login_details", "project_notes", "completed_at", "client_status", "invoice_status", "ga4_embedded", "ga4_conversions", "search_console_verified", "bing_console", "gbp_setup", "mobile_optimised", "link_card", "secure_file", "google_sheet", "google_rating", "google_review_count", "facebook_rating", "facebook_review_count"];
   const updates: string[] = [];
   const values: unknown[] = [];
 
