@@ -163,15 +163,32 @@ export default function Todos({ ownerFilter, onCountChanged }: TodosProps) {
   return (
     <div className="flex-1 overflow-auto">
       {/* Header + add bar */}
-      <div className="px-6 pt-5 pb-3 sticky top-0 z-10" style={{ background: "var(--stats-bg)", borderBottom: "1px solid var(--border)" }}>
-        <div className="flex items-center gap-2 mb-1">
-          <Icon name="list-bullet" className="w-5 h-5" style={{ color: "var(--accent)" }} />
-          <h1 className="text-lg font-bold" style={{ color: "var(--text)" }}>To-Do</h1>
+      <div className="px-6 pt-4 pb-3 sticky top-0 z-10" style={{ background: "var(--stats-bg)", borderBottom: "1px solid var(--border)" }}>
+        {/* Title and status filter share a row — the header is sticky, so every
+            row it costs is a row permanently stolen from the board below. */}
+        <div className="flex items-center gap-2 gap-y-1.5 flex-wrap mb-2.5">
+          <Icon name="list-bullet" className="w-5 h-5 flex-shrink-0" style={{ color: "var(--accent)" }} />
+          <h1 className="text-lg font-bold flex-shrink-0" style={{ color: "var(--text)" }}>To-Do</h1>
           {active.length > 0 && (
-            <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "var(--accent)", color: "#fff" }}>{active.length}</span>
+            <span className="text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: "var(--accent)", color: "#fff" }}>{active.length}</span>
           )}
+          <span className="text-xs truncate hidden md:block" style={{ color: "var(--text-dim)" }}>
+            Things to get round to — jot it here before it slips your mind.
+          </span>
+          <div className="flex items-center gap-1 ml-auto flex-shrink-0">
+            {([["active", `Active${active.length ? ` (${active.length})` : ""}`], ["done", `Done${done.length ? ` (${done.length})` : ""}`], ["all", "All"]] as const).map(([f, label]) => (
+              <button key={f} onClick={() => setFilter(f)}
+                className="text-xs font-semibold px-3 py-1 rounded-full transition-colors"
+                style={{
+                  background: filter === f ? "var(--surface3, var(--surface))" : "transparent",
+                  color: filter === f ? "var(--text)" : "var(--text-dim)",
+                  border: `1px solid ${filter === f ? "var(--border-light)" : "transparent"}`,
+                }}>
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
-        <p className="text-xs mb-3" style={{ color: "var(--text-dim)" }}>Things to get round to — jot it here before it slips your mind.</p>
 
         <div className="flex flex-col sm:flex-row gap-2">
           <input
@@ -198,40 +215,27 @@ export default function Todos({ ownerFilter, onCountChanged }: TodosProps) {
         </div>
 
         {/* Category filter */}
-        <div className="flex items-center gap-1.5 flex-wrap mt-3">
+        <div className="flex items-center gap-1.5 flex-wrap mt-2.5">
           <CatChip active={categoryFilter === "all"} color="var(--accent)" label="All" count={activeCount("all")} onClick={() => setCategoryFilter("all")} />
           {TODO_CATEGORIES.map((c) => (
             <CatChip key={c.value} active={categoryFilter === c.value} color={c.color} label={c.label} count={activeCount(c.value)} onClick={() => setCategoryFilter(c.value)} />
           ))}
         </div>
-
-        {/* Status filter */}
-        <div className="flex items-center gap-1 mt-2">
-          {([["active", `Active${active.length ? ` (${active.length})` : ""}`], ["done", `Done${done.length ? ` (${done.length})` : ""}`], ["all", "All"]] as const).map(([f, label]) => (
-            <button key={f} onClick={() => setFilter(f)}
-              className="text-xs font-semibold px-3 py-1 rounded-full transition-colors"
-              style={{
-                background: filter === f ? "var(--surface3, var(--surface))" : "transparent",
-                color: filter === f ? "var(--text)" : "var(--text-dim)",
-                border: `1px solid ${filter === f ? "var(--border-light)" : "transparent"}`,
-              }}>
-              {label}
-            </button>
-          ))}
-        </div>
       </div>
 
       {/* List */}
-      <div className="px-6 py-4 max-w-6xl mx-auto space-y-4">
+      <div className="px-6 py-4 space-y-3">
         {loading ? (
           <p className="text-sm text-center py-10" style={{ color: "var(--text-dim)" }}>Loading…</p>
         ) : ownerScoped.length === 0 ? (
           <EmptyState text="Nothing on the list yet. Add the first thing above." />
         ) : (
           <>
-            {/* Active — one box per category. All categories → 2-up grid; a single
-                selected category → one full-width box with denser cards. */}
-            <div className={oneCat ? "" : "grid grid-cols-1 lg:grid-cols-2 gap-4 items-start"}>
+            {/* Active — one box per category. All categories → the boxes tile
+                across the full width (up to 4 abreast on a wide monitor) so the
+                board reads as one screen rather than two long stacks. A single
+                selected category → one full-width box whose cards tile instead. */}
+            <div className={oneCat ? "" : "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3 items-start"}>
               {TODO_CATEGORIES.map((c) => {
                 const items = shownActive.filter((t) => catOf(t) === c.value);
                 if (items.length === 0) return null;
@@ -315,13 +319,13 @@ function PriorityPicker({ value, onChange }: { value: Priority; onChange: (p: Pr
 // ─── Boxed category / status section with a card grid ───
 function Section({ color, label, count, singleCol, children }: { color: string; label: string; count: number; singleCol?: boolean; children: ReactNode }) {
   return (
-    <div className="rounded-xl p-3" style={{ border: `1px solid ${color}40`, background: `${color}14` }}>
-      <div className="flex items-center gap-2 mb-2.5 px-0.5">
+    <div className="rounded-xl p-2.5" style={{ border: `1px solid ${color}40`, background: `${color}14` }}>
+      <div className="flex items-center gap-2 mb-2 px-0.5">
         <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
         <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color }}>{label}</span>
         <span className="text-[11px] font-semibold px-1.5 rounded-full" style={{ background: `${color}26`, color }}>{count}</span>
       </div>
-      <div className={singleCol ? "grid grid-cols-1 gap-2.5" : "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5"}>
+      <div className={singleCol ? "grid grid-cols-1 gap-1.5" : "grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-1.5"}>
         {children}
       </div>
     </div>
@@ -377,47 +381,53 @@ function TodoItem({ todo, editing, onStartEdit, onCancelEdit, onToggle, onSave, 
   }
 
   return (
-    <div className="group flex items-start gap-3 rounded-lg px-3 py-2.5 transition-colors h-full"
+    // One compact row: the title carries the weight, meta sits inline on the
+    // right, and the edit/delete buttons are overlaid on hover rather than
+    // reserving width — so a single-line to-do costs ~34px instead of ~72px.
+    <div className="group relative flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 transition-colors h-full"
       style={{ background: "var(--surface2)", border: "1px solid var(--border)", borderLeft: `3px solid ${isDone ? "var(--border-light)" : meta.color}` }}>
       {/* Checkbox */}
       <button onClick={onToggle} aria-label={isDone ? "Mark not done" : "Mark done"}
-        className="w-5 h-5 rounded-md flex-shrink-0 mt-0.5 flex items-center justify-center transition-colors"
+        className="w-4 h-4 rounded flex-shrink-0 flex items-center justify-center transition-colors"
         style={{ background: isDone ? "#22c55e" : "transparent", border: `1.5px solid ${isDone ? "#22c55e" : "var(--border-light)"}` }}>
-        {isDone && <Icon name="check" className="w-3.5 h-3.5" strokeWidth={3} style={{ color: "#fff" }} />}
+        {isDone && <Icon name="check" className="w-3 h-3" strokeWidth={3} style={{ color: "#fff" }} />}
       </button>
 
-      {/* Body */}
+      {/* Body — clamped to 2 lines so one rambling to-do can't stretch its column */}
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium leading-snug break-words" style={{ color: isDone ? "var(--text-dim)" : "var(--text)", textDecoration: isDone ? "line-through" : "none" }}>
+        <p className="text-[13px] font-medium leading-snug line-clamp-2 break-words" title={todo.text}
+          style={{ color: isDone ? "var(--text-dim)" : "var(--text)", textDecoration: isDone ? "line-through" : "none" }}>
           {todo.text}
         </p>
         {todo.detail && (
-          <p className="text-xs mt-0.5 break-words" style={{ color: "var(--text-dim)", textDecoration: isDone ? "line-through" : "none" }}>{todo.detail}</p>
+          <p className="text-[11px] leading-snug line-clamp-1 break-words" title={todo.detail}
+            style={{ color: "var(--text-dim)", textDecoration: isDone ? "line-through" : "none" }}>{todo.detail}</p>
         )}
-        <div className="flex items-center flex-wrap gap-x-2 gap-y-1 mt-1.5">
-          {showCategory && (
-            <span className="text-[10px] font-semibold inline-flex items-center gap-1" style={{ color: cat.color }}>
-              <span className="w-1.5 h-1.5 rounded-full" style={{ background: cat.color }} />{cat.label}
-            </span>
-          )}
-          {showOwner && todo.owner && (
-            <span className="text-[10px] font-semibold" style={{ color: ownerColor(todo.owner) }}>{todo.owner}</span>
-          )}
-          <span className="text-[10px]" style={{ color: "var(--text-quaternary)" }}>
-            {isDone && todo.completed_at ? `Done ${relTime(todo.completed_at)}` : relTime(todo.created_at)}
-          </span>
-        </div>
       </div>
 
-      {/* Actions */}
-      <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+      {/* Meta — inline, hidden under the actions on hover */}
+      <div className="flex items-center gap-1.5 flex-shrink-0 group-hover:opacity-0 transition-opacity">
+        {showCategory && (
+          <span className="w-1.5 h-1.5 rounded-full" title={cat.label} style={{ background: cat.color }} />
+        )}
+        {showOwner && todo.owner && (
+          <span className="text-[10px] font-semibold" style={{ color: ownerColor(todo.owner) }}>{todo.owner}</span>
+        )}
+        <span className="text-[10px] whitespace-nowrap" style={{ color: "var(--text-quaternary)" }}>
+          {isDone && todo.completed_at ? `Done ${relTime(todo.completed_at)}` : relTime(todo.created_at)}
+        </span>
+      </div>
+
+      {/* Actions — overlaid so they cost no layout width */}
+      <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+        style={{ background: "var(--surface2)" }}>
         <button onClick={onStartEdit} title="Edit" className="p-1 rounded" style={{ color: "var(--text-dim)" }}
           onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text)")} onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-dim)")}>
-          <Icon name="pencil" className="w-4 h-4" />
+          <Icon name="pencil" className="w-3.5 h-3.5" />
         </button>
         <button onClick={onDelete} title="Delete" className="p-1 rounded" style={{ color: "var(--text-dim)" }}
           onMouseEnter={(e) => (e.currentTarget.style.color = "#ef4444")} onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-dim)")}>
-          <Icon name="trash" className="w-4 h-4" />
+          <Icon name="trash" className="w-3.5 h-3.5" />
         </button>
       </div>
     </div>
