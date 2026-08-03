@@ -1,3 +1,5 @@
+import { pickGrowthTip } from "@/lib/growthTips";
+
 // The monthly client report — pure rendering, no DB access.
 //
 // Email-client constraints (the same ones LeadGrid's print export lives with,
@@ -125,6 +127,19 @@ export function renderReportHtml(s: ReportSnapshot): string {
   <h2 style="${font};font-size:15px;color:${INK};margin:26px 0 10px">What we did this month</h2>
   <div style="${font};font-size:13px;color:#374151;line-height:1.6;white-space:pre-wrap">${esc(s.note.trim())}</div>` : "";
 
+  // Closing tip — gives a light month something useful to say instead of a
+  // page of zeros. Tinted panel rather than another <h2> section so it reads
+  // as advice, not as more reporting.
+  const tip = pickGrowthTip(s);
+  const tipBlock = `
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:26px 0 0">
+    <tr><td style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:16px 18px">
+      <div style="${font};font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:${ACCENT};font-weight:700">One thing to try next month</div>
+      <div style="${font};font-size:14px;font-weight:700;color:${INK};margin-top:6px">${esc(tip.title)}</div>
+      <div style="${font};font-size:13px;color:#374151;line-height:1.6;margin-top:5px">${esc(tip.body)}</div>
+    </td></tr>
+  </table>`;
+
   return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#f6f6f6;padding:24px 0">
   <tr><td align="center">
     <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width:600px;background:#ffffff;border-radius:12px;overflow:hidden">
@@ -141,6 +156,7 @@ export function renderReportHtml(s: ReportSnapshot): string {
         ${sources}
         ${objectives}
         ${note}
+        ${tipBlock}
       </td></tr>
       <tr><td style="padding:16px 24px;background:#fafafa;border-top:1px solid ${LINE}">
         <div style="${font};font-size:12px;color:${MUTED};line-height:1.6">
@@ -173,6 +189,8 @@ export function renderReportText(s: ReportSnapshot): string {
     }
   }
   if (s.note.trim()) lines.push("", "What we did this month:", s.note.trim());
+  const tip = pickGrowthTip(s);
+  lines.push("", `One thing to try next month — ${tip.title}`, tip.body);
   lines.push("", "Questions? Just reply to this email.", `${s.agency.name} — ${s.agency.url}`);
   return lines.join("\n");
 }
