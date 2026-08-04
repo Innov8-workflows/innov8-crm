@@ -35,9 +35,13 @@ jobs:
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
+          # Not-yet-configured is a setup state, not a failure. Exiting 1 here
+          # meant 96 failed runs a day, each emailing Jay — which trains you to
+          # ignore exactly the notification that matters when a site really is
+          # down. A warning annotation shows in the Actions UI without mailing.
           if [ -z "$CRON_SECRET" ]; then
-            echo "CRON_SECRET is not set on this repository — add it under Settings → Secrets and variables → Actions."
-            exit 1
+            echo "::warning title=Site health not configured::CRON_SECRET is not set on this repository. Add it under Settings → Secrets and variables → Actions, and set the same value in the Vercel project env. Skipping this run."
+            exit 0
           fi
           # --fail-with-body so a 401/500 fails the run AND shows why.
           curl --fail-with-body --silent --show-error \
