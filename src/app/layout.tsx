@@ -19,8 +19,29 @@ const dmMono = DM_Mono({
 });
 
 export const metadata: Metadata = {
+  // metadataBase makes the relative og:image resolve to an ABSOLUTE URL in the
+  // emitted tags — scrapers (WhatsApp/Facebook/LinkedIn) don't resolve relative
+  // paths, so this is what makes the share preview appear at all.
+  metadataBase: new URL("https://crm.innov8workflows.co.uk"),
   title: "innov8 CRM",
-  description: "Cold outbound CRM — innov8 Workflows",
+  description: "Smarter Workflows. Built for Growth.",
+  openGraph: {
+    title: "innov8 CRM",
+    description: "Smarter Workflows. Built for Growth.",
+    url: "https://crm.innov8workflows.co.uk/",
+    siteName: "innov8 CRM",
+    type: "website",
+    // Distinct filename (og-crm.jpg): if this card is ever replaced, the new
+    // one MUST use a new name or WhatsApp/Facebook keep serving the cached old
+    // thumbnail for weeks.
+    images: [{ url: "/og-crm.jpg", width: 1200, height: 630, alt: "innov8 CRM — Smarter Workflows. Built for Growth." }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "innov8 CRM",
+    description: "Smarter Workflows. Built for Growth.",
+    images: ["/og-crm.jpg"],
+  },
 };
 
 export default function RootLayout({
