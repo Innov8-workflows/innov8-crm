@@ -24,8 +24,12 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Allow static assets
-  if (pathname.startsWith("/_next") || pathname.startsWith("/favicon") || pathname.endsWith(".svg") || pathname.endsWith(".png")) {
+  // Allow static assets. Images must be reachable WITHOUT a session: the OG
+  // share card (og-crm.jpg) is fetched by unauthenticated scrapers
+  // (WhatsApp/Facebook/LinkedIn), so gating .jpg behind login means the link
+  // preview silently never renders. These are public static files — no data.
+  if (pathname.startsWith("/_next") || pathname.startsWith("/favicon") ||
+      /\.(svg|png|jpe?g|webp|gif|ico)$/i.test(pathname)) {
     return NextResponse.next();
   }
 
