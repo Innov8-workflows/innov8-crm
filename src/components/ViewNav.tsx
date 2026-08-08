@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { fetchBootstrap } from "@/lib/bootstrap";
 import Icon, { type IconName } from "./Icon";
+import SecurityModal from "./SecurityModal";
 
 type ViewId = "prospects" | "projects" | "clients" | "client_dash" | "dashboard" | "map" | "ai_solutions" | "schedule" | "todos" | "pricing" | "referrals" | "site_health";
 
@@ -36,6 +37,7 @@ export default function ViewNav({ active, onChange, projectCount = 0, clientCoun
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [contentFilter, setContentFilter] = useState(false);
+  const [showSecurity, setShowSecurity] = useState(false);
 
   useEffect(() => {
     // Users ride along on the shared /api/bootstrap request (one fetch for the
@@ -179,6 +181,19 @@ export default function ViewNav({ active, onChange, projectCount = 0, clientCoun
       >
         <Icon name="eye" className="w-4 h-4" />
       </button>
+
+      {/* Account security (MFA) */}
+      <button
+        onClick={() => setShowSecurity(true)}
+        className="flex items-center justify-center p-2 rounded-lg transition-colors flex-shrink-0"
+        style={{ background: "var(--surface2)", border: "1px solid var(--border-light)", color: "var(--text-muted)" }}
+        onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.color = "var(--text)"; }}
+        onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--border-light)"; e.currentTarget.style.color = "var(--text-muted)"; }}
+        title="Account security — two-factor authentication"
+      >
+        <Icon name="shield-check" className="w-4 h-4" />
+      </button>
+      {showSecurity && <SecurityModal onClose={() => setShowSecurity(false)} />}
 
       {/* Theme toggle */}
       <button

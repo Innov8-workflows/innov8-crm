@@ -52,7 +52,7 @@ async function doInitDb() {
   // ~100-300ms, so this is the single biggest "slow first load" win. Bump
   // SCHEMA_VERSION whenever a migration/index/seed below changes → the heavy block
   // re-runs exactly once on the next deploy, then cold starts go fast again.
-  const SCHEMA_VERSION = "2026-08-04-sitehealth";
+  const SCHEMA_VERSION = "2026-08-08-mfa";
   await db.execute("CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT DEFAULT '')");
   const schemaMarker = first(await db.execute("SELECT value FROM app_meta WHERE key = 'schema_version'"));
   if (schemaMarker?.value === SCHEMA_VERSION) return;
@@ -201,6 +201,10 @@ async function doInitDb() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT UNIQUE NOT NULL,
       password_hash TEXT NOT NULL,
+      mfa_enabled INTEGER DEFAULT 0,
+      totp_secret TEXT DEFAULT '',
+      mfa_backup_codes TEXT DEFAULT '',
+      mfa_enrolled_at TEXT DEFAULT '',
       created_at TEXT DEFAULT (datetime('now'))
     );
 
@@ -429,6 +433,13 @@ async function doInitDb() {
     "ALTER TABLE projects ADD COLUMN health_error TEXT DEFAULT ''",
     "ALTER TABLE projects ADD COLUMN ssl_expires_at TEXT DEFAULT ''",
     "ALTER TABLE projects ADD COLUMN ssl_checked_at TEXT DEFAULT ''",
+    // Two-factor auth. totp_secret is AES-GCM ciphertext (see lib/mfa.ts), never
+    // plaintext; backup codes are bcrypt-hashed JSON. Default off — existing
+    // logins are unaffected until a user enrols.
+    "ALTER TABLE users ADD COLUMN mfa_enabled INTEGER DEFAULT 0",
+    "ALTER TABLE users ADD COLUMN totp_secret TEXT DEFAULT ''",
+    "ALTER TABLE users ADD COLUMN mfa_backup_codes TEXT DEFAULT ''",
+    "ALTER TABLE users ADD COLUMN mfa_enrolled_at TEXT DEFAULT ''",
     // Per-project write key for the Apps Script lead push. Deliberately NOT the
     // shared WEBHOOK_SECRET (CRM-wide blast radius) and NOT tracking_id (public —
     // it sits in every visitor's page source, so anyone could inject fake leads
