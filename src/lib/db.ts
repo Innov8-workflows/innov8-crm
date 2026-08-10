@@ -52,7 +52,7 @@ async function doInitDb() {
   // ~100-300ms, so this is the single biggest "slow first load" win. Bump
   // SCHEMA_VERSION whenever a migration/index/seed below changes → the heavy block
   // re-runs exactly once on the next deploy, then cold starts go fast again.
-  const SCHEMA_VERSION = "2026-08-08-mfa";
+  const SCHEMA_VERSION = "2026-08-08-leadseoreports";
   await db.execute("CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT DEFAULT '')");
   const schemaMarker = first(await db.execute("SELECT value FROM app_meta WHERE key = 'schema_version'"));
   if (schemaMarker?.value === SCHEMA_VERSION) return;
@@ -255,6 +255,25 @@ async function doInitDb() {
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (lead_id) REFERENCES leads(id)
+    );
+
+    -- SEO reports attached to a PROSPECT (lead), for pulling pain points out of
+    -- before a cold call. Separate from seo_reports, which is project-scoped and
+    -- carries score history for the client trend chart — a prospect report is
+    -- just an artefact to open.
+    --
+    -- The blob lives here rather than in custom_field_values (where the rest of
+    -- the intel lives) because that table is shipped wholesale for every lead on
+    -- app load — a few multi-MB base64 PDFs in there would land on every page
+    -- view. Served lazily via ?file=<id> instead.
+    CREATE TABLE IF NOT EXISTS lead_seo_reports (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      lead_id INTEGER NOT NULL,
+      report_url TEXT DEFAULT '',
+      report_name TEXT DEFAULT '',
+      report_type TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE CASCADE
     );
 
     -- Site-health history. Deliberately NOT one row per check: at 15-minute
@@ -518,6 +537,7 @@ async function doInitDb() {
     CREATE INDEX IF NOT EXISTS idx_todos_done_created ON todos(done, created_at);
     CREATE INDEX IF NOT EXISTS idx_site_events_created ON site_events(created_at);
     CREATE INDEX IF NOT EXISTS idx_site_checks_project ON site_checks(project_id, checked_at);
+    CREATE INDEX IF NOT EXISTS idx_lead_seo_reports_lead ON lead_seo_reports(lead_id, created_at);
   `);
 
   // Clean up any duplicate solutions left behind by the previous buggy seed check.

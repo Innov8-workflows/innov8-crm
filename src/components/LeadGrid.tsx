@@ -776,15 +776,17 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
     const gbp = cfv.custom_intel_gbp, fbp = cfv.custom_intel_fbpage;
     const gr = cfv.custom_intel_greviews, fr = cfv.custom_intel_freviews, wn = cfv.custom_intel_webnotes;
     const web = cfv.custom_intel_website;
-    const hasIntel = !!(gbp || fbp || (gr && gr !== "0") || (fr && fr !== "0") || (web && web.trim()) || (wn && wn.trim()));
+    const seo = cfv.custom_intel_seoscore;
+    const hasIntel = !!(gbp || fbp || (gr && gr !== "0") || (fr && fr !== "0") || (web && web.trim()) || (wn && wn.trim()) || seo);
     const parts: string[] = [];
     if (gbp) parts.push(`GBP: ${gbp === "1" ? "Yes" : "No"}`);
     if (gr && gr !== "0") parts.push(`${gr} Google reviews`);
     if (fbp) parts.push(`FB page: ${fbp === "1" ? "Yes" : "No"}`);
     if (fr && fr !== "0") parts.push(`${fr} FB reviews`);
     if (web && web.trim()) parts.push(`Site: ${web}`);
+    if (seo) parts.push(`SEO ${seo}/10`);
     if (wn && wn.trim()) parts.push(`Notes: ${wn.length > 50 ? wn.slice(0, 50) + "…" : wn}`);
-    const title = hasIntel ? parts.join(" · ") : "Add cold-call intel — GBP, reviews, Facebook, website notes";
+    const title = hasIntel ? parts.join(" · ") : "Add cold-call intel — GBP, reviews, Facebook, website notes, SEO report";
     return (
       <button onClick={(e) => { e.stopPropagation(); setIntelLead({ lead, rect: (e.currentTarget as HTMLElement).getBoundingClientRect() }); }}
         title={title}
@@ -1333,6 +1335,7 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
 
       {intelLead && (
         <ProspectIntel
+          leadId={intelLead.lead.id}
           leadName={intelLead.lead.business_name}
           anchorRect={intelLead.rect}
           values={{
@@ -1342,6 +1345,7 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
             freviews: customFieldValuesRef.current[String(intelLead.lead.id)]?.custom_intel_freviews || "",
             website: customFieldValuesRef.current[String(intelLead.lead.id)]?.custom_intel_website || "",
             webnotes: customFieldValuesRef.current[String(intelLead.lead.id)]?.custom_intel_webnotes || "",
+            seoscore: customFieldValuesRef.current[String(intelLead.lead.id)]?.custom_intel_seoscore || "",
           }}
           onSet={(fieldId, value) => updateCustomField(intelLead.lead.id, fieldId, value)}
           onClose={() => setIntelLead(null)}
