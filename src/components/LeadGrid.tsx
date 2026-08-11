@@ -173,6 +173,9 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
   const [pickerLead, setPickerLead] = useState<Lead | null>(null);
   const [intelLead, setIntelLead] = useState<{ lead: Lead; rect: DOMRect } | null>(null);
   const [callHistoryLead, setCallHistoryLead] = useState<{ lead: Lead; rect: DOMRect } | null>(null);
+  // Last row clicked into — stays highlighted so it's obvious which prospect a
+  // popover belongs to, and which row you were on after looking away mid-call.
+  const [activeRowId, setActiveRowId] = useState<number | null>(null);
   const [productRollup, setProductRollup] = useState<Record<string, { count: number; monthly: number; upfront: number }>>(() => cachedBoot?.productRollup || {});
   const [callRollup, setCallRollup] = useState<BootstrapData["callRollup"]>(() => cachedBoot?.callRollup || {});
   const [statsRefresh, setStatsRefresh] = useState(0);
@@ -788,7 +791,7 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
     if (wn && wn.trim()) parts.push(`Notes: ${wn.length > 50 ? wn.slice(0, 50) + "…" : wn}`);
     const title = hasIntel ? parts.join(" · ") : "Add cold-call intel — GBP, reviews, Facebook, website notes, SEO report";
     return (
-      <button onClick={(e) => { e.stopPropagation(); setIntelLead({ lead, rect: (e.currentTarget as HTMLElement).getBoundingClientRect() }); }}
+      <button onClick={(e) => { e.stopPropagation(); setActiveRowId(lead.id); setIntelLead({ lead, rect: (e.currentTarget as HTMLElement).getBoundingClientRect() }); }}
         title={title}
         className="flex items-center justify-center mx-auto rounded-md transition-colors"
         style={{
@@ -822,7 +825,7 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
     const dt = r ? new Date(`${r.last_date}T00:00:00`) : null;
     const dateLabel = dt && !isNaN(dt.getTime()) ? dt.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : r?.last_date;
     return (
-      <button onClick={(e) => { e.stopPropagation(); setCallHistoryLead({ lead, rect: (e.currentTarget as HTMLElement).getBoundingClientRect() }); }}
+      <button onClick={(e) => { e.stopPropagation(); setActiveRowId(lead.id); setCallHistoryLead({ lead, rect: (e.currentTarget as HTMLElement).getBoundingClientRect() }); }}
         title={r ? `${r.count} call${r.count > 1 ? "s" : ""} — last ${dateLabel} (${meta!.label})` : "Log a call — date, outcome, what was discussed"}
         className="flex items-center justify-center gap-1 mx-auto rounded-md transition-colors px-1.5"
         style={{
@@ -1300,7 +1303,7 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
                   )}
                   {virtualRows.map((vr) => {
                     const row = tableRows[vr.index];
-                    return <DraggableRow key={row.id} row={row} />;
+                    return <DraggableRow key={row.id} row={row} isActive={activeRowId === row.original.id} onActivate={setActiveRowId} />;
                   })}
                   {paddingBottom > 0 && (
                     <tr aria-hidden><td colSpan={columns.length} style={{ height: paddingBottom, padding: 0, border: 0 }} /></tr>

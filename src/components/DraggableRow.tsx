@@ -16,11 +16,21 @@ const ROW_COLORS: Record<string, string> = {
   lost: "rgba(239,68,68,0.04)",
 };
 
+// The row you last clicked into stays tinted until you click another one, so
+// that while the Intel or Call-log popover is open — or you're mid-call looking
+// away from the screen — it's still obvious which prospect you're working on.
+// Stronger than the hover wash (which is barely there by design) but still faint
+// enough to read under the status colours above.
+const ACTIVE_BG = "rgba(234,88,12,0.10)";
+const HOVER_BG = "rgba(255,255,255,0.02)";
+
 interface DraggableRowProps {
   row: Row<Lead>;
+  isActive?: boolean;
+  onActivate?: (id: number) => void;
 }
 
-function DraggableRowBase({ row }: DraggableRowProps) {
+function DraggableRowBase({ row, isActive = false, onActivate }: DraggableRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: row.original.id });
 
   const style = {
@@ -34,18 +44,30 @@ function DraggableRowBase({ row }: DraggableRowProps) {
   const today = new Date().toISOString().split("T")[0];
   const isOverdue = followUpDate && followUpDate < today && status !== "won" && status !== "lost";
 
-  const bgColor = isOverdue ? "rgba(239,68,68,0.06)" : ROW_COLORS[status] || "";
+  const statusBg = isOverdue ? "rgba(239,68,68,0.06)" : ROW_COLORS[status] || "";
+  // Active wins over the status tint; the hover handlers below defer to it.
+  const bgColor = isActive ? ACTIVE_BG : statusBg;
 
   return (
     <tr ref={setNodeRef} style={{ ...style, background: bgColor }}
       className="transition-colors"
-      onMouseEnter={(e) => { if (!bgColor) e.currentTarget.style.background = "rgba(255,255,255,0.02)"; }}
-      onMouseLeave={(e) => { if (!bgColor) e.currentTarget.style.background = ""; else e.currentTarget.style.background = bgColor; }}>
-      {row.getVisibleCells().map((cell) => {
+      // mousedown, not click: the Intel and Call-log buttons stopPropagation on
+      // click, so a click handler here would never fire for exactly the two
+      // cases this highlight exists for.
+      onMouseDown={() => onActivate?.(row.original.id)}
+      onMouseEnter={(e) => { if (!isActive && !statusBg) e.currentTarget.style.background = HOVER_BG; }}
+      onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = statusBg; }}>
+      {row.getVisibleCells().map((cell, idx) => {
         const hasDropdown = cell.column.id === "status" || cell.column.id === "owner" || cell.column.id === "warmth";
         return (
           <td key={cell.id} data-col={cell.column.id} className={`px-1 py-0.5 ${hasDropdown ? "overflow-visible" : "overflow-hidden text-ellipsis whitespace-nowrap"}`}
-            style={{ width: cell.column.getSize(), maxWidth: cell.column.getSize(), borderBottom: "1px solid var(--surface2)" }}
+            style={{
+              width: cell.column.getSize(), maxWidth: cell.column.getSize(),
+              borderBottom: "1px solid var(--surface2)",
+              // Accent bar on the first cell — an inset shadow rather than a real
+              // border so nothing shifts sideways when a row becomes active.
+              ...(isActive && idx === 0 ? { boxShadow: "inset 3px 0 0 var(--accent)" } : {}),
+            }}
             {...(cell.column.id === "drag_handle" ? { ...attributes, ...listeners } : {})}>
             {flexRender(cell.column.columnDef.cell, cell.getContext())}
           </td>
@@ -60,6 +82,9 @@ function DraggableRowBase({ row }: DraggableRowProps) {
 const DraggableRow = memo(DraggableRowBase, (prev, next) => {
   const a = prev.row.original;
   const b = next.row.original;
+  // Must come first: activating a row changes no lead FIELD, so without this
+  // the memo would skip the re-render and the highlight would never appear.
+  if (prev.isActive !== next.isActive) return false;
   if (a.id !== b.id) return false;
   if (a.status !== b.status) return false;
   if (a.emailed !== b.emailed) return false;
