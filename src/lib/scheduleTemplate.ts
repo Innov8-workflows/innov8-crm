@@ -1,24 +1,30 @@
-// Jay's burn-the-boats weekly schedule — built around 9-5.30 Mon-Fri day job
-// + 1hr dog-walk lunch (12:30-13:30, mobile-only). ~30 hr/week side-hustle push.
+// Jay's weekly schedule — full time on the business (no day job).
+//
+// The shape of the day: mornings fulfil and fill the pipe (Meet calls, client
+// work, 30 Facebook outreach messages), the middle of the day is protected for
+// gym and food, the afternoon films and builds content, and the late afternoon
+// is the phone block — which lands on the 4:30-6pm window that Pricing → Best
+// Times to Call rates as one of the two best of the day for trades.
 //
 // Slots are hardcoded — edit this file to tweak the structure. Completion state
-// is stored in DB per (slot_id, date).
+// is stored in DB per (slot_id, date), so changing a slot's TIME or COPY keeps
+// its history; changing its `id` starts it fresh.
 
 import type { IconName } from "@/components/Icon";
 
 export type Activity =
-  | "cold_calls"
-  | "warm_calls"
-  | "closing_call"
+  | "meet_call"
+  | "fulfilment"
   | "fb_messenger"
-  | "demo_build"
-  | "lead_gen"
-  | "follow_up"
-  | "admin"
-  | "onboarding"
-  | "systems"
+  | "gym"
+  | "meal"
+  | "filming"
   | "content"
-  | "learning";
+  | "prospect_calls"
+  | "systems"
+  | "learning"
+  | "onboarding"
+  | "admin";
 
 export type Day = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
 
@@ -47,92 +53,125 @@ export const DAY_LABELS: Record<Day, string> = {
   sun: "Sunday",
 };
 
-export const ACTIVITY_META: Record<Activity, { label: string; icon: IconName; color: string }> = {
-  cold_calls:   { label: "Cold Calls",     icon: "phone",        color: "#f59e0b" },
-  warm_calls:   { label: "Warm Calls",     icon: "fire",         color: "#dc2626" },
-  closing_call: { label: "Closing Call",   icon: "check-circle", color: "#22c55e" },
-  fb_messenger: { label: "FB Messenger",   icon: "chat",         color: "#8b5cf6" },
-  demo_build:   { label: "Demo Build",     icon: "code",         color: "#ea580c" },
-  lead_gen:     { label: "Lead-Gen Scan",  icon: "search",       color: "#3b82f6" },
-  follow_up:    { label: "Follow-Ups",     icon: "envelope",     color: "#22c55e" },
-  admin:        { label: "Admin / CRM",    icon: "cog",          color: "#9ca3af" },
-  onboarding:   { label: "Onboarding",     icon: "rocket",       color: "#059669" },
-  systems:      { label: "Systems / SOPs", icon: "wrench",       color: "#f97316" },
-  content:      { label: "Content Batch",  icon: "brush",        color: "#ec4899" },
-  learning:     { label: "Research",       icon: "book",         color: "#0ea5e9" },
+// `unit` is the noun shown after a slot's target ("Target: 30 msgs"). It lives
+// here rather than in a ternary chain in the component, so adding an activity
+// can't silently render a target with no unit.
+export const ACTIVITY_META: Record<Activity, { label: string; icon: IconName; color: string; unit?: string }> = {
+  meet_call:      { label: "Google Meet",     icon: "users",        color: "#3b82f6" },
+  fulfilment:     { label: "Fulfilment",      icon: "rocket",       color: "#059669" },
+  fb_messenger:   { label: "FB Outreach",     icon: "chat",         color: "#8b5cf6", unit: "businesses" },
+  gym:            { label: "Gym",             icon: "dumbbell",     color: "#dc2626" },
+  meal:           { label: "Food",            icon: "utensils",     color: "#84cc16" },
+  filming:        { label: "Filming",         icon: "camera",       color: "#f59e0b", unit: "videos" },
+  content:        { label: "Content",         icon: "brush",        color: "#ec4899", unit: "videos" },
+  prospect_calls: { label: "Prospect Calls",  icon: "phone",        color: "#ea580c", unit: "calls" },
+  systems:        { label: "Systems / SOPs",  icon: "wrench",       color: "#f97316" },
+  learning:       { label: "Research",        icon: "book",         color: "#0ea5e9" },
+  onboarding:     { label: "Onboarding",      icon: "check-circle", color: "#22c55e", unit: "session" },
+  admin:          { label: "Admin / Rest",    icon: "cog",          color: "#9ca3af" },
 };
 
 // Headline targets used by the progress strip.
-// Sum of all `target.count` for a given activity should equal these.
+// Sum of all `target.count` for a given activity MUST equal these, or the bar
+// can never reach 100%.
 export const WEEKLY_TARGETS: Partial<Record<Activity, number>> = {
-  // SOP funnel: Warm lunch call books a 6pm closing call → close from the call.
-  // FB Messenger is a top-up engagement layer (5-8 evening DMs). Cold calls
-  // only on Saturday morning trade window. Weekend afternoons = building the
-  // business (onboarding, systems, research) not chasing volume.
-  cold_calls:   20,  // Sat AM trade push only
-  warm_calls:   12,  // 2/day Mon-Fri lunch + 2 Saturday lunch
-  closing_call: 5,   // 1 booked closing call/day Mon-Fri (best case)
-  fb_messenger: 125, // 20-30/night Mon-Fri (target 25)
-  demo_build:   40,  // 5-10 post-dinner sends Mon-Fri (target 7) + 6 Sat batch
-  lead_gen:     1,   // one weekly scan, Monday
-  onboarding:   2,   // 2 dedicated kickoff windows/week
+  fb_messenger:   150, // 30 businesses/day Mon-Fri
+  prospect_calls: 75,  // 15/day Mon-Fri across the 15:30-18:00 block
+  content:        15,  // 3 videos/day Mon-Fri (top of the stated 2-3 range)
+  filming:        10,  // 2 yap videos/day Mon-Fri (Innov8 + Agency)
 };
 
-// Sustainable rhythm tuned to Jay's actual hours:
-// Wake 8-8:30am · Day job 9:00-17:30 · Dog walk 12:30-13:30 (mobile-only)
-// Dinner ~20:00 · Bed midnight-1am.
+// The full-time weekday shape. Mon-Fri are identical, so they're generated from
+// one definition rather than copy-pasted five times — that's how the old version
+// drifted (five near-identical blocks each needing the same edit).
 //
-// SOP funnel: Warm lunch call books a 6-6.30pm closing call → close on that call.
-// FB Messenger blast is now small (5-8/night) — quality over volume. Post-dinner
-// is reserved for demo sends to today's responses. Weekends = build-the-business
-// (onboarding, systems, research) not chase-volume mode.
-//
-// Slot IDs are stable so completion DB rows survive edits to copy/time.
+// Slot IDs are `<day>-<key>` and stable: editing a slot's time or copy keeps its
+// completion history, changing its id starts it fresh.
+const WEEKDAY_SHAPE: Omit<ScheduleSlot, "id" | "day">[] = [
+  {
+    start: "09:00", end: "09:45", activity: "meet_call",
+    title: "Google Meet calls",
+    rationale: "Booked calls first, while you're sharp and before the day gets away from you. Discovery calls, client check-ins, anything that needs a face.",
+  },
+  {
+    start: "09:45", end: "10:45", activity: "fulfilment",
+    title: "Fulfilment — client work",
+    rationale: "Live client work: site builds, edits, SEO passes, whatever's owed this week. Doing it in the morning means it never eats the outreach block.",
+  },
+  {
+    start: "10:45", end: "11:30", activity: "fb_messenger",
+    title: "Facebook outreach", target: { count: 30 },
+    rationale: "30 businesses, personalised — a specific hook each time (their reviews, a problem on their page, a competitor). This is the number that feeds every call and demo later in the week; if it slips, the pipeline goes quiet 10 days from now.",
+  },
+  {
+    start: "11:30", end: "13:00", activity: "gym",
+    title: "Gym",
+    rationale: "1-1.5hr. Full time removes the excuse — this is the block that keeps the 3.30-6pm phone session sounding energetic rather than flat.",
+  },
+  {
+    start: "13:00", end: "13:30", activity: "meal",
+    title: "Lunch — proper food",
+    rationale: "Actual healthy food, away from the desk. The afternoon is filming and phones; both are noticeably worse on a skipped lunch.",
+  },
+  {
+    start: "13:30", end: "14:00", activity: "filming",
+    title: "Post-lunch walk + film yap videos", target: { count: 2 },
+    rationale: "Walk and talk: one for Innov8 Workflows, one for the Agency. Talking-head content is easiest outdoors mid-walk when you're warmed up and not staring down a lens in a quiet room.",
+  },
+  {
+    start: "14:00", end: "15:30", activity: "content",
+    title: "Create content", target: { count: 3 },
+    rationale: "2-3 videos edited and queued, ready to post through the evening. Batch it here so posting later is a 30-second job, not a second work session.",
+  },
+  {
+    start: "15:30", end: "18:00", activity: "prospect_calls",
+    title: "Warm + cold prospect calls", target: { count: 15 },
+    rationale: "The money block. Warm follow-ups first (anyone who replied to outreach or watched a demo), then cold. Runs straight into the 4:30-6pm window that Pricing → Best Times to Call rates as one of the two best of the day — they're wrapping up, driving home, in admin mode.",
+  },
+  {
+    start: "19:00", end: "19:15", activity: "content",
+    title: "Post today's videos",
+    rationale: "Push the batch out across both accounts. Fifteen minutes, no editing, no rabbit holes — then the laptop shuts.",
+  },
+  {
+    start: "19:15", end: "23:00", activity: "admin",
+    title: "STOP — evening protected", protectedRest: true,
+    rationale: "Hard stop. Full time means the work fits in the working day; evenings are how you keep doing this in six months.",
+  },
+];
+
+const WEEKDAY_KEYS = ["meet", "fulfil", "outreach", "gym", "lunch", "film", "content", "calls", "post", "rest"];
+
+const WEEKDAYS: Day[] = ["mon", "tue", "wed", "thu", "fri"];
+
 export const SCHEDULE_SLOTS: ScheduleSlot[] = [
-  // ═════════════ MONDAY ═════════════
-  { id: "mon-lunch-warm",    day: "mon", start: "12:30", end: "13:30", activity: "warm_calls",   title: "Warm follow-up calls — BOOK A 6PM CLOSE", target: { count: 2 },  mobile: true, rationale: "Trade lunch window. Ring 2-3 leads who reacted to Messenger demos this week. Goal isn't to close on this call — it's to BOOK a 6-6.30pm closing call tonight or this week. Phone in hand while walking the dog." },
-  { id: "mon-eve-calls",     day: "mon", start: "18:00", end: "18:30", activity: "closing_call", title: "Booked closing call",      target: { count: 1 },  rationale: "The close. Booked at lunch — they know it's coming, you know what they need. 30 min max — present the demo on screen, agree T1 or T2, take the deposit / set the start date." },
-  { id: "mon-eve-fb",        day: "mon", start: "18:30", end: "19:30", activity: "fb_messenger", title: "FB Messenger blast",         target: { count: 25 }, rationale: "20-30 personalised DMs to fresh leads. Each opens with a specific hook (their reviews / a problem on their FB page / a competitor reference). Responses become tonight's demo-send list." },
-  { id: "mon-late-demos",    day: "mon", start: "21:00", end: "22:30", activity: "demo_build",   title: "Post-dinner demo sends",     target: { count: 7 },  rationale: "5-10 demos built and sent to today's positive responses. This is the volume that creates tomorrow's warm-call book rate — every demo sent = ~25% chance of a Tuesday lunch warm call." },
+  ...WEEKDAYS.flatMap((day) =>
+    WEEKDAY_SHAPE.map((slot, i) => ({ ...slot, id: `${day}-${WEEKDAY_KEYS[i]}`, day }))
+  ),
 
-  // ═════════════ TUESDAY ═════════════
-  { id: "tue-lunch-warm",    day: "tue", start: "12:30", end: "13:30", activity: "warm_calls",   title: "Warm follow-up calls — BOOK A 6PM CLOSE", target: { count: 2 },  mobile: true, rationale: "Ring 2-3 leads who reacted to last night's demo sends. Goal: book the close for 6-6.30pm tonight." },
-  { id: "tue-eve-close",     day: "tue", start: "18:00", end: "18:30", activity: "closing_call", title: "Booked closing call",      target: { count: 1 },  rationale: "30-min close. Demo on screen, agree the tier, take the deposit." },
-  { id: "tue-eve-fb",        day: "tue", start: "18:30", end: "19:30", activity: "fb_messenger", title: "FB Messenger blast",         target: { count: 25 }, rationale: "20-30 personalised DMs. By Tuesday you've got a feel for the patterns — double down on the trade types that replied yesterday." },
-  { id: "tue-late-demos",    day: "tue", start: "21:00", end: "22:30", activity: "demo_build",   title: "Post-dinner demo sends",     target: { count: 7 },  rationale: "5-10 demos to today's responses. Each demo sent loads Wednesday's lunch warm-call queue." },
-
-  // ═════════════ WEDNESDAY ═════════════
-  { id: "wed-lunch-warm",    day: "wed", start: "12:30", end: "13:30", activity: "warm_calls",   title: "Warm follow-up calls — BOOK A 6PM CLOSE", target: { count: 2 },  mobile: true, rationale: "Mid-week is your highest-conversion lunch window. Anyone who's been DM'd Mon-Tue and not yet replied — try the call. Curiosity often opens the door." },
-  { id: "wed-eve-close",     day: "wed", start: "18:00", end: "18:30", activity: "closing_call", title: "Booked closing call",      target: { count: 1 },  rationale: "30-min close on a warm lead booked at lunch." },
-  { id: "wed-eve-fb",        day: "wed", start: "18:30", end: "19:30", activity: "fb_messenger", title: "FB Messenger blast",         target: { count: 25 }, rationale: "20-30 fresh DMs. Wed evening = peak engagement window per the Pricing > Best Times intel. Worth crafting these well." },
-  { id: "wed-late-demos",    day: "wed", start: "21:00", end: "22:30", activity: "demo_build",   title: "Post-dinner demo sends",     target: { count: 7 },  rationale: "5-10 demos to today's responses. Wed is peak engagement — expect the busiest demo-send night of the week." },
-
-  // ═════════════ THURSDAY ═════════════
-  { id: "thu-lunch-warm",    day: "thu", start: "12:30", end: "13:30", activity: "warm_calls",   title: "Warm follow-up calls — BOOK A 6PM CLOSE", target: { count: 2 },  mobile: true, rationale: "Pre-weekend warm calls. Last chance to book a 6pm close before Saturday's onboarding focus." },
-  { id: "thu-eve-close",     day: "thu", start: "18:00", end: "18:30", activity: "closing_call", title: "Booked closing call",      target: { count: 1 },  rationale: "30-min close. If you can land this one, weekend onboarding starts strong." },
-  { id: "thu-eve-fb",        day: "thu", start: "18:30", end: "19:30", activity: "fb_messenger", title: "FB Messenger blast",         target: { count: 25 }, rationale: "20-30 DMs targeting weekend-active trades (Beauty/Groomers/Hair). They'll see it Friday or Saturday morning." },
-  { id: "thu-late-demos",    day: "thu", start: "21:00", end: "22:30", activity: "demo_build",   title: "Post-dinner demo sends",     target: { count: 7 },  rationale: "5-10 demos to today's replies. Anyone replying late tonight gets a Friday lunch warm call." },
-
-  // ═════════════ FRIDAY ═════════════
-  { id: "fri-lunch-warm",    day: "fri", start: "12:30", end: "13:30", activity: "warm_calls",   title: "Warm follow-up calls — BOOK A 6PM CLOSE", target: { count: 2 },  mobile: true, rationale: "Last weekday warm-call window. Hit anyone who went quiet — Friday lunch they're often more relaxed than mid-week." },
-  { id: "fri-eve-close",     day: "fri", start: "18:00", end: "18:30", activity: "closing_call", title: "Booked closing call",      target: { count: 1 },  rationale: "Final close-call window of the week. If you land this you go into the weekend with momentum." },
-  { id: "fri-eve-fb",        day: "fri", start: "18:30", end: "19:30", activity: "fb_messenger", title: "FB Messenger blast",         target: { count: 25 }, rationale: "20-30 DMs targeting weekend-working trades (Beauty/Groomers/Hairdressers/Photographers). They'll see it Saturday morning before their first appointment." },
-  { id: "fri-late-review",   day: "fri", start: "21:00", end: "22:30", activity: "demo_build",   title: "Post-dinner demo sends",     target: { count: 7 },  rationale: "5-10 demos to today's responses. Last weekday send-off — anyone replying tonight or Saturday morning gets a Sat AM call session attempt." },
-  { id: "fri-late-rest",     day: "fri", start: "22:30", end: "23:00", activity: "admin",        title: "STOP — protect Friday night", protectedRest: true,  rationale: "Hard stop. Friday night is decompress. Weekly review happens Saturday morning instead." },
-
-  // ═════════════ SATURDAY (call session AM, build-the-business PM) ═════════════
-  { id: "sat-early-review",  day: "sat", start: "08:30", end: "09:00", activity: "admin",        title: "Weekly review + Sat plan",                          rationale: "Quick 30-min review of the week: KPIs vs targets, who closed, who ghosted, what to push next week. Plan the call session." },
-  { id: "sat-am-calls",      day: "sat", start: "09:00", end: "12:00", activity: "cold_calls",   title: "Trade call session (cold + warm)", target: { count: 20 }, rationale: "3-hour outbound block. Mix of cold trade calls (roofers / driveway / construction at yards / merchants Saturday AM) AND warm follow-ups for anyone you couldn't reach by phone all week. Bring coffee, settle in." },
-  { id: "sat-lunch-warm",    day: "sat", start: "12:00", end: "13:00", activity: "warm_calls",   title: "Lunch warm follow-ups",      target: { count: 2 },  mobile: true, rationale: "Quick lunch + dog walk. Couple of warm calls to leads from the morning session who didn't answer." },
-  { id: "sat-pm-onboard",    day: "sat", start: "13:00", end: "16:00", activity: "onboarding",   title: "Onboarding work — new clients", target: { count: 1 },  rationale: "Kickoff calls, brand-asset collection, domain registration, content collection. Whatever any newly-signed clients need to get to LIVE." },
-  { id: "sat-pm-systems",    day: "sat", start: "16:00", end: "17:30", activity: "systems",      title: "Systems / SOP fine-tuning",                          rationale: "Refine the SOPs that are running the business — outreach templates, demo-build skill prompts, onboarding checklist, CRM automations. The 'work on the business, not in it' hour." },
-  { id: "sat-eve-rest",      day: "sat", start: "17:30", end: "23:00", activity: "admin",        title: "STOP — family time",         protectedRest: true,    rationale: "Hard stop. Saturday evening protected. Non-negotiable." },
-
-  // ═════════════ SUNDAY (research + onboarding) ═════════════
-  { id: "sun-am-research",   day: "sun", start: "11:00", end: "13:00", activity: "learning",     title: "Business model + sales research",                   rationale: "Read, watch, study. Sales books, competitor websites, agency case studies, sharper pitches. Long-term moat: smarter offer beats louder volume." },
-  { id: "sun-pm-onboard",    day: "sun", start: "13:00", end: "15:00", activity: "onboarding",   title: "Onboarding work + client kickoffs", target: { count: 1 },  rationale: "Sunday lunchtime — clients relaxed at home, perfect for kickoff calls. Continue any onboarding tasks not finished Saturday." },
-  { id: "sun-pm-systems",    day: "sun", start: "15:00", end: "17:00", activity: "systems",      title: "Systems + content batch",                            rationale: "Half on systems (CRM tweaks, skill prompts, templates), half on a light content batch (1-2 Reels, 3-4 social posts for the week)." },
-  { id: "sun-eve-rest",      day: "sun", start: "17:00", end: "23:00", activity: "admin",        title: "STOP — protect Sun evening", protectedRest: true,   rationale: "Hard stop. Sleep, mental reset for Monday's grind." },
+  // ═════════════ WEEKEND ═════════════
+  // One flexible block a day rather than a timetable — it's a working weekend by
+  // choice, not a rota, and unticked boxes on a Sunday are just nagging.
+  {
+    id: "sat-block", day: "sat", start: "10:00", end: "14:00", activity: "systems",
+    title: "Fulfilment · research · systems",
+    rationale: "Catch-up and sharpen: finish any client work owed, research (competitors, offers, sales), and improve the internal systems — CRM, skills, templates, SOPs. The 'work on the business' block.",
+  },
+  {
+    id: "sat-rest", day: "sat", start: "14:00", end: "23:00", activity: "admin",
+    title: "STOP — rest of Saturday protected", protectedRest: true,
+    rationale: "Hard stop at 2pm. Weekends are a half-day at most.",
+  },
+  {
+    id: "sun-block", day: "sun", start: "10:00", end: "14:00", activity: "systems",
+    title: "Fulfilment · research · systems",
+    rationale: "Same shape as Saturday. If the week's fulfilment is clear, spend the whole block on systems and research — that's what compounds.",
+  },
+  {
+    id: "sun-rest", day: "sun", start: "14:00", end: "23:00", activity: "admin",
+    title: "STOP — reset for Monday", protectedRest: true,
+    rationale: "Hard stop. Sleep and a clear head beat a fifth hour of tinkering.",
+  },
 ];
 
 // ─── Helpers ───────────────────────────────────────────────────────────

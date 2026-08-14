@@ -129,7 +129,7 @@ export default function Schedule() {
           <div className="flex items-center gap-3">
             <h1 className="text-lg font-bold flex items-center gap-2" style={{ color: "var(--text)" }}><Icon name="calendar" className="w-5 h-5" style={{ color: "var(--accent)" }} /> Weekly Schedule</h1>
             <span className="text-xs px-2 py-1 rounded-full" style={{ background: "var(--accent-subtle)", color: "var(--accent)", fontWeight: 600 }}>
-              Burn-the-Boats · 30hr/wk
+              Full time · Mon-Fri 9-6
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -165,7 +165,9 @@ export default function Schedule() {
       </div>
 
       {/* Day grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-3 p-4">
+      {/* items-start: the weekend columns hold 2 slots against the weekdays' 10,
+          and without it the grid stretches them into a mostly-empty 1200px box. */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-3 p-4 items-start">
         {DAYS.map((day) => {
           const date = dateForDayOffset(weekMonday, DAY_INDEX[day]);
           const isToday = isCurrentWeek && today === day;
@@ -212,7 +214,7 @@ export default function Schedule() {
       {/* Rationale strip */}
       <div className="mx-4 mb-4 rounded-xl p-4 text-xs" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text-dim)" }}>
         <span className="font-semibold" style={{ color: "var(--text-secondary)" }}>Why this schedule? </span>
-        Anchored to your 9-5.30 day job + 1hr dog-walk lunch. Cold calls only happen in trade-friendly windows (per Pricing → Best Times to Call). Saturday morning is your highest-output block — protected family time after 6pm Sat and after 5pm Sun. Targets are stretch but sustainable; if you're hitting <strong style={{ color: "var(--text)" }}>~75% of targets weekly for 8 weeks straight</strong>, the day-job notice is in sight.
+        Mornings fulfil and fill the pipe — client work first, then <strong style={{ color: "var(--text)" }}>30 Facebook messages</strong>, the number that decides whether you have calls to make in ten days&apos; time. Gym and lunch are blocked out, not squeezed in: full time removes the excuse, and the afternoon phone session sounds completely different on the back of them. Calls sit at 3.30-6pm because that runs into the <strong style={{ color: "var(--text)" }}>4:30-6pm window</strong> Pricing → Best Times to Call rates as one of the two best of the day for trades. Evenings stop at 7.15 and the weekend is a half-day — that&apos;s what makes this survivable past month three.
       </div>
     </div>
   );
@@ -267,7 +269,7 @@ const SlotCard = memo(function SlotCardBase({ slot, completed, onToggle }: { slo
           }}>{slot.title}</p>
           {slot.target && !isRest && (
             <p className="text-[10px] mt-1 font-bold" style={{ color: completed ? meta.color : meta.color }}>
-              Target: {slot.target.count} {slot.activity === "cold_calls" || slot.activity === "warm_calls" ? "calls" : slot.activity === "closing_call" ? "close" : slot.activity === "fb_messenger" ? "msgs" : slot.activity === "demo_build" ? "demos" : slot.activity === "lead_gen" ? "scan" : slot.activity === "onboarding" ? "session" : ""}
+              Target: {slot.target.count} {meta.unit || ""}
             </p>
           )}
           <p className="text-[10px] mt-1 italic leading-snug" style={{ color: "var(--text-dim)" }}>{slot.rationale}</p>
