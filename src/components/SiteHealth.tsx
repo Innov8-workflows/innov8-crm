@@ -18,20 +18,32 @@ interface Site {
   ssl_expires_at: string;
   cert_days: number | null;
   cert_warning: boolean;
+  monitored: boolean;
+  uptime7: number | null;
+  uptime30: number | null;
+}
+
+interface OtherMonitor {
+  name: string;
+  url: string;
+  hostname: string;
+  status: string;
+  response_ms: number;
+  uptime7: number | null;
+  uptime30: number | null;
 }
 
 interface Incident {
-  project_id: number;
   business_name: string;
   checked_at: string;
   status: string;
-  http_status: number;
-  response_ms: number;
+  duration_sec?: number;
   error: string;
 }
 
 interface Summary {
-  total: number; up: number; slow: number; down: number; unchecked: number; cert_warnings: number;
+  total: number; up: number; slow: number; down: number; unchecked: number;
+  unmonitored: number; cert_warnings: number;
 }
 
 const href = (d: string) => (/^https?:\/\//i.test(d) ? d : `https://${d}`);
@@ -43,10 +55,33 @@ function when(iso: string): string {
   return t.toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 
+// 99.995 → "100%", 99.2 → "99.2%", null → "—". One decimal is plenty here.
+function pct(v: number | null): string {
+  if (v === null) return "—";
+  const rounded = Math.round(v * 10) / 10;
+  return `${rounded % 1 === 0 ? rounded.toFixed(0) : rounded.toFixed(1)}%`;
+}
+
+function uptimeColour(v: number | null): string {
+  if (v === null) return "var(--text-quaternary)";
+  if (v >= 99.9) return "#22c55e";
+  if (v >= 99) return "#f59e0b";
+  return "#ef4444";
+}
+
+function fmtDuration(sec?: number): string {
+  if (!sec || sec <= 0) return "";
+  if (sec < 90) return `${sec}s`;
+  if (sec < 5400) return `${Math.round(sec / 60)}m`;
+  return `${(sec / 3600).toFixed(1)}h`;
+}
+
 export default function SiteHealth() {
   const { toast } = useToast();
   const [sites, setSites] = useState<Site[]>([]);
   const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [others, setOthers] = useState<OtherMonitor[]>([]);
+  const [urState, setUrState] = useState<"ok" | "error" | "unconfigured">("ok");
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(true);
   const [checking, setChecking] = useState(false);
@@ -56,6 +91,8 @@ export default function SiteHealth() {
       const d = await fetch("/api/health").then((r) => r.json());
       setSites(d.sites || []);
       setIncidents(d.incidents || []);
+      setOthers(d.other_monitors || []);
+      setUrState(d.uptimerobot || "unconfigured");
       setSummary(d.summary || null);
     } catch {
       toast("Couldn't load site health", "error");
@@ -95,7 +132,7 @@ export default function SiteHealth() {
           <Icon name="shield-check" className="w-5 h-5 flex-shrink-0" style={{ color: "var(--accent)" }} />
           <h1 className="text-lg font-bold flex-shrink-0" style={{ color: "var(--text)" }}>Site Health</h1>
           <span className="text-xs truncate hidden md:block" style={{ color: "var(--text-dim)" }}>
-            Every live client site, checked automatically every 15 minutes.
+            Uptime via UptimeRobot (every 5 min) · certificates checked by the CRM.
           </span>
           <button onClick={checkNow} disabled={checking}
             className="ml-auto text-sm font-semibold px-3 py-1.5 rounded-lg transition-colors flex-shrink-0"
@@ -104,12 +141,20 @@ export default function SiteHealth() {
           </button>
         </div>
         {summary && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-2">
-            <Stat label="Sites monitored" value={summary.total} color="var(--text)" />
+          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2">
+            <Stat label="Client sites" value={summary.total} color="var(--text)" />
             <Stat label="Up" value={summary.up} color="#22c55e" />
             <Stat label="Slow" value={summary.slow} color="#f59e0b" />
             <Stat label="Down" value={summary.down} color={summary.down > 0 ? "#ef4444" : "var(--text-dim)"} />
+            <Stat label="Not monitored" value={summary.unmonitored} color={summary.unmonitored > 0 ? "#f59e0b" : "var(--text-dim)"} />
             <Stat label="Certs expiring" value={summary.cert_warnings} color={summary.cert_warnings > 0 ? "#f59e0b" : "var(--text-dim)"} />
+          </div>
+        )}
+        {urState !== "ok" && (
+          <div className="mt-2 text-[11px] px-2.5 py-1.5 rounded-lg" style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.3)", color: "#f59e0b" }}>
+            {urState === "unconfigured"
+              ? "UptimeRobot isn't connected — add UPTIMEROBOT_API_KEY (a read-only key) in Vercel and redeploy. Showing the CRM's own last-known checks."
+              : "UptimeRobot didn't respond — showing the CRM's own last-known checks."}
           </div>
         )}
       </div>
@@ -123,7 +168,7 @@ export default function SiteHealth() {
               <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
                 <thead>
                   <tr style={{ background: "var(--surface)" }}>
-                    {["Status", "Client", "Domain", "Response", "Certificate", "Last checked"].map((h) => (
+                    {["Status", "Client", "Domain", "Response", "Uptime 7d / 30d", "Certificate", "Last checked"].map((h) => (
                       <th key={h} className="text-left text-[11px] font-bold uppercase tracking-wider px-3 py-2 whitespace-nowrap"
                         style={{ color: "var(--text-dim)", borderBottom: "1px solid var(--border)" }}>{h}</th>
                     ))}
@@ -143,7 +188,16 @@ export default function SiteHealth() {
                             <span className="w-2 h-2 rounded-full" style={{ background: meta.color }} />{meta.label}
                           </span>
                         </td>
-                        <td className="px-3 py-2 font-medium" style={{ color: "var(--text)" }}>{s.business_name}</td>
+                        <td className="px-3 py-2 font-medium" style={{ color: "var(--text)" }}>
+                          {s.business_name}
+                          {!s.monitored && (
+                            <span className="ml-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full align-middle"
+                              title="No UptimeRobot monitor covers this domain — add one so an outage isn't invisible"
+                              style={{ background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.4)", color: "#f59e0b" }}>
+                              Not monitored
+                            </span>
+                          )}
+                        </td>
                         <td className="px-3 py-2">
                           <a href={href(s.domain)} target="_blank" rel="noreferrer"
                             className="hover:underline" style={{ color: "var(--accent)" }}>{s.domain}</a>
@@ -152,6 +206,11 @@ export default function SiteHealth() {
                         <td className="px-3 py-2 whitespace-nowrap tabular-nums" style={{ color: "var(--text-secondary)" }}>
                           {s.status ? `${s.response_ms}ms` : "—"}
                           {s.http_status > 0 && <span className="text-[11px] ml-1" style={{ color: "var(--text-quaternary)" }}>({s.http_status})</span>}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap tabular-nums">
+                          <span style={{ color: uptimeColour(s.uptime7) }}>{pct(s.uptime7)}</span>
+                          <span className="mx-1" style={{ color: "var(--text-quaternary)" }}>/</span>
+                          <span style={{ color: uptimeColour(s.uptime30) }}>{pct(s.uptime30)}</span>
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap">
                           {s.cert_days === null ? (
@@ -172,6 +231,31 @@ export default function SiteHealth() {
           </div>
         )}
 
+        {/* Monitored sites that aren't a client (Jay's own site, ad-hoc monitors) */}
+        {others.length > 0 && (
+          <div className="rounded-xl p-4" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+            <div className="flex items-baseline gap-2 mb-2.5 flex-wrap">
+              <h2 className="text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--text-dim)" }}>Other monitored sites</h2>
+              <p className="text-xs" style={{ color: "var(--text-quaternary)" }}>On UptimeRobot but not matched to a live client.</p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+              {others.map((m) => {
+                const colour = m.status === "up" ? "#22c55e" : m.status === "down" || m.status === "seems_down" ? "#ef4444" : "var(--text-quaternary)";
+                return (
+                  <div key={m.hostname} className="flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[13px]"
+                    style={{ background: "var(--surface2)", border: "1px solid var(--border)", borderLeft: `3px solid ${colour}` }}>
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: colour }} />
+                    <a href={m.url} target="_blank" rel="noreferrer" className="flex-1 min-w-0 truncate hover:underline"
+                      style={{ color: "var(--accent)" }}>{m.hostname}</a>
+                    <span className="text-[11px] tabular-nums flex-shrink-0" style={{ color: "var(--text-secondary)" }}>{m.response_ms}ms</span>
+                    <span className="text-[11px] tabular-nums flex-shrink-0" style={{ color: uptimeColour(m.uptime30) }}>{pct(m.uptime30)}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Incident log — status changes only, so this stays readable */}
         <div className="rounded-xl p-4" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
           <div className="flex items-baseline gap-2 mb-2.5 flex-wrap">
@@ -184,14 +268,16 @@ export default function SiteHealth() {
             <div className="grid grid-cols-1 gap-1.5">
               {incidents.map((i, idx) => {
                 const colour = i.status === "down" ? "#ef4444" : i.status === "slow" ? "#f59e0b" : "#22c55e";
+                const dur = fmtDuration(i.duration_sec);
                 return (
-                  <div key={`${i.project_id}-${i.checked_at}-${idx}`}
+                  <div key={`${i.business_name}-${i.checked_at}-${idx}`}
                     className="flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[13px]"
                     style={{ background: "var(--surface2)", border: "1px solid var(--border)", borderLeft: `3px solid ${colour}` }}>
                     <span className="font-semibold flex-shrink-0" style={{ color: colour }}>
                       {i.status === "down" ? "Went down" : i.status === "slow" ? "Slowed" : "Recovered"}
                     </span>
                     <span className="flex-1 min-w-0 truncate" style={{ color: "var(--text)" }}>{i.business_name}</span>
+                    {dur && <span className="text-[11px] flex-shrink-0" style={{ color: "var(--text-dim)" }} title="How long the state lasted">{dur}</span>}
                     {i.error && <span className="text-[11px] truncate hidden sm:block" style={{ color: "var(--text-dim)" }}>{i.error}</span>}
                     <span className="text-[11px] whitespace-nowrap flex-shrink-0" style={{ color: "var(--text-quaternary)" }}>{when(i.checked_at)}</span>
                   </div>

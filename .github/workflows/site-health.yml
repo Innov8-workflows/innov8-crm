@@ -1,9 +1,9 @@
-# Pings the CRM's site-health worker every 15 minutes.
+# Pings the CRM's site-health worker once a day.
 #
-# Why not a Vercel cron: this project is on the Hobby plan, where cron jobs only
-# fire once per day. A client's site could then be down for up to 24 hours before
-# the CRM noticed, which defeats the point — the whole aim is to know before the
-# client rings. GitHub's scheduler is free and runs at a useful cadence.
+# Uptime is now UptimeRobot's job (every 5 min, multiple locations — see
+# src/lib/uptimeRobot.ts), so this worker's remaining purpose is TLS certificate
+# expiry, which a free UptimeRobot monitor can't see. Certificates don't change
+# hourly; daily is plenty.
 #
 # Setup (one-off, both values must match):
 #   1. Vercel → project → Settings → Environment Variables → CRON_SECRET
@@ -18,7 +18,7 @@ name: Site health check
 
 on:
   schedule:
-    - cron: "*/15 * * * *"
+    - cron: "17 6 * * *"   # daily 06:17 UTC (off the top of the hour — GitHub's busiest slot)
   workflow_dispatch: {}
 
 # Overlapping runs would just repeat work against the same rows.
