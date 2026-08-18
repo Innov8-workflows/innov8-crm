@@ -173,6 +173,9 @@ export interface ClientLead {
   form_name: string;
   page_url: string;
   status: "new" | "seen";
+  // 'live' = pushed by the client's Apps Script, 'manual' = typed into the Client
+  // Dashboard, 'import' = bulk CSV/XLSX backfill of the client's historical sheet.
+  entry_mode: "live" | "manual" | "import";
   created_at: string;
 }
 

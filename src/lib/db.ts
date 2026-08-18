@@ -52,7 +52,7 @@ async function doInitDb() {
   // ~100-300ms, so this is the single biggest "slow first load" win. Bump
   // SCHEMA_VERSION whenever a migration/index/seed below changes → the heavy block
   // re-runs exactly once on the next deploy, then cold starts go fast again.
-  const SCHEMA_VERSION = "2026-08-08-leadseoreports";
+  const SCHEMA_VERSION = "2026-08-18-clientleadentrymode";
   await db.execute("CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT DEFAULT '')");
   const schemaMarker = first(await db.execute("SELECT value FROM app_meta WHERE key = 'schema_version'"));
   if (schemaMarker?.value === SCHEMA_VERSION) return;
@@ -139,6 +139,7 @@ async function doInitDb() {
       raw TEXT DEFAULT '',
       dedup_hash TEXT NOT NULL,
       status TEXT DEFAULT 'new',
+      entry_mode TEXT DEFAULT 'live',
       created_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
     );
@@ -487,6 +488,13 @@ async function doInitDb() {
       'Custom CRM','Custom Job Management App','Custom Customer Portal','Custom Quote / Estimate Builder',
       'Custom Internal KPI Dashboard','Bespoke AI Workflow Automation','Custom Booking + Resource Scheduler','Custom Branded Mobile PWA'
     )`,
+    // How the enquiry reached the CRM: 'live' = pushed by the client's Apps Script,
+    // 'manual' = typed into the Client Dashboard, 'import' = bulk CSV/XLSX of the
+    // client's historical lead sheet. Shown as a small label in the enquiries list so
+    // a backfilled month is never mistaken for live traffic. No backfill UPDATE: a
+    // constant DEFAULT lives in the table header, so existing rows already read 'live'
+    // without rewriting a single page.
+    "ALTER TABLE client_leads ADD COLUMN entry_mode TEXT DEFAULT 'live'",
   ];
   for (const sql of migrations) {
     try { await db.execute(sql); } catch { /* column exists */ }

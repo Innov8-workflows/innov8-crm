@@ -240,7 +240,8 @@ export default function ClientDashboard({
             <ReportPanel projectId={data.project.id} period={data.period} periodName={periodLabel(data.period)}
               clientName={data.project.business_name} report={data.report} onChanged={fetchDashboard} toast={toast} />
 
-            <LeadsTable projectId={data.project.id} leads={data.leads.recent} total={data.leads.total} onChanged={fetchDashboard} toast={toast} />
+            <LeadsTable projectId={data.project.id} leads={data.leads.recent} total={data.leads.total}
+              onChanged={fetchDashboard} onGoToPeriod={setPeriod} toast={toast} />
 
             {/* Lead capture setup */}
             <div className="rounded-xl" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
@@ -557,10 +558,202 @@ function ReportPanel({ projectId, period, periodName, clientName, report, onChan
 
 // --- Leads table ------------------------------------------------------------
 
-function LeadsTable({ projectId, leads, total, onChanged, toast }: {
-  projectId: number; leads: ClientLead[]; total: number; onChanged: () => void; toast: (m: string, t?: "success" | "error" | "info") => void;
+interface ImportSummary {
+  dry_run: boolean; file: string; total_rows: number; ready: number; inserted: number;
+  skipped: Record<string, number>;
+  date_range: { first: string; last: string };
+  by_month: { period: string; count: number }[];
+  by_type: { type: string; count: number }[];
+  earliest_live: string;
+  samples: Record<string, string>[];
+  problems: { row: number; reason: string; value: string }[];
+  id_range: { from: number; to: number } | null;
+}
+
+const SKIP_LABELS: Record<string, string> = {
+  bad_timestamp: "unreadable date",
+  click_event: "click events",
+  no_contact: "no contact details",
+  after_cutoff: "after the cutoff",
+  duplicate_in_file: "duplicated in the file",
+  already_in_crm: "already in the CRM",
+};
+
+const MANUAL_SOURCES = ["Phone call", "Email", "Walk-in", "Referral", "Other"];
+
+// Matches the inline-form inputs in ObjectivesPanel above.
+const fieldStyle = {
+  background: "var(--surface)", border: "1px solid var(--border-light)",
+  color: "var(--text)", outline: "none",
+};
+
+// What the dry run found. Shown before anything is written, because the two ways
+// an import goes wrong — a misread date column and a mis-mapped header — are both
+// silent, and only surface months later inside a report Jay bills against.
+function ImportPreview({ s }: { s: ImportSummary }) {
+  const skips = Object.entries(s.skipped).filter(([, n]) => n > 0);
+  return (
+    <div className="rounded-lg p-2.5 text-xs space-y-2" style={{ background: "var(--surface)", border: "1px solid var(--border-light)" }}>
+      <div style={{ color: "var(--text)" }}>
+        <strong>{s.ready}</strong> of {s.total_rows} rows ready to import
+        {s.date_range.first && (
+          <span style={{ color: "var(--text-quaternary)" }}>
+            {" "}· {s.date_range.first.slice(0, 10)} to {s.date_range.last.slice(0, 10)}
+          </span>
+        )}
+      </div>
+
+      {skips.length > 0 && (
+        <div style={{ color: "var(--text-muted)" }}>
+          Skipping: {skips.map(([k, n]) => `${n} ${SKIP_LABELS[k] || k}`).join(" · ")}
+        </div>
+      )}
+
+      {s.by_month.length > 0 && (
+        <div>
+          <p className="mb-1" style={{ color: "var(--text-dim)" }}>By month</p>
+          <div className="flex flex-wrap gap-1">
+            {s.by_month.map((m) => (
+              <span key={m.period} className="px-1.5 py-0.5 rounded"
+                style={{ background: "var(--surface2)", color: "var(--text-muted)" }}>
+                {m.period} · {m.count}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {s.samples.length > 0 && (
+        <div>
+          {/* The eyeball check: a US-locale export or a shifted header row shows up
+              here instantly, and nowhere else until it is too late. */}
+          <p className="mb-1" style={{ color: "var(--text-dim)" }}>First rows as they will be saved</p>
+          <div className="space-y-0.5" style={{ color: "var(--text-secondary)" }}>
+            {s.samples.map((r, i) => (
+              <div key={i} className="truncate">
+                {r.received_at} · {r.name || "(no name)"} · {r.phone || "—"} · {r.source}
+                {r.message ? ` · ${r.message}` : ""}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {s.problems.length > 0 && (
+        <div style={{ color: "#f59e0b" }}>
+          Unreadable dates on {s.problems.length === 20 ? "20+" : s.problems.length} row(s):{" "}
+          {s.problems.slice(0, 3).map((p) => `row ${p.row} "${p.value}"`).join(", ")}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LeadsTable({ projectId, leads, total, onChanged, onGoToPeriod, toast }: {
+  projectId: number; leads: ClientLead[]; total: number; onChanged: () => void;
+  onGoToPeriod: (period: string) => void;
+  toast: (m: string, t?: "success" | "error" | "info") => void;
 }) {
   const [expanded, setExpanded] = useState<number | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  // Manual entry
+  const today = new Date().toISOString().slice(0, 10);
+  const [mName, setMName] = useState("");
+  const [mPhone, setMPhone] = useState("");
+  const [mEmail, setMEmail] = useState("");
+  const [mMessage, setMMessage] = useState("");
+  const [mDate, setMDate] = useState(today);
+  const [mSource, setMSource] = useState(MANUAL_SOURCES[0]);
+
+  // Import
+  const [file, setFile] = useState<File | null>(null);
+  const [includeClicks, setIncludeClicks] = useState(false);
+  const [cutoff, setCutoff] = useState("");
+  const [preview, setPreview] = useState<ImportSummary | null>(null);
+  const [lastImport, setLastImport] = useState<ImportSummary | null>(null);
+
+  const resetManual = () => {
+    setMName(""); setMPhone(""); setMEmail(""); setMMessage("");
+    setMDate(today); setMSource(MANUAL_SOURCES[0]);
+  };
+
+  const addManual = async () => {
+    if (!mName.trim() && !mPhone.trim() && !mEmail.trim()) {
+      toast("Give it a name, phone or email", "error");
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/client-leads`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: mName, phone: mPhone, email: mEmail, message: mMessage,
+          received_at: mDate, source: mSource, form_name: "Added by hand",
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        toast(err.error || "Could not add that enquiry", "error");
+        return;
+      }
+      resetManual();
+      setAdding(false);
+      // The list only shows the selected month, so say where it went.
+      const month = new Date(mDate + "T12:00:00Z").toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+      toast(`Enquiry added to ${month}`, "success");
+      onChanged();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const runImport = async (dryRun: boolean) => {
+    if (!file) return;
+    setBusy(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("include_clicks", String(includeClicks));
+      fd.append("dry_run", String(dryRun));
+      if (cutoff) fd.append("before", cutoff);
+      // No Content-Type header — the browser sets the multipart boundary.
+      const res = await fetch(`/api/projects/${projectId}/client-leads/import`, { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) {
+        toast(data.error || "Import failed", "error");
+        return;
+      }
+      if (dryRun) {
+        setPreview(data);
+        // The route knows when the live sync started; Jay has no other way to find it.
+        if (!cutoff && data.earliest_live) setCutoff(data.earliest_live);
+      } else {
+        setPreview(null);
+        setLastImport(data);
+        setFile(null);
+        const months = data.by_month.length;
+        toast(`Imported ${data.inserted} enquiries across ${months} month${months === 1 ? "" : "s"}`, "success");
+        onChanged();
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const undoImport = async () => {
+    const r = lastImport?.id_range;
+    if (!r) return;
+    if (!confirm(`Remove the ${lastImport?.inserted} enquiries from that import?`)) return;
+    const res = await fetch(
+      `/api/projects/${projectId}/client-leads?from_id=${r.from}&to_id=${r.to}`, { method: "DELETE" });
+    const data = await res.json();
+    setLastImport(null);
+    toast(`Removed ${data.deleted || 0} imported enquiries`, "info");
+    onChanged();
+  };
 
   const markSeen = async () => {
     const ids = leads.filter((l) => l.status === "new").map((l) => l.id);
@@ -587,13 +780,113 @@ function LeadsTable({ projectId, leads, total, onChanged, toast }: {
         <p className="text-xs uppercase tracking-wider" style={{ color: "var(--text-dim)" }}>
           Enquiries {total > leads.length && <span style={{ color: "var(--text-quaternary)" }}>(showing {leads.length} of {total})</span>}
         </p>
-        {unseen > 0 && (
-          <button onClick={markSeen} className="text-xs px-2.5 py-1 rounded-md"
+        <div className="flex gap-1.5">
+          {unseen > 0 && (
+            <button onClick={markSeen} className="text-xs px-2.5 py-1 rounded-md"
+              style={{ background: "var(--surface2)", border: "1px solid var(--border-light)", color: "var(--text-muted)" }}>
+              Mark {unseen} as seen
+            </button>
+          )}
+          <button onClick={() => { setImporting((v) => !v); setAdding(false); }} className="text-xs px-2.5 py-1 rounded-md"
             style={{ background: "var(--surface2)", border: "1px solid var(--border-light)", color: "var(--text-muted)" }}>
-            Mark {unseen} as seen
+            Import history
           </button>
-        )}
+          <button onClick={() => { setAdding((v) => !v); setImporting(false); }} className="text-xs font-semibold px-2.5 py-1 rounded-md"
+            style={{ background: "var(--accent)", color: "#fff" }}>+ Add</button>
+        </div>
       </div>
+
+      {adding && (
+        <div className="flex flex-wrap gap-2 px-4 py-3" style={{ background: "var(--surface2)", borderBottom: "1px solid var(--border)" }}>
+          <input value={mName} onChange={(e) => setMName(e.target.value)} placeholder="Name" autoFocus
+            onKeyDown={(e) => { if (e.key === "Enter") addManual(); }}
+            className="px-2 py-1.5 text-xs rounded-md" style={fieldStyle} />
+          <input value={mPhone} onChange={(e) => setMPhone(e.target.value)} placeholder="Phone"
+            onKeyDown={(e) => { if (e.key === "Enter") addManual(); }}
+            className="px-2 py-1.5 text-xs rounded-md" style={fieldStyle} />
+          <input value={mEmail} onChange={(e) => setMEmail(e.target.value)} placeholder="Email"
+            onKeyDown={(e) => { if (e.key === "Enter") addManual(); }}
+            className="px-2 py-1.5 text-xs rounded-md" style={fieldStyle} />
+          <input value={mMessage} onChange={(e) => setMMessage(e.target.value)} placeholder="What did they want?"
+            onKeyDown={(e) => { if (e.key === "Enter") addManual(); }}
+            className="flex-1 min-w-[200px] px-2 py-1.5 text-xs rounded-md" style={fieldStyle} />
+          <input type="date" value={mDate} onChange={(e) => setMDate(e.target.value)} max={today}
+            className="px-2 py-1.5 text-xs rounded-md" style={fieldStyle} />
+          <select value={mSource} onChange={(e) => setMSource(e.target.value)}
+            className="px-2 py-1.5 text-xs rounded-md" style={fieldStyle}>
+            {MANUAL_SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+          <button onClick={addManual} disabled={busy} className="px-3 py-1.5 text-xs font-semibold rounded-md"
+            style={{ background: "var(--accent)", color: "#fff", opacity: busy ? 0.6 : 1 }}>
+            {busy ? "Saving…" : "Save"}
+          </button>
+        </div>
+      )}
+
+      {importing && (
+        <div className="px-4 py-3 space-y-2.5" style={{ background: "var(--surface2)", borderBottom: "1px solid var(--border)" }}>
+          <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+            Export the client&apos;s lead sheet (File → Download → CSV) and drop it here. Nothing is
+            written until you&apos;ve seen the preview.
+          </p>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <input type="file" accept=".csv,.xlsx,.xls,.tsv"
+              onChange={(e) => { setFile(e.target.files?.[0] || null); setPreview(null); }}
+              className="text-xs rounded-md px-2 py-1.5" style={{ ...fieldStyle, cursor: "pointer" }} />
+            <label className="flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}>
+              <span style={{ color: "var(--text-dim)" }}>Only rows before</span>
+              <input type="date" value={cutoff} onChange={(e) => { setCutoff(e.target.value); setPreview(null); }}
+                className="px-2 py-1.5 text-xs rounded-md" style={fieldStyle} />
+            </label>
+          </div>
+
+          <label className="flex items-start gap-2 text-xs cursor-pointer" style={{ color: "var(--text-muted)" }}>
+            <input type="checkbox" checked={includeClicks}
+              onChange={(e) => { setIncludeClicks(e.target.checked); setPreview(null); }} className="mt-0.5" />
+            <span>
+              Include click events (Call / WhatsApp / Text taps)
+              <span className="block" style={{ color: "var(--text-quaternary)" }}>
+                Off = form submissions only. Turning this on raises the enquiry count in every
+                historical report for this client.
+              </span>
+            </span>
+          </label>
+
+          <div className="flex gap-1.5">
+            <button onClick={() => runImport(true)} disabled={!file || busy}
+              className="px-3 py-1.5 text-xs font-semibold rounded-md"
+              style={{ background: "var(--surface)", border: "1px solid var(--border-light)", color: "var(--text-muted)", opacity: !file || busy ? 0.5 : 1 }}>
+              {busy && !preview ? "Reading…" : "Preview"}
+            </button>
+            {preview && preview.ready > 0 && (
+              <button onClick={() => runImport(false)} disabled={busy}
+                className="px-3 py-1.5 text-xs font-semibold rounded-md"
+                style={{ background: "var(--accent)", color: "#fff", opacity: busy ? 0.6 : 1 }}>
+                {busy ? "Importing…" : `Import ${preview.ready} enquiries`}
+              </button>
+            )}
+          </div>
+
+          {preview && <ImportPreview s={preview} />}
+
+          {lastImport?.id_range && (
+            <div className="flex items-center gap-2 text-xs pt-1" style={{ color: "var(--text-muted)" }}>
+              <span>Imported {lastImport.inserted} enquiries.</span>
+              <button onClick={undoImport} className="px-2 py-1 rounded-md"
+                style={{ background: "var(--surface)", border: "1px solid var(--border-light)", color: "#ef4444" }}>
+                Undo this import
+              </button>
+              {lastImport.by_month[0] && (
+                <button onClick={() => onGoToPeriod(lastImport.by_month[0].period)} className="px-2 py-1 rounded-md"
+                  style={{ background: "var(--surface)", border: "1px solid var(--border-light)", color: "var(--text-muted)" }}>
+                  View {lastImport.by_month[0].period}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
       {leads.length === 0 ? (
         <p className="text-xs py-8 text-center" style={{ color: "var(--text-quaternary)" }}>
           No enquiries this month. If their form should be logging here, check the Lead capture setup below.
@@ -606,6 +899,14 @@ function LeadsTable({ projectId, leads, total, onChanged, toast }: {
                 {l.status === "new" && <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: "var(--accent)" }} />}
                 <span className="text-xs font-semibold truncate cf-name" style={{ color: "var(--text)", minWidth: 110 }}>{l.name || "(no name)"}</span>
                 <span className="text-xs truncate flex-1 hidden sm:block" style={{ color: "var(--text-dim)" }}>{l.message}</span>
+                {/* Guarded on truthiness: a sessionStorage payload cached before this
+                    column existed must render nothing, not an empty chip. */}
+                {l.entry_mode && l.entry_mode !== "live" && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded flex-shrink-0"
+                    style={{ background: "var(--surface2)", color: "var(--text-quaternary)" }}>
+                    {l.entry_mode === "import" ? "imported" : "manual"}
+                  </span>
+                )}
                 <span className="text-[11px] flex-shrink-0" style={{ color: "var(--text-quaternary)" }}>
                   {new Date(l.received_at.replace(" ", "T") + "Z").toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
                 </span>

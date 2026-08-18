@@ -41,7 +41,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     getSiteMetrics(db, projectId, prev),
     getSeoSnapshot(db, projectId, range),
     db.execute({
-      sql: `SELECT id, received_at, name, email, phone, message, source, form_name, page_url, status
+      sql: `SELECT id, received_at, name, email, phone, message, source, form_name, page_url, status, entry_mode
             FROM client_leads
             WHERE project_id = ? AND received_at >= ? AND received_at < ?
             ORDER BY received_at DESC, id DESC LIMIT 50`,
