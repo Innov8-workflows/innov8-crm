@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { Project, ProjectTask, ProjectFile, EntitySolution } from "@/types";
 import { PROJECT_STAGES } from "@/types";
 import ProductPicker from "./ProductPicker";
@@ -25,6 +25,12 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
   const [newFileUrl, setNewFileUrl] = useState("");
   const [newFileName, setNewFileName] = useState("");
   const [showUrlForm, setShowUrlForm] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  // dragenter/dragleave also fire for every CHILD element, so a plain boolean
+  // flickers as the pointer crosses them. Count depth instead.
+  const dragDepth = useRef(0);
   const [editing, setEditing] = useState<string | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -126,17 +132,70 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
     onUpdate();
   };
 
-  const uploadFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("project_id", String(project.id));
-    formData.append("name", file.name);
-    await fetch("/api/project-files", { method: "POST", body: formData });
-    e.target.value = "";
+  /**
+   * Shared by the Attach File button and the drop zone. Uploads sequentially so
+   * a dropped batch can't fire ten concurrent multipart POSTs at the same lambda.
+   *
+   * The response used to be discarded, which meant a rejection was completely
+   * silent: nothing appeared and nothing said why. The API refuses anything over
+   * 5MB or outside image/PDF/text — and a photo straight off a phone is routinely
+   * over 5MB, which drag-and-drop makes far more likely. So surface the reason.
+   */
+  const uploadFiles = async (list: FileList | File[] | null) => {
+    const chosen = Array.from(list || []);
+    if (chosen.length === 0) return;
+    setUploading(true);
+    setUploadError("");
+    const failures: string[] = [];
+
+    for (const file of chosen) {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("project_id", String(project.id));
+      formData.append("name", file.name);
+      try {
+        const res = await fetch("/api/project-files", { method: "POST", body: formData });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          failures.push(`${file.name} — ${body.error || `upload failed (${res.status})`}`);
+        }
+      } catch {
+        failures.push(`${file.name} — upload failed`);
+      }
+    }
+
+    setUploading(false);
+    setUploadError(failures.join(" · "));
     fetchFiles();
     onUpdate();
+  };
+
+  const uploadFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    await uploadFiles(e.target.files);
+    e.target.value = "";
+  };
+
+  const onDragEnter = (e: React.DragEvent) => {
+    if (!e.dataTransfer?.types?.includes("Files")) return;   // ignore dragged text/links
+    e.preventDefault();
+    dragDepth.current += 1;
+    setDragging(true);
+  };
+  const onDragOver = (e: React.DragEvent) => {
+    if (!e.dataTransfer?.types?.includes("Files")) return;
+    e.preventDefault();                       // without this the drop never fires
+    e.dataTransfer.dropEffect = "copy";
+  };
+  const onDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    dragDepth.current -= 1;
+    if (dragDepth.current <= 0) { dragDepth.current = 0; setDragging(false); }
+  };
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    dragDepth.current = 0;
+    setDragging(false);
+    uploadFiles(e.dataTransfer?.files || null);
   };
 
   const setCover = async (fileId: number) => {
@@ -384,7 +443,11 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
           )}
 
           {activeTab === "files" && (
-            <div className="space-y-4">
+            /* The whole tab is a drop target, not just the box below - dropping
+               onto the file list is what people actually do. */
+            <div className="space-y-4 relative"
+              onDragEnter={onDragEnter} onDragOver={onDragOver}
+              onDragLeave={onDragLeave} onDrop={onDrop}>
               {/* Action buttons */}
               <div className="flex gap-2">
                 <label className="flex-1 cursor-pointer">
@@ -396,7 +459,11 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
                       <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
                     Attach File
                   </div>
-                  <input type="file" className="hidden" accept="image/*,.pdf,.doc,.docx,.html,.txt,.zip"
+                  {/* accept mirrors what the API actually allows (image/PDF/text).
+                      It previously offered .doc/.docx/.zip, which the server
+                      rejects - so picking one looked like nothing happened. */}
+                  <input type="file" className="hidden" multiple
+                    accept="image/*,application/pdf,text/*,.pdf,.txt,.html,.csv"
                     onChange={uploadFile} />
                 </label>
                 <button onClick={() => setShowUrlForm(!showUrlForm)}
@@ -409,6 +476,36 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
                   Add URL Link
                 </button>
               </div>
+
+              {/* Drop zone. Also a label, so clicking it opens the picker - a
+                  dashed box that does nothing on click reads as broken. */}
+              <label className="block cursor-pointer">
+                <div className="flex flex-col items-center justify-center gap-1.5 py-6 px-4 rounded-lg text-center transition-colors"
+                  style={{
+                    border: `2px dashed ${dragging ? "var(--accent)" : "var(--border-light)"}`,
+                    background: dragging ? "rgba(255,107,53,0.06)" : "var(--surface2)",
+                  }}>
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"
+                    style={{ color: dragging ? "var(--accent)" : "var(--text-quaternary)" }}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                  <p className="text-sm" style={{ color: dragging ? "var(--accent)" : "var(--text-secondary)" }}>
+                    {uploading ? "Uploading…" : dragging ? "Drop to attach" : "Drag files here, or click to browse"}
+                  </p>
+                  <p className="text-xs" style={{ color: "var(--text-quaternary)" }}>
+                    Images, PDFs or text files · up to 5MB each
+                  </p>
+                </div>
+                <input type="file" className="hidden" multiple
+                  accept="image/*,application/pdf,text/*,.pdf,.txt,.html,.csv"
+                  onChange={uploadFile} />
+              </label>
+
+              {uploadError && (
+                <div className="px-3 py-2 rounded-lg text-xs"
+                  style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.35)", color: "#f87171" }}>
+                  {uploadError}
+                </div>
+              )}
 
               {/* URL form */}
               {showUrlForm && (
