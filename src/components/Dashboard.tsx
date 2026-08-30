@@ -414,9 +414,14 @@ function RevenueCard({ label, value, color, icon, delta, sub }: {
       <div className="min-w-0">
         <div className="flex items-baseline gap-1.5">
           <div className="text-2xl font-bold" style={{ color }}>{value}</div>
+          {/* +/- rather than the ↑/↓ StatTile uses: the arrow glyphs don't render in
+              this font stack, so "↑2770" came out looking like the number 12770 wedged
+              onto the end of the value. A sign can't be misread as a digit. */}
           {showDelta && (
-            <span className="text-xs font-semibold" style={{ color: delta! > 0 ? "#22c55e" : "#ef4444" }}>
-              {delta! > 0 ? "↑" : "↓"}{Math.abs(delta!) % 1 === 0 ? Math.abs(delta!) : Math.abs(delta!).toFixed(2)}
+            <span className="text-xs font-semibold whitespace-nowrap" style={{ color: delta! > 0 ? "#22c55e" : "#ef4444" }}>
+              {delta! > 0 ? "+" : "−"}
+              {value.trim().startsWith("£") ? "£" : ""}
+              {Math.abs(delta!) % 1 === 0 ? Math.abs(delta!).toLocaleString() : Math.abs(delta!).toFixed(2)}
             </span>
           )}
         </div>
