@@ -28,12 +28,30 @@
       metadata: metadata || null,
     });
 
+    // Deliver with fetch, NEVER navigator.sendBeacon.
+    //
+    // sendBeacon cannot complete a request that needs a CORS preflight. A Blob
+    // typed 'application/json' is not a CORS-safelisted content type, so Chrome
+    // issues the OPTIONS, receives a valid 204, and then silently drops the POST
+    // -- with or without a navigation, and while sendBeacon() still returns true.
+    // Measured in real Chrome 151 (headless AND headful) against an endpoint
+    // serving the same CORS headers as /api/track: the preflight arrived every
+    // time, the POST never did. That is why call/WhatsApp/form events read zero
+    // on every client site while page views trickled in from other engines.
+    //
+    // A text/plain body IS safelisted, so there is no preflight at all, and
+    // keepalive lets the request survive the tab being carried off to the
+    // dialler, WhatsApp, or a form POST. /api/track parses the JSON body
+    // regardless of the declared Content-Type (verified against live).
+    // Do not "simplify" this back to sendBeacon.
     try {
-      if (navigator.sendBeacon) {
-        navigator.sendBeacon(ENDPOINT, new Blob([body], { type: 'application/json' }));
-      } else {
-        fetch(ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body, keepalive: true });
-      }
+      fetch(ENDPOINT, {
+        method: 'POST',
+        mode: 'no-cors',
+        keepalive: true,
+        headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+        body: body
+      })['catch'](function () { /* never break the page */ });
     } catch (e) { /* swallow */ }
   }
 
