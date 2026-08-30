@@ -267,19 +267,29 @@ export async function buildRevenuePeriod(
   ]);
   const historyFrom = String(marker?.value || "");
 
+  // "All time" asks from 1970. Clamp the start up to the first month that actually
+  // contains something, so the chart isn't 600 empty buckets and the caller's span
+  // guard doesn't have to allow absurd ranges. The clamped range is returned, so the
+  // UI labels what it actually rendered.
+  const earliest = [...lines.map((l) => l.effective_start), ...cal.map((c) => c.won_at)]
+    .filter((d) => d !== "")
+    .sort()[0];
+  const start = earliest && r.start < earliest ? `${earliest.slice(0, 7)}-01` : r.start;
+  const range: DayRange = { start, end: r.end };
+
   // Balances are read on the last day INSIDE the range (and, for the opening, the day
   // before it began) so that snapshot - opening == the movement below. `at` is the
   // real date the figure describes, which is also what the UI should label it with:
   // "as at 31 Aug", not "as at 1 Sep".
-  const close = dayBefore(r.end);
-  const preOpen = dayBefore(r.start);
+  const close = dayBefore(range.end);
+  const preOpen = dayBefore(range.start);
 
   return {
-    range: r,
+    range,
     snapshot: { mrr: mrrAsAt(lines, close), clients: clientsAsAt(cal, close), at: close },
     opening: { mrr: mrrAsAt(lines, preOpen), clients: clientsAsAt(cal, preOpen), at: preOpen },
-    movement: movement(lines, cal, r),
-    series: monthlySeries(lines, cal, r, historyFrom),
+    movement: movement(lines, cal, range),
+    series: monthlySeries(lines, cal, range, historyFrom),
     coverage: {
       historyFrom,
       // Both false before the cutover: churn was never recorded, and contraction

@@ -14,7 +14,11 @@ import { buildRevenuePeriod, isValidDate, presetRange, type DayRange } from "@/l
 // destroy its "one request, everyone awaits it" property or freeze the period at
 // page-load time. The Dashboard isn't a bootstrap consumer anyway.
 
-const MAX_SPAN_DAYS = 366 * 5;
+// Generous: the "All time" preset legitimately asks from 1970, and buildRevenuePeriod
+// clamps the start up to the first month that actually contains data. This is only a
+// backstop against absurd input, not the real bound on series length — monthsBetween
+// caps that.
+const MAX_SPAN_DAYS = 366 * 60;
 
 export async function GET(request: NextRequest) {
   await initDb();
