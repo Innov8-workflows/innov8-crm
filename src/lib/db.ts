@@ -1,5 +1,14 @@
 import { createClient, type Client, type ResultSet } from "@libsql/client";
 
+/**
+ * The note stamped on base line items created by migrateBaseProductLineItems below.
+ * Those rows carry sold_at = the MIGRATION RUN DATE, not the real sale date, so
+ * src/lib/revenuePeriods.ts must recognise and override them when dating revenue.
+ * Exported (rather than declared there) so the marker and its writer can't drift —
+ * and in this direction, because db.ts imports nothing from our own modules.
+ */
+export const MIGRATED_NOTE = "Migrated from manual amounts";
+
 let client: Client | null = null;
 
 export function getClient(): Client {
@@ -52,7 +61,7 @@ async function doInitDb() {
   // ~100-300ms, so this is the single biggest "slow first load" win. Bump
   // SCHEMA_VERSION whenever a migration/index/seed below changes → the heavy block
   // re-runs exactly once on the next deploy, then cold starts go fast again.
-  const SCHEMA_VERSION = "2026-08-18-clientleadentrymode";
+  const SCHEMA_VERSION = "2026-08-30-revenueperiods";
   await db.execute("CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT DEFAULT '')");
   const schemaMarker = first(await db.execute("SELECT value FROM app_meta WHERE key = 'schema_version'"));
   if (schemaMarker?.value === SCHEMA_VERSION) return;
@@ -229,6 +238,8 @@ async function doInitDb() {
       login_details TEXT DEFAULT '',
       project_notes TEXT DEFAULT '',
       completed_at TEXT DEFAULT '',
+      won_at TEXT DEFAULT '',
+      lost_at TEXT DEFAULT '',
       ga4_embedded INTEGER DEFAULT 0,
       ga4_conversions INTEGER DEFAULT 0,
       search_console_verified INTEGER DEFAULT 0,
@@ -495,6 +506,23 @@ async function doInitDb() {
     // constant DEFAULT lives in the table header, so existing rows already read 'live'
     // without rewriting a single page.
     "ALTER TABLE client_leads ADD COLUMN entry_mode TEXT DEFAULT 'live'",
+    // The day a lead actually became a paying client, DATE-ONLY 'YYYY-MM-DD'.
+    // Backfilled from date(created_at): projects.created_at is server-stamped at the
+    // exact lead->won conversion (api/projects/route.ts) and no UI can edit it, so it
+    // is the only trustworthy proxy. Jay corrects the ones that matter afterwards.
+    "ALTER TABLE projects ADD COLUMN won_at TEXT DEFAULT ''",
+    // The day the client churned. NOT backfillable — client_status='lost' overwrites
+    // in place with no date and there is no transition log. Stamped forward from here;
+    // '' on an already-lost client means "churned before history began".
+    "ALTER TABLE projects ADD COLUMN lost_at TEXT DEFAULT ''",
+    // date() parses BOTH stored shapes (toISOString from the conversion POST, and the
+    // datetime('now') column DEFAULT). Guarded on '' so it never overwrites a manual
+    // correction, which also makes it idempotent across future SCHEMA_VERSION bumps.
+    "UPDATE projects SET won_at = COALESCE(date(created_at), '') WHERE COALESCE(won_at, '') = ''",
+    // Cutover marker. Everything before this date is reconstructed from won dates, not
+    // recorded as it happened — the revenue API ships it as coverage.historyFrom so the
+    // UI can say so rather than quietly presenting guesses as fact.
+    "INSERT OR IGNORE INTO app_meta (key, value) VALUES ('revenue_history_from', date('now'))",
   ];
   for (const sql of migrations) {
     try { await db.execute(sql); } catch { /* column exists */ }
@@ -518,6 +546,7 @@ async function doInitDb() {
     CREATE INDEX IF NOT EXISTS idx_projects_lead ON projects(lead_id);
     CREATE INDEX IF NOT EXISTS idx_projects_completed ON projects(completed_at);
     CREATE INDEX IF NOT EXISTS idx_projects_status ON projects(client_status);
+    CREATE INDEX IF NOT EXISTS idx_projects_won_at ON projects(won_at);
     CREATE INDEX IF NOT EXISTS idx_project_files_project ON project_files(project_id);
     CREATE INDEX IF NOT EXISTS idx_project_tasks_project ON project_tasks(project_id);
     CREATE INDEX IF NOT EXISTS idx_leads_owner ON leads(owner);
@@ -746,7 +775,7 @@ async function migrateBaseProductLineItems(db: Client) {
       await db.execute({
         sql: `INSERT INTO entity_solutions
               (entity_type, entity_id, solution_id, status, monthly_upcharge, upfront_charged, notes, proposed_at, sold_at, delivered_at, created_at, updated_at)
-              VALUES ('lead', ?, ?, ?, ?, ?, 'Migrated from manual amounts', ?, ?, '', ?, ?)
+              VALUES ('lead', ?, ?, ?, ?, ?, '${MIGRATED_NOTE}', ?, ?, '', ?, ?)
               ON CONFLICT(entity_type, entity_id, solution_id) DO NOTHING`,
         args: [leadId, baseId, status, monthly, upfront, now, isClient ? now : "", now, now],
       });

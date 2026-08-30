@@ -9,7 +9,10 @@ import { all, first } from "@/lib/db";
 // stage or beyond (Jay's rule — before Build it's still a prospect being
 // worked up), and hasn't been written off as lost. Single definition so the
 // map segment and the client money query can't drift apart.
-const CLIENT_STAGES = "('build','review','launch','completed')";
+// Exported so src/lib/revenuePeriods.ts shares this exact definition rather than
+// becoming a fourth one. NOTE api/projects/route.ts:47 uses `stage != 'onboarding'`
+// and disagrees about 'design_content' — the money queries use the list below.
+export const CLIENT_STAGES = "('build','review','launch','completed')";
 export function liveClientExistsSql(leadAlias: string): string {
   return `EXISTS (
     SELECT 1 FROM projects p

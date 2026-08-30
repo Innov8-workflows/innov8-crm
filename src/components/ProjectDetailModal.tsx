@@ -247,6 +247,9 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
         capex: (details as unknown as Record<string, unknown>).capex ?? 0,
         monthly_fee: details.monthly_fee,
         renewal_date: details.renewal_date,
+        // '' rather than undefined: the API validates the format and rejects a
+        // non-date, and an untouched field must still round-trip as empty.
+        won_at: details.won_at || "",
         login_details: details.login_details,
         project_notes: details.project_notes,
       }),
@@ -606,6 +609,8 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
                 { key: "capex", label: "CAPEX (£)", placeholder: "0", type: "number" },
                 { key: "monthly_fee", label: "Monthly Fee (£)", placeholder: "0", type: "number" },
                 { key: "renewal_date", label: "Renewal Date", placeholder: "", type: "date" },
+                // Every historical revenue figure on the Dashboard is dated from this.
+                { key: "won_at", label: "Won Date", placeholder: "", type: "date" },
                 { key: "login_details", label: "Login Details", placeholder: "e.g. Hosting panel credentials" },
                 { key: "project_notes", label: "Project Notes", placeholder: "Any additional notes..." },
               ].map((field) => (

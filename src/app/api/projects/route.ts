@@ -151,8 +151,11 @@ export async function POST(request: NextRequest) {
   const nextOrder = ((maxOrder?.v as number) || 0) + 1;
 
   const result = await db.execute({
-    sql: `INSERT INTO projects (lead_id, stage, sort_order, created_at, updated_at) VALUES (?, 'onboarding', ?, ?, ?)`,
-    args: [lead_id, nextOrder, now, now],
+    // won_at is stamped here natively rather than left to the backfill: this IS the
+    // instant the lead flipped to won. Date-only because every revenue range
+    // comparison is date-only — see src/lib/revenuePeriods.ts.
+    sql: `INSERT INTO projects (lead_id, stage, sort_order, won_at, created_at, updated_at) VALUES (?, 'onboarding', ?, ?, ?, ?)`,
+    args: [lead_id, nextOrder, now.slice(0, 10), now, now],
   });
 
   // Update lead status to won

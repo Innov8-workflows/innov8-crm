@@ -30,12 +30,43 @@ export async function PUT(
   const db = getClient();
   const body = await request.json();
 
-  const allowed = ["stage", "sort_order", "domain", "hosting_info", "monthly_fee", "renewal_date", "login_details", "project_notes", "completed_at", "client_status", "invoice_status", "ga4_embedded", "ga4_conversions", "search_console_verified", "bing_console", "gbp_setup", "mobile_optimised", "link_card", "secure_file", "google_sheet", "google_rating", "google_review_count", "facebook_rating", "facebook_review_count"];
+  const allowed = ["stage", "sort_order", "domain", "hosting_info", "monthly_fee", "renewal_date", "login_details", "project_notes", "completed_at", "won_at", "lost_at", "client_status", "invoice_status", "ga4_embedded", "ga4_conversions", "search_console_verified", "bing_console", "gbp_setup", "mobile_optimised", "link_card", "secure_file", "google_sheet", "google_rating", "google_review_count", "facebook_rating", "facebook_review_count"];
   const updates: string[] = [];
   const values: unknown[] = [];
 
+  // won_at/lost_at feed every revenue range query, and the loop below is blind —
+  // one toISOString written here poisons every date comparison downstream, and a
+  // FUTURE date makes the row invisible in today's snapshot, silently breaking the
+  // "snapshot as at today == live MRR" guarantee. Validate before the loop runs.
+  const today = new Date().toISOString().slice(0, 10);
+  for (const field of ["won_at", "lost_at"] as const) {
+    if (field in body) {
+      const v = String(body[field] ?? "");
+      if (v !== "" && !/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+        return NextResponse.json({ error: `${field} must be YYYY-MM-DD` }, { status: 400 });
+      }
+      if (v > today) {
+        return NextResponse.json({ error: `${field} cannot be in the future` }, { status: 400 });
+      }
+    }
+  }
+
   for (const field of allowed) {
     if (field in body) { updates.push(`${field} = ?`); values.push(body[field]); }
+  }
+
+  // Churn date, stamped on the transition. Read the CURRENT status first — the
+  // lead-status mirror further down runs after the UPDATE, so by then it's too late
+  // to tell whether this is a genuine transition or a no-op re-save. Skipped when the
+  // caller set lost_at explicitly (the won-dates modal correcting history).
+  if ("client_status" in body && !("lost_at" in body)) {
+    const cur = first(await db.execute({ sql: "SELECT client_status FROM projects WHERE id = ?", args: [Number(id)] }));
+    const was = String(cur?.client_status || "");
+    if (body.client_status === "lost" && was !== "lost") {
+      updates.push("lost_at = ?"); values.push(today);
+    } else if (body.client_status !== "lost" && was === "lost") {
+      updates.push("lost_at = ?"); values.push("");   // reactivated
+    }
   }
 
   // Handle capex — stored on the lead, not the project

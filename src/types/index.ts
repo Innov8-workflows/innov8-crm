@@ -36,6 +36,15 @@ export interface Project {
   login_details: string;
   project_notes: string;
   completed_at: string;
+  /**
+   * 'YYYY-MM-DD', date-only. The day this lead became a paying client.
+   * OPTIONAL on purpose: LiveClients persists project rows to sessionStorage, so a
+   * blob cached before these columns shipped carries neither field. A required type
+   * would let that stale blob break the first paint.
+   */
+  won_at?: string;
+  /** 'YYYY-MM-DD'. Forward-recorded only; '' = never churned, or churned before tracking began. */
+  lost_at?: string;
   client_status: string;
   // Manual "have I invoiced them this month" marker. Invoicing itself happens
   // in Stripe directly — the CRM no longer sends anything.

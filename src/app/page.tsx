@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react";
 import { fetchBootstrap, getCachedBootstrap, prefetchLeads } from "@/lib/bootstrap";
+import { isValidDate, presetRange, type DayRange, type RangePreset } from "@/lib/dateRange";
 import ViewNav from "@/components/ViewNav";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { ToastProvider } from "@/components/Toast";
@@ -48,6 +49,30 @@ export default function Home() {
   const [cachedCounts] = useState(() =>
     typeof window === "undefined" ? null : getCachedBootstrap(localStorage.getItem("crm_ownerFilter") || "")?.counts || null);
   const [dashClientId, setDashClientId] = useState<number | null>(null);
+
+  // The revenue date range, owned HERE rather than inside Dashboard because other
+  // views will adopt the same control — one prop now, no migration later. Same
+  // localStorage-then-thread-it-down pattern as ownerFilter above.
+  const [revenueRange, setRevenueRange] = useState<{ range: DayRange; preset: RangePreset }>(() => {
+    const fallback = { range: presetRange("last_12m"), preset: "last_12m" as RangePreset };
+    if (typeof window === "undefined") return fallback;
+    try {
+      const raw = localStorage.getItem("crm_revenueRange");
+      if (!raw) return fallback;
+      const p = JSON.parse(raw);
+      // Never trust the stored blob: corrupt localStorage must not send garbage dates
+      // to the API, which would 400 and leave the Dashboard permanently blank.
+      if (isValidDate(p?.range?.start) && isValidDate(p?.range?.end) && p.range.end > p.range.start) {
+        return { range: { start: p.range.start, end: p.range.end }, preset: (p.preset || "custom") as RangePreset };
+      }
+    } catch {}
+    return fallback;
+  });
+
+  const handleRevenueRangeChange = (range: DayRange, preset: RangePreset) => {
+    setRevenueRange({ range, preset });
+    try { localStorage.setItem("crm_revenueRange", JSON.stringify({ range, preset })); } catch {}
+  };
   const [projectCount, setProjectCount] = useState(cachedCounts?.projects || 0);
   const [clientCount, setClientCount] = useState(cachedCounts?.clients || 0);
   const [todoCount, setTodoCount] = useState(cachedCounts?.todos || 0);
@@ -125,7 +150,7 @@ export default function Home() {
           {persistedView("clients",      "Clients failed to load",      () => <LiveClients ownerFilter={ownerFilter} onCountsChanged={refreshCounts}
             onOpenDashboard={(id) => { setDashClientId(id); setView("client_dash"); }} />)}
           {persistedView("client_dash",  "Client Dashboard failed to load", () => <ClientDashboard projectId={dashClientId} onSelectClient={setDashClientId} active={view === "client_dash"} />)}
-          {persistedView("dashboard",    "Dashboard failed to load",    () => <Dashboard ownerFilter={ownerFilter} active={view === "dashboard"} />)}
+          {persistedView("dashboard",    "Dashboard failed to load",    () => <Dashboard ownerFilter={ownerFilter} active={view === "dashboard"} revenueRange={revenueRange.range} revenuePreset={revenueRange.preset} onRevenueRangeChange={handleRevenueRangeChange} />)}
           {persistedView("map",          "Map failed to load",          () => <MapView ownerFilter={ownerFilter} />, false)}
           {persistedView("ai_solutions", "AI Solutions failed to load", () => <AISolutions />, false)}
           {/* persist=false — an occasional-visit view, and its data should be
