@@ -48,14 +48,17 @@ export function Eyebrow({ children }: { children: React.ReactNode }) {
 export function Wordmark({ compact = false }: { compact?: boolean }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
-      <div style={{
-        width: 34, height: 34, borderRadius: 9, background: B.ink, color: "#fff",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        fontFamily: display, fontWeight: 800, fontSize: 15, letterSpacing: "-0.02em",
-        flexShrink: 0,
-      }}>
-        i<span style={{ color: B.accent }}>8</span>
-      </div>
+      {/* The real mark. Its own dark ground is the tile — the source art is a 3D
+          render on near-black, so keying it out would eat the dark chevrons
+          behind the 8. Cropped from innov8-logo-v2-small.png (1254px, mostly
+          padding) to 160px, which is 4x the rendered size.
+          Plain <img>, not next/image: this page is served to clients who are
+          not logged in, and the middleware waves .png straight through while
+          /_next/image would be another moving part on the one page that has to
+          work first time. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/innov8-mark.png" alt="Innov8 Workflows" width={38} height={38}
+           style={{ borderRadius: 10, display: "block", flexShrink: 0 }} />
       <div style={{ lineHeight: 1.04 }}>
         <div style={{
           fontFamily: display, fontWeight: 800, fontSize: 13.5,
