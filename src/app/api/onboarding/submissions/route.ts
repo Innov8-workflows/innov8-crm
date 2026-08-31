@@ -15,7 +15,10 @@ const LINK_DAYS = 45;
  * multi-KB blob walk on the rail's hot path — the same shape as the ~30s
  * incident documented at the top of src/lib/projectCache.ts.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
+  // Archived submissions are hidden unless asked for. They are almost always
+  // Jay's own tests, and a rail full of those is a rail he stops reading.
+  const showArchived = request.nextUrl.searchParams.get("archived") === "1";
   await initDb();
   const db = getClient();
   const rows = all(await db.execute({
@@ -25,7 +28,7 @@ export async function GET() {
                  -- shared link has no project, and an inner join would hide it
                  -- entirely — which is precisely the pile Jay needs to see.
                  COALESCE(l.business_name, s.label, '') AS business_name,
-                 s.label,
+                 s.label, s.archived,
                  (SELECT COUNT(*) FROM onboarding_assets a
                    WHERE a.submission_id = s.id AND a.status = 'stored') AS stored,
                  (SELECT COUNT(*) FROM onboarding_assets a
@@ -33,8 +36,10 @@ export async function GET() {
             FROM onboarding_submissions s
             LEFT JOIN projects p ON p.id = s.project_id
             LEFT JOIN leads l    ON l.id = p.lead_id
+           WHERE (? = 1 OR s.archived = 0)
            ORDER BY (s.project_id IS NULL) DESC, s.created_at DESC
            LIMIT 200`,
+    args: [showArchived ? 1 : 0],
   }));
   return NextResponse.json({ submissions: rows }, { headers: NO_STORE });
 }
@@ -102,6 +107,14 @@ export async function PUT(request: NextRequest) {
     await db.execute({
       sql: "UPDATE onboarding_submissions SET project_id = ?, updated_at = ? WHERE id = ?",
       args: [projectId, now, id],
+    });
+    return NextResponse.json({ ok: true }, { headers: NO_STORE });
+  }
+
+  if (body.action === "archive" || body.action === "unarchive") {
+    await db.execute({
+      sql: "UPDATE onboarding_submissions SET archived = ?, updated_at = ? WHERE id = ?",
+      args: [body.action === "archive" ? 1 : 0, now, id],
     });
     return NextResponse.json({ ok: true }, { headers: NO_STORE });
   }

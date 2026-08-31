@@ -61,7 +61,7 @@ async function doInitDb() {
   // ~100-300ms, so this is the single biggest "slow first load" win. Bump
   // SCHEMA_VERSION whenever a migration/index/seed below changes → the heavy block
   // re-runs exactly once on the next deploy, then cold starts go fast again.
-  const SCHEMA_VERSION = "2026-08-31-onboarding-shared";
+  const SCHEMA_VERSION = "2026-09-01-onboarding-archive";
   await db.execute("CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT DEFAULT '')");
   const schemaMarker = first(await db.execute("SELECT value FROM app_meta WHERE key = 'schema_version'"));
   if (schemaMarker?.value === SCHEMA_VERSION) return;
@@ -458,6 +458,11 @@ async function doInitDb() {
       -- list would otherwise walk a 64KB JSON column per row purely to print a
       -- heading, which is the blob-walk shape projectCache.ts exists to prevent.
       label TEXT NOT NULL DEFAULT '',
+      -- Hidden from the Onboarding list. DELIBERATELY SEPARATE FROM status:
+      -- archiving a test must not destroy the fact that it was, say, accepted,
+      -- and a real submission archived after the site ships still has to keep
+      -- its history. Orthogonal flag, not a status value.
+      archived INTEGER NOT NULL DEFAULT 0,
       -- open | submitted | accepted | built | revoked
       status TEXT NOT NULL DEFAULT 'open',
       r2_prefix TEXT NOT NULL DEFAULT '',
@@ -621,6 +626,9 @@ async function doInitDb() {
     // has no project attached yet. Runs BEFORE relaxOnboardingProjectId, whose
     // rebuild carries the column across.
     "ALTER TABLE onboarding_submissions ADD COLUMN label TEXT NOT NULL DEFAULT ''",
+    // Hide tests without losing their status. Runs before relaxOnboardingProjectId,
+    // whose rebuild carries the column across.
+    "ALTER TABLE onboarding_submissions ADD COLUMN archived INTEGER NOT NULL DEFAULT 0",
     // The day the client churned. NOT backfillable — client_status='lost' overwrites
     // in place with no date and there is no transition log. Stamped forward from here;
     // '' on an already-lost client means "churned before history began".
@@ -940,6 +948,7 @@ async function relaxOnboardingProjectId(db: Client) {
       fetch_key TEXT NOT NULL DEFAULT '',
       schema_version TEXT NOT NULL DEFAULT '',
       label TEXT NOT NULL DEFAULT '',
+      archived INTEGER NOT NULL DEFAULT 0,
       status TEXT NOT NULL DEFAULT 'open',
       r2_prefix TEXT NOT NULL DEFAULT '',
       expires_at TEXT NOT NULL DEFAULT '',
@@ -952,7 +961,7 @@ async function relaxOnboardingProjectId(db: Client) {
       FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
     );
     INSERT INTO onboarding_submissions_new
-      SELECT id, project_id, token, fetch_key, schema_version, label, status, r2_prefix,
+      SELECT id, project_id, token, fetch_key, schema_version, label, archived, status, r2_prefix,
              expires_at, submitted_at, fetched_at, bytes_declared, asset_count,
              created_at, updated_at FROM onboarding_submissions;
     DROP TABLE onboarding_submissions;

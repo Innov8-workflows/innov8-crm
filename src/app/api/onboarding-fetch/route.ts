@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
               FROM onboarding_submissions s
               LEFT JOIN projects p ON p.id = s.project_id
               LEFT JOIN leads l    ON l.id = p.lead_id
-             WHERE s.status != 'revoked'
+             WHERE s.status != 'revoked' AND s.archived = 0
                AND (? = '' OR s.status = ?)
                AND (? = '' OR s.fetch_key = ?)
              ORDER BY s.created_at DESC LIMIT 100`,
@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
             FROM onboarding_submissions s
             LEFT JOIN projects p ON p.id = s.project_id
             LEFT JOIN leads l    ON l.id = p.lead_id
-           WHERE s.id = ? AND s.status != 'revoked' LIMIT 1`,
+           WHERE s.id = ? AND s.status != 'revoked' AND s.archived = 0 LIMIT 1`,
     args: [id],
   }));
   if (!sub) return NextResponse.json({ error: "not found" }, { status: 404, headers: NO_STORE });

@@ -18,7 +18,7 @@ import Icon from "./Icon";
 interface Row {
   id: number; project_id: number | null; token: string; status: string;
   business_name: string; label: string; expires_at: string; submitted_at: string;
-  asset_count: number; stored: number; failed: number; created_at: string;
+  asset_count: number; stored: number; failed: number; created_at: string; archived: number;
 }
 interface Asset {
   id: number; role: string; pair_id: string; original_name: string; caption: string;
@@ -56,14 +56,15 @@ export default function Onboarding({ active }: { active: boolean }) {
   const [projects, setProjects] = useState<ProjectOpt[]>([]);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState("");
+  const [showArchived, setShowArchived] = useState(false);
 
   const origin = typeof window !== "undefined" ? window.location.origin : "";
 
   const loadRows = useCallback(async () => {
-    const d = await (await fetch("/api/onboarding/submissions")).json();
+    const d = await (await fetch(`/api/onboarding/submissions${showArchived ? "?archived=1" : ""}`)).json();
     setRows(d.submissions || []);
     return d.submissions as Row[];
-  }, []);
+  }, [showArchived]);
 
   const loadDetail = useCallback(async (id: number) => {
     const d = await (await fetch(`/api/onboarding/submissions/${id}`)).json();
@@ -81,6 +82,7 @@ export default function Onboarding({ active }: { active: boolean }) {
   }, [active]);
 
   useEffect(() => { if (selected) loadDetail(selected); }, [selected, loadDetail]);
+  useEffect(() => { if (active) loadRows(); }, [showArchived, active, loadRows]);
 
   const act = async (id: number, action: string, extra: Record<string, unknown> = {}) => {
     setBusy(true);
@@ -148,6 +150,14 @@ export default function Onboarding({ active }: { active: boolean }) {
           </select>
         </div>
 
+        <button
+          onClick={() => setShowArchived(!showArchived)}
+          className="px-3 py-2 text-left text-xs"
+          style={{ borderBottom: "1px solid var(--border)", color: "var(--text-dim)", background: "transparent" }}
+        >
+          {showArchived ? "\u2713 Showing archived" : "Show archived"}
+        </button>
+
         {rows.length === 0 && (
           <div className="px-3 py-6 text-xs" style={{ color: "var(--text-dim)", lineHeight: 1.6 }}>
             No submissions yet. Mint a link above, or send someone the shared link.
@@ -165,7 +175,8 @@ export default function Onboarding({ active }: { active: boolean }) {
                 boxShadow: isSel ? "inset 3px 0 0 var(--accent)" : "none",
               }}>
               <div className="flex items-center justify-between gap-2">
-                <span className="text-sm font-bold truncate cf-name" style={{ color: "var(--text)" }}>
+                <span className="text-sm font-bold truncate cf-name"
+                      style={{ color: "var(--text)", opacity: r.archived ? 0.5 : 1 }}>
                   {r.business_name || "Unnamed"}
                 </span>
                 {r.project_id === null && (
@@ -218,6 +229,18 @@ export default function Onboarding({ active }: { active: boolean }) {
                   className="px-3 py-1.5 rounded-lg text-xs"
                   style={{ background: "var(--surface2)", border: "1px solid var(--border-light)", color: "var(--text-muted)" }}>
                   Extend
+                </button>
+                <button disabled={busy}
+                  onClick={async () => {
+                    const archiving = !detail.submission.archived;
+                    await act(detail.submission.id, archiving ? "archive" : "unarchive");
+                    // An archived row leaves the default list, so don't leave the
+                    // pane showing a submission the rail no longer has.
+                    if (archiving && !showArchived) { setSelected(null); setDetail(null); }
+                  }}
+                  className="px-3 py-1.5 rounded-lg text-xs"
+                  style={{ background: "var(--surface2)", border: "1px solid var(--border-light)", color: "var(--text-muted)" }}>
+                  {detail.submission.archived ? "Unarchive" : "Archive"}
                 </button>
                 {detail.submission.status !== "revoked" && (
                   <button disabled={busy} onClick={() => act(detail.submission.id, "revoke")}
