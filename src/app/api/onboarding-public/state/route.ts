@@ -39,16 +39,21 @@ export async function GET(request: NextRequest) {
     args: [sub.id],
   }));
 
-  const business = first(await db.execute({
-    sql: `SELECT l.business_name FROM projects p
-            JOIN leads l ON l.id = p.lead_id WHERE p.id = ? LIMIT 1`,
-    args: [sub.project_id],
-  }));
+  // Attached submissions take the client's name from the CRM; ones that came in
+  // through the shared link have no project yet, so they show what was typed on
+  // the start page.
+  const business = sub.project_id
+    ? first(await db.execute({
+        sql: `SELECT l.business_name FROM projects p
+                JOIN leads l ON l.id = p.lead_id WHERE p.id = ? LIMIT 1`,
+        args: [sub.project_id],
+      }))
+    : null;
 
   return NextResponse.json({
     status: sub.status,
     schema_version: sub.schema_version,
-    business_name: (business?.business_name as string) || "",
+    business_name: (business?.business_name as string) || sub.label || "",
     answers: JSON.parse((answers?.answers_json as string) || "{}"),
     assets,
     server_time: sqlNow(),

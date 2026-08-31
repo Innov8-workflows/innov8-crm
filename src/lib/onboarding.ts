@@ -29,11 +29,13 @@ export function sqlNow(offsetDays = 0): string {
 
 export interface Submission {
   id: number;
-  project_id: number;
+  /** NULL until Jay attaches it — submissions from the shared link start life unowned. */
+  project_id: number | null;
   status: string;
   r2_prefix: string;
   expires_at: string;
   schema_version: string;
+  label: string;
   bytes_declared: number;
   asset_count: number;
 }
@@ -49,7 +51,7 @@ export async function getByToken(db: Client, token: string): Promise<Submission 
   if (!/^ob_[0-9a-f]{32}$/.test(token)) return null;
   const row = first(await db.execute({
     sql: `SELECT id, project_id, status, r2_prefix, expires_at, schema_version,
-                 bytes_declared, asset_count
+                 label, bytes_declared, asset_count
             FROM onboarding_submissions
            WHERE token = ? AND status != 'revoked' AND expires_at > ?
            LIMIT 1`,

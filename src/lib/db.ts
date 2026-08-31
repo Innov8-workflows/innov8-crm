@@ -61,7 +61,7 @@ async function doInitDb() {
   // ~100-300ms, so this is the single biggest "slow first load" win. Bump
   // SCHEMA_VERSION whenever a migration/index/seed below changes → the heavy block
   // re-runs exactly once on the next deploy, then cold starts go fast again.
-  const SCHEMA_VERSION = "2026-08-31-onboarding";
+  const SCHEMA_VERSION = "2026-08-31-onboarding-shared";
   await db.execute("CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT DEFAULT '')");
   const schemaMarker = first(await db.execute("SELECT value FROM app_meta WHERE key = 'schema_version'"));
   if (schemaMarker?.value === SCHEMA_VERSION) return;
@@ -440,7 +440,11 @@ async function doInitDb() {
     -- day (see the doctrine at the top of src/lib/clientReporting.ts).
     CREATE TABLE IF NOT EXISTS onboarding_submissions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      project_id INTEGER NOT NULL,
+      -- NULLABLE on purpose. The shared "anyone" link creates a submission
+      -- BEFORE it belongs to anyone: a prospect who is not yet in the CRM fills
+      -- it in and Jay attaches it to a project afterwards. NULL means
+      -- unassigned, so every read of this table must LEFT JOIN, never JOIN.
+      project_id INTEGER,
       -- ob_<32 hex>. Held by the client, so it is in a WhatsApp message
       -- somewhere: 128 bits, expiring, revocable, and it authorises writes only
       -- to its own prefix. Same construction as mintLeadKey in clientReporting.ts.
@@ -449,6 +453,11 @@ async function doInitDb() {
       -- returned to the onboarding page — only to an authenticated CRM response.
       fetch_key TEXT NOT NULL DEFAULT '',
       schema_version TEXT NOT NULL DEFAULT '',
+      -- Business name as typed on the shared link's start page. Kept HERE, on the
+      -- narrow row, rather than read out of onboarding_answers: the submissions
+      -- list would otherwise walk a 64KB JSON column per row purely to print a
+      -- heading, which is the blob-walk shape projectCache.ts exists to prevent.
+      label TEXT NOT NULL DEFAULT '',
       -- open | submitted | accepted | built | revoked
       status TEXT NOT NULL DEFAULT 'open',
       r2_prefix TEXT NOT NULL DEFAULT '',
@@ -608,6 +617,10 @@ async function doInitDb() {
     // exact lead->won conversion (api/projects/route.ts) and no UI can edit it, so it
     // is the only trustworthy proxy. Jay corrects the ones that matter afterwards.
     "ALTER TABLE projects ADD COLUMN won_at TEXT DEFAULT ''",
+    // Business name for a submission that came in through the shared link and
+    // has no project attached yet. Runs BEFORE relaxOnboardingProjectId, whose
+    // rebuild carries the column across.
+    "ALTER TABLE onboarding_submissions ADD COLUMN label TEXT NOT NULL DEFAULT ''",
     // The day the client churned. NOT backfillable — client_status='lost' overwrites
     // in place with no date and there is no transition log. Stamped forward from here;
     // '' on an already-lost client means "churned before history began".
@@ -699,6 +712,12 @@ async function doInitDb() {
   // now product-driven dashboard carries current totals forward. Must run AFTER
   // the catalogue seed (needs the "website" base product to exist).
   await migrateBaseProductLineItems(db);
+
+  // project_id shipped NOT NULL and must become nullable for the shared link.
+  // Guarded by PRAGMA rather than added to the migrations array: that array
+  // re-runs on EVERY version bump, and a table rebuild that runs twice would
+  // destroy data.
+  await relaxOnboardingProjectId(db);
 
   // Mark the schema current so subsequent cold starts take the fast path at the top.
   await db.execute({ sql: "INSERT OR REPLACE INTO app_meta (key, value) VALUES ('schema_version', ?)", args: [SCHEMA_VERSION] });
@@ -897,6 +916,53 @@ async function migrateBaseProductLineItems(db: Client) {
 }
 
 // Helper: get all rows as objects
+/**
+ * SQLite cannot ALTER a column to drop NOT NULL, so this is the standard
+ * rebuild: new table, copy, drop, rename. The PRAGMA check makes it a no-op
+ * once done, which matters because doInitDb re-runs on every SCHEMA_VERSION
+ * change and a rebuild that ran twice would destroy data.
+ *
+ * Done now deliberately, while the table holds one test row. The identical
+ * change against a table full of real client submissions would be a genuinely
+ * risky migration; at this moment it is close to free.
+ */
+async function relaxOnboardingProjectId(db: Client) {
+  let cols: Record<string, unknown>[];
+  try { cols = all(await db.execute("PRAGMA table_info(onboarding_submissions)")); }
+  catch { return; }                                  // table does not exist yet
+  const pid = cols.find((c) => c.name === "project_id");
+  if (!pid || Number(pid.notnull) === 0) return;     // already nullable
+  await db.executeMultiple(`
+    CREATE TABLE onboarding_submissions_new (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      project_id INTEGER,
+      token TEXT NOT NULL DEFAULT '',
+      fetch_key TEXT NOT NULL DEFAULT '',
+      schema_version TEXT NOT NULL DEFAULT '',
+      label TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'open',
+      r2_prefix TEXT NOT NULL DEFAULT '',
+      expires_at TEXT NOT NULL DEFAULT '',
+      submitted_at TEXT NOT NULL DEFAULT '',
+      fetched_at TEXT NOT NULL DEFAULT '',
+      bytes_declared INTEGER NOT NULL DEFAULT 0,
+      asset_count INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+    );
+    INSERT INTO onboarding_submissions_new
+      SELECT id, project_id, token, fetch_key, schema_version, label, status, r2_prefix,
+             expires_at, submitted_at, fetched_at, bytes_declared, asset_count,
+             created_at, updated_at FROM onboarding_submissions;
+    DROP TABLE onboarding_submissions;
+    ALTER TABLE onboarding_submissions_new RENAME TO onboarding_submissions;
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_onboarding_token ON onboarding_submissions(token) WHERE token != '';
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_onboarding_fetch_key ON onboarding_submissions(fetch_key) WHERE fetch_key != '';
+    CREATE INDEX IF NOT EXISTS idx_onboarding_sub_project ON onboarding_submissions(project_id, created_at);
+  `);
+}
+
 export function all(result: ResultSet): Record<string, unknown>[] {
   return result.rows.map((row) => {
     const obj: Record<string, unknown> = {};

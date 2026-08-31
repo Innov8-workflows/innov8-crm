@@ -21,15 +21,19 @@ export async function GET() {
   const rows = all(await db.execute({
     sql: `SELECT s.id, s.project_id, s.token, s.status, s.expires_at, s.submitted_at,
                  s.fetched_at, s.asset_count, s.bytes_declared, s.created_at, s.updated_at,
-                 l.business_name,
+                 -- LEFT JOIN, and COALESCE onto the label: a submission from the
+                 -- shared link has no project, and an inner join would hide it
+                 -- entirely — which is precisely the pile Jay needs to see.
+                 COALESCE(l.business_name, s.label, '') AS business_name,
+                 s.label,
                  (SELECT COUNT(*) FROM onboarding_assets a
                    WHERE a.submission_id = s.id AND a.status = 'stored') AS stored,
                  (SELECT COUNT(*) FROM onboarding_assets a
                    WHERE a.submission_id = s.id AND a.status = 'failed') AS failed
             FROM onboarding_submissions s
-            JOIN projects p ON p.id = s.project_id
-            JOIN leads l   ON l.id = p.lead_id
-           ORDER BY s.created_at DESC
+            LEFT JOIN projects p ON p.id = s.project_id
+            LEFT JOIN leads l    ON l.id = p.lead_id
+           ORDER BY (s.project_id IS NULL) DESC, s.created_at DESC
            LIMIT 200`,
   }));
   return NextResponse.json({ submissions: rows }, { headers: NO_STORE });
@@ -79,7 +83,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
-  let body: { id?: number; action?: string };
+  let body: { id?: number; action?: string; project_id?: number };
   try { body = await request.json(); } catch { return NextResponse.json({ error: "bad body" }, { status: 400 }); }
   const id = Number(body.id);
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
@@ -87,6 +91,20 @@ export async function PUT(request: NextRequest) {
   await initDb();
   const db = getClient();
   const now = sqlNow();
+
+  // Attach a shared-link submission to a real project. This is the step the
+  // per-client link does automatically; for the shared link Jay does it here.
+  if (body.action === "assign") {
+    const projectId = Number((body as { project_id?: number }).project_id);
+    if (!projectId) return NextResponse.json({ error: "project_id required" }, { status: 400 });
+    const project = first(await db.execute({ sql: "SELECT id FROM projects WHERE id = ?", args: [projectId] }));
+    if (!project) return NextResponse.json({ error: "unknown project" }, { status: 404 });
+    await db.execute({
+      sql: "UPDATE onboarding_submissions SET project_id = ?, updated_at = ? WHERE id = ?",
+      args: [projectId, now, id],
+    });
+    return NextResponse.json({ ok: true }, { headers: NO_STORE });
+  }
 
   if (body.action === "revoke") {
     await db.execute({
