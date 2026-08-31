@@ -7,7 +7,12 @@ const SECRET = new TextEncoder().encode(
 
 // NB: matched with startsWith — keep entries specific enough not to shadow
 // future routes (e.g. "/api/report" would also open "/api/reports/...").
-const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/auth/mfa/verify", "/api/auth/setup", "/api/webhook/gmail", "/api/webhook/prospects", "/api/webhook/client-leads", "/api/health/check", "/api/track", "/track.js"];
+const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/auth/mfa/verify", "/api/auth/setup", "/api/webhook/gmail", "/api/webhook/prospects", "/api/webhook/client-leads", "/api/health/check", "/api/track", "/track.js",
+  // Client onboarding. These are SIBLINGS of the admin tree, never children:
+  // "/api/onboarding" would startsWith-match /api/onboarding/r2-check and every
+  // other admin endpoint under it, opening them to the world. The public API is
+  // "/api/onboarding-public/" and the admin one stays "/api/onboarding/".
+  "/onboarding/", "/api/onboarding-public/"];
 
 // In-memory cache for verified JWTs. Cold-start safe (cache resets on new lambda).
 // 60s TTL — short enough that revocation via logout still takes effect quickly.
