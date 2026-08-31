@@ -38,8 +38,23 @@ export function parsePhone(raw: string): Phone | null {
 }
 
 const str = (a: Record<string, unknown>, k: string) => String(a[k] ?? "").trim();
+/**
+ * Split a "one per line" answer.
+ *
+ * Also splits on COMMAS, because people ignore the instruction and type
+ * "Belper, Alfreton, Ripley, Kilburn" on one line — measured on the first real
+ * submission through this form. Taken literally that becomes a single service
+ * area named all four towns, and the build then generates one page titled that,
+ * which is the exact "one long blob" failure the old Jotform had.
+ *
+ * Bullets and stray numbering go too, for the same reason: this is typed on a
+ * phone by someone who is not thinking about how it will be parsed.
+ */
 const lines = (a: Record<string, unknown>, k: string) =>
-  str(a, k).split("\n").map((l) => l.trim().replace(/^[-*•]\s*/, "")).filter(Boolean);
+  str(a, k)
+    .split(/[\n,]/)
+    .map((l) => l.trim().replace(/^[-*•]\s*/, "").replace(/^\d+[.)]\s*/, ""))
+    .filter(Boolean);
 
 export interface ExportAsset {
   role: string; pair_id: string; path: string; filename: string;
