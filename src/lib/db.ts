@@ -61,7 +61,7 @@ async function doInitDb() {
   // ~100-300ms, so this is the single biggest "slow first load" win. Bump
   // SCHEMA_VERSION whenever a migration/index/seed below changes → the heavy block
   // re-runs exactly once on the next deploy, then cold starts go fast again.
-  const SCHEMA_VERSION = "2026-08-30-revenueperiods";
+  const SCHEMA_VERSION = "2026-08-31-onboarding";
   await db.execute("CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT DEFAULT '')");
   const schemaMarker = first(await db.execute("SELECT value FROM app_meta WHERE key = 'schema_version'"));
   if (schemaMarker?.value === SCHEMA_VERSION) return;
@@ -421,6 +421,103 @@ async function doInitDb() {
       FOREIGN KEY (solution_id) REFERENCES solutions_catalogue(id) ON DELETE CASCADE
     );
 
+    -- ── Client onboarding ──────────────────────────────────────────────────
+    -- Replaces the Jotform "Website Onboarding" form. The Jotform came back as a
+    -- PDF that site-kit/engine/parse-onboarding.js had to scrape, which is why
+    -- that parser refuses to write review URLs (Jotform clips them to the visible
+    -- box width) or claims (its Insurances tick box extracts as BOTH "A Yes" and
+    -- "B No"). Structured answers make all of that go away.
+    --
+    -- NOT ONE BYTE OF MEDIA REACHES THIS DATABASE. Uploads go browser -> R2
+    -- directly (src/lib/r2.ts); these tables hold pointers only. See the header
+    -- of src/lib/projectCache.ts for why: base64 in project_files.url made
+    -- queries take ~30s, because SQLite lays a row's columns out sequentially and
+    -- any column after a wide value is read by walking its overflow pages.
+    --
+    -- Dates: every timestamp here is datetime('now') → "YYYY-MM-DD HH:MM:SS".
+    -- Range queries must be half-open on DATE-ONLY bounds. Never compare against
+    -- a bare toISOString() — ' ' sorts before 'T' and silently drops the boundary
+    -- day (see the doctrine at the top of src/lib/clientReporting.ts).
+    CREATE TABLE IF NOT EXISTS onboarding_submissions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      project_id INTEGER NOT NULL,
+      -- ob_<32 hex>. Held by the client, so it is in a WhatsApp message
+      -- somewhere: 128 bits, expiring, revocable, and it authorises writes only
+      -- to its own prefix. Same construction as mintLeadKey in clientReporting.ts.
+      token TEXT NOT NULL DEFAULT '',
+      -- of_<32 hex>. Jay's read key for the agent API. Lazily minted. NEVER
+      -- returned to the onboarding page — only to an authenticated CRM response.
+      fetch_key TEXT NOT NULL DEFAULT '',
+      schema_version TEXT NOT NULL DEFAULT '',
+      -- open | submitted | accepted | built | revoked
+      status TEXT NOT NULL DEFAULT 'open',
+      r2_prefix TEXT NOT NULL DEFAULT '',
+      expires_at TEXT NOT NULL DEFAULT '',
+      submitted_at TEXT NOT NULL DEFAULT '',
+      fetched_at TEXT NOT NULL DEFAULT '',
+      -- Running totals, so the per-link quota is enforced before a byte moves.
+      bytes_declared INTEGER NOT NULL DEFAULT 0,
+      asset_count INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+    );
+
+    -- The one wide column, deliberately isolated in its own table so the
+    -- submissions list never pays to read it. Capped at 64KB on write.
+    CREATE TABLE IF NOT EXISTS onboarding_answers (
+      submission_id INTEGER PRIMARY KEY,
+      answers_json TEXT NOT NULL DEFAULT '{}',
+      updated_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (submission_id) REFERENCES onboarding_submissions(id) ON DELETE CASCADE
+    );
+
+    -- One row per uploaded object. POINTERS ONLY.
+    -- The CHECK is a deliberate tripwire: it encodes the project_files incident
+    -- in the schema, so "just base64 it into the row for now" fails loudly at
+    -- INSERT rather than quietly six months later at 30s per query.
+    CREATE TABLE IF NOT EXISTS onboarding_assets (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      submission_id INTEGER NOT NULL,
+      -- logo|hero|areas|gallery|before|after|about|certificate|video
+      role TEXT NOT NULL DEFAULT 'gallery',
+      pair_id TEXT NOT NULL DEFAULT '',
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      r2_key TEXT NOT NULL DEFAULT '',
+      original_name TEXT NOT NULL DEFAULT '',
+      content_type TEXT NOT NULL DEFAULT '',
+      -- The client's one-line description of the photo. This becomes alt text,
+      -- which check.js hard-gates on a client build — 27 of them were written by
+      -- hand for Sparham because the old form never asked.
+      caption TEXT NOT NULL DEFAULT '',
+      declared_size INTEGER NOT NULL DEFAULT 0,
+      actual_size INTEGER NOT NULL DEFAULT 0,
+      etag TEXT NOT NULL DEFAULT '',
+      upload_id TEXT NOT NULL DEFAULT '',
+      part_size INTEGER NOT NULL DEFAULT 0,
+      parts_total INTEGER NOT NULL DEFAULT 0,
+      parts_done INTEGER NOT NULL DEFAULT 0,
+      -- pending | uploading | stored | failed | rejected | orphaned
+      status TEXT NOT NULL DEFAULT 'pending',
+      error TEXT NOT NULL DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now')),
+      CHECK (r2_key NOT LIKE 'data:%'),
+      FOREIGN KEY (submission_id) REFERENCES onboarding_submissions(id) ON DELETE CASCADE
+    );
+
+    -- Part ETags held server-side, so a browser refresh does not lose a 250-part
+    -- upload. CompleteMultipartUpload needs every one of them.
+    CREATE TABLE IF NOT EXISTS onboarding_asset_parts (
+      asset_id INTEGER NOT NULL,
+      part_number INTEGER NOT NULL,
+      etag TEXT NOT NULL DEFAULT '',
+      size INTEGER NOT NULL DEFAULT 0,
+      uploaded_at TEXT DEFAULT (datetime('now')),
+      PRIMARY KEY (asset_id, part_number),
+      FOREIGN KEY (asset_id) REFERENCES onboarding_assets(id) ON DELETE CASCADE
+    );
+
     CREATE TABLE IF NOT EXISTS app_meta (
       key TEXT PRIMARY KEY,
       value TEXT DEFAULT ''
@@ -575,6 +672,12 @@ async function doInitDb() {
     CREATE INDEX IF NOT EXISTS idx_site_events_created ON site_events(created_at);
     CREATE INDEX IF NOT EXISTS idx_site_checks_project ON site_checks(project_id, checked_at);
     CREATE INDEX IF NOT EXISTS idx_lead_seo_reports_lead ON lead_seo_reports(lead_id, created_at);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_onboarding_token ON onboarding_submissions(token) WHERE token != '';
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_onboarding_fetch_key ON onboarding_submissions(fetch_key) WHERE fetch_key != '';
+    CREATE INDEX IF NOT EXISTS idx_onboarding_sub_project ON onboarding_submissions(project_id, created_at);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_onboarding_assets_key ON onboarding_assets(submission_id, r2_key);
+    CREATE INDEX IF NOT EXISTS idx_onboarding_assets_sub ON onboarding_assets(submission_id, role, sort_order);
+    CREATE INDEX IF NOT EXISTS idx_onboarding_assets_stale ON onboarding_assets(status, updated_at);
   `);
 
   // Clean up any duplicate solutions left behind by the previous buggy seed check.
