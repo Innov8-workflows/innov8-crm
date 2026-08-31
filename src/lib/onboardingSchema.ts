@@ -207,10 +207,10 @@ export const SECTIONS: Section[] = [
     id: "media",
     title: "Photos and video",
     intro:
-      "This is the part that matters most, and the part the old form got wrong — it only let you send one file at a time. " +
-      "Send as many as you like, straight off your phone. " +
-      "Do NOT compress or resize anything first: full-size photos are what make the site look like real work rather than stock imagery. " +
-      "Big videos are fine. If your signal drops, come back to this page and carry on where you left off.",
+      "This is the part that matters most — good photos are the difference between a site that looks like your work " +
+      "and one that looks like stock imagery. " +
+      "Send as many as you like, straight off your phone, and please don't compress or resize them first. " +
+      "Big videos are fine too. If your signal drops, come back to this page and carry on where you left off.",
     fields: [
       { id: "logo", label: "Your logo", type: "upload", required: true,
         help: "The best quality version you have. If you've got the original design file, that's ideal.",
