@@ -12,7 +12,11 @@ const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/auth/mfa/verify", "/api
   // "/api/onboarding" would startsWith-match /api/onboarding/r2-check and every
   // other admin endpoint under it, opening them to the world. The public API is
   // "/api/onboarding-public/" and the admin one stays "/api/onboarding/".
-  "/onboarding/", "/api/onboarding-public/"];
+  "/onboarding/", "/api/onboarding-public/",
+  // The agent API. Key-auth inside the route, failing CLOSED (503 when the key
+  // is unset, never 200) — see the header of that file. Another sibling: it is
+  // NOT under /api/onboarding/, which stays session-guarded.
+  "/api/onboarding-fetch"];
 
 // In-memory cache for verified JWTs. Cold-start safe (cache resets on new lambda).
 // 60s TTL — short enough that revocation via logout still takes effect quickly.
