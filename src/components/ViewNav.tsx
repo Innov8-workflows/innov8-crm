@@ -5,7 +5,7 @@ import { fetchBootstrap } from "@/lib/bootstrap";
 import Icon, { type IconName } from "./Icon";
 import SecurityModal from "./SecurityModal";
 
-type ViewId = "prospects" | "projects" | "clients" | "client_dash" | "dashboard" | "map" | "ai_solutions" | "schedule" | "todos" | "pricing" | "referrals" | "site_health";
+type ViewId = "prospects" | "projects" | "onboarding" | "clients" | "client_dash" | "dashboard" | "map" | "ai_solutions" | "schedule" | "todos" | "pricing" | "referrals" | "site_health";
 
 interface ViewNavProps {
   active: ViewId;
@@ -13,6 +13,7 @@ interface ViewNavProps {
   projectCount?: number;
   clientCount?: number;
   todoCount?: number;
+  onboardingCount?: number;
   ownerFilter: string;
   onOwnerChange: (owner: string) => void;
 }
@@ -20,6 +21,7 @@ interface ViewNavProps {
 const views: { id: ViewId; label: string; icon: IconName }[] = [
   { id: "prospects", label: "Prospects", icon: "clipboard" },
   { id: "projects", label: "Projects", icon: "kanban" },
+  { id: "onboarding", label: "Onboarding", icon: "document" },
   { id: "clients", label: "Live Clients", icon: "badge-check" },
   { id: "client_dash", label: "Client Dash", icon: "trending-up" },
   { id: "site_health", label: "Site Health", icon: "shield-check" },
@@ -32,11 +34,19 @@ const views: { id: ViewId; label: string; icon: IconName }[] = [
   { id: "referrals", label: "Referrals", icon: "user-plus" },
 ];
 
-export default function ViewNav({ active, onChange, projectCount = 0, clientCount = 0, todoCount = 0, ownerFilter, onOwnerChange }: ViewNavProps) {
+export default function ViewNav({ active, onChange, projectCount = 0, clientCount = 0, todoCount = 0, onboardingCount = 0, ownerFilter, onOwnerChange }: ViewNavProps) {
   const [users, setUsers] = useState<string[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [contentFilter, setContentFilter] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(views.length);
+  const [showMore, setShowMore] = useState(false);
+  const navRef = useRef<HTMLDivElement>(null);
+  const moreRef = useRef<HTMLDivElement>(null);
+  // Item widths never change, so they're measured ONCE on the first render (when
+  // every button is present) and reused. Re-measuring after items move into the
+  // overflow menu would read the shortened list and oscillate.
+  const itemWidths = useRef<number[]>([]);
   const [showSecurity, setShowSecurity] = useState(false);
 
   useEffect(() => {
@@ -56,6 +66,47 @@ export default function ViewNav({ active, onChange, projectCount = 0, clientCoun
     document.addEventListener("mousedown", handle);
     return () => document.removeEventListener("mousedown", handle);
   }, [showDropdown]);
+
+  // Priority-plus: fit as many tabs as the bar allows and put the rest behind
+  // "More". The bar previously just scrolled with a hidden scrollbar, so the
+  // last tab was chopped mid-word and the ones past it were invisible with no
+  // hint they existed — which is how a whole view goes unnoticed.
+  useEffect(() => {
+    const el = navRef.current;
+    if (!el) return;
+    const measure = () => {
+      if (itemWidths.current.length < views.length) {
+        const kids = Array.from(el.children) as HTMLElement[];
+        if (kids.length === views.length) itemWidths.current = kids.map((k) => k.offsetWidth);
+        else return;                       // mid-collapse; keep the widths we have
+      }
+      const GAP = 6;
+      const MORE_BTN = 96;                 // width reserved for the More control
+      const avail = el.clientWidth;
+      let used = 0, n = 0;
+      for (let i = 0; i < views.length; i++) {
+        const w = itemWidths.current[i] + (i ? GAP : 0);
+        const needsMore = i < views.length - 1;
+        if (used + w > avail - (needsMore ? MORE_BTN : 0)) break;
+        used += w; n++;
+      }
+      setVisibleCount(Math.max(1, n));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    window.addEventListener("resize", measure);
+    return () => { ro.disconnect(); window.removeEventListener("resize", measure); };
+  }, []);
+
+  useEffect(() => {
+    if (!showMore) return;
+    const handle = (e: MouseEvent) => {
+      if (moreRef.current && !moreRef.current.contains(e.target as Node)) setShowMore(false);
+    };
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, [showMore]);
 
   // Content Filter — blur every client name app-wide (for screen recordings / demos).
   // Persisted in localStorage; applied by toggling .cf-on on <html> (see globals.css).
@@ -81,10 +132,10 @@ export default function ViewNav({ active, onChange, projectCount = 0, clientCoun
       <div className="w-8 h-8 rounded-lg flex items-center justify-center font-mono text-xs font-bold text-white flex-shrink-0" style={{ background: "var(--accent)" }}>
         i8
       </div>
-      <div className="flex items-center gap-1.5 ml-2 min-w-0 overflow-x-auto nav-scroll">
-        {views.map((view) => {
+      <div ref={navRef} className="flex items-center gap-1.5 ml-2 min-w-0 flex-1 overflow-hidden">
+        {views.slice(0, visibleCount).map((view) => {
           const isActive = active === view.id;
-          const count = view.id === "projects" ? projectCount : view.id === "clients" ? clientCount : view.id === "todos" ? todoCount : 0;
+          const count = view.id === "projects" ? projectCount : view.id === "clients" ? clientCount : view.id === "todos" ? todoCount : view.id === "onboarding" ? onboardingCount : 0;
           return (
             <button
               key={view.id}
@@ -125,6 +176,48 @@ export default function ViewNav({ active, onChange, projectCount = 0, clientCoun
           );
         })}
       </div>
+
+      {/* Whatever didn't fit. Never silently dropped. */}
+      {visibleCount < views.length && (
+        <div className="relative flex-shrink-0" ref={moreRef}>
+          <button
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold whitespace-nowrap"
+            style={{
+              background: views.slice(visibleCount).some((v) => v.id === active) ? "var(--accent)" : "var(--surface2)",
+              color: views.slice(visibleCount).some((v) => v.id === active) ? "#fff" : "var(--text-secondary)",
+              border: "1px solid var(--border-light)",
+            }}
+            onClick={() => setShowMore(!showMore)}
+          >
+            More
+            <span style={{ fontSize: 10 }}>&#9660;</span>
+          </button>
+          {showMore && (
+            <div className="absolute right-0 top-full mt-1 w-52 rounded-lg shadow-xl z-50 py-1"
+                 style={{ background: "var(--surface2)", border: "1px solid var(--border-light)" }}>
+              {views.slice(visibleCount).map((v) => {
+                const count = v.id === "projects" ? projectCount : v.id === "clients" ? clientCount
+                            : v.id === "todos" ? todoCount : v.id === "onboarding" ? onboardingCount : 0;
+                return (
+                  <button key={v.id}
+                    className="w-full text-left px-3 py-2 text-sm flex items-center gap-2 transition-colors"
+                    style={{ color: active === v.id ? "var(--accent)" : "var(--text-secondary)", fontWeight: active === v.id ? 600 : 400 }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = "var(--surface3)"}
+                    onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                    onClick={() => { onChange(v.id); setShowMore(false); }}>
+                    <Icon name={v.icon} className="w-4 h-4" />
+                    {v.label}
+                    {count > 0 && (
+                      <span className="ml-auto px-2 py-0.5 rounded-full text-xs font-bold"
+                            style={{ background: "var(--accent)", color: "#fff" }}>{count}</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Owner filter dropdown — pushed to the right */}
       <div className="ml-auto relative flex-shrink-0" ref={dropdownRef}>
