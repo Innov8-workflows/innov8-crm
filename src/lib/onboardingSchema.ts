@@ -81,8 +81,11 @@ export const SECTIONS: Section[] = [
         help: "Only if it differs from your trading name — it goes in the footer.", type: "text" },
       { id: "owner_name", label: "Owner's full name", type: "text", required: true },
       { id: "owner_short", label: "What should we call you on the site?",
-        help: "First name is usually best — \"Steve says…\" reads better than \"Stephen Sparham says…\".",
-        placeholder: "Steve", type: "text" },
+        // Examples on a client-facing page must never be a real client. Both of
+        // these named one, which is a data-protection problem as much as a
+        // tasteless one.
+        help: "First name is usually best — it reads better in a sentence than your full name.",
+        placeholder: "e.g. Dave", type: "text" },
       { id: "years_trading", label: "Years in business", type: "number", claimGated: true,
         help: "We only put this on the site once it's confirmed." },
       { id: "team_size", label: "Number of employees / team size", type: "text" },

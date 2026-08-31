@@ -65,7 +65,7 @@ export default function OnboardingStart() {
           Business name
         </label>
         <input value={business} onChange={(e) => setBusiness(e.target.value)}
-               placeholder="e.g. HRS Plumbing" style={input} />
+               placeholder="e.g. XYZ Home Improvements" style={input} />
 
         <label style={{ display: "block", fontSize: 15, fontWeight: 600, marginBottom: 7 }}>
           Your email
