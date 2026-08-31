@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { SECTIONS, FIELDS, REQUIRED, type Field, type Section } from "@/lib/onboardingSchema";
+import { B, display, Eyebrow, Wordmark, Frame, Card } from "./OnboardingBrand";
 
 // The client-facing onboarding form.
 //
@@ -22,10 +23,13 @@ import { SECTIONS, FIELDS, REQUIRED, type Field, type Section } from "@/lib/onbo
 // browser here. xhr.upload.onprogress gives byte-accurate progress and abort()
 // actually works.
 
+// Mapped onto the shared brand tokens, which were read out of the real Innov8
+// pricing deck and website-package one-pager — so the form a client fills in
+// looks like the quote they were just sent, and the two pages cannot drift.
 const C = {
-  bg: "#f6f7f9", card: "#ffffff", ink: "#14181f", dim: "#5b6472", faint: "#8b93a1",
-  line: "#e3e7ec", accent: "#ff6a1f", accentInk: "#ffffff",
-  good: "#12885a", bad: "#c8321f", warnBg: "#fff6ed",
+  bg: B.paper, card: B.card, ink: B.ink, dim: B.body, faint: B.muted,
+  line: B.line, accent: B.accent, accentInk: "#ffffff",
+  good: B.good, bad: B.bad, warnBg: B.accentWash,
 };
 
 const MAX_TRIES = 5;
@@ -235,7 +239,8 @@ export default function OnboardingForm({ token }: { token: string }) {
   if (loading) return <Shell><p style={{ color: C.dim }}>Loading…</p></Shell>;
   if (gone) return (
     <Shell>
-      <h1 style={{ fontSize: 22, margin: "0 0 8px" }}>This link isn&apos;t valid</h1>
+      <h1 style={{ fontFamily: display, fontWeight: 800, fontSize: 24, letterSpacing: "-0.02em",
+                   margin: "0 0 8px" }}>This link isn&apos;t valid</h1>
       <p style={{ color: C.dim, lineHeight: 1.6 }}>
         It may have expired, or been replaced with a newer one. Drop us a message and we&apos;ll send a fresh link over.
       </p>
@@ -253,7 +258,10 @@ export default function OnboardingForm({ token }: { token: string }) {
     <Shell>
       <div style={{ textAlign: "center", padding: "28px 0" }}>
         <div style={{ fontSize: 40, marginBottom: 8 }}>✓</div>
-        <h1 style={{ fontSize: 24, margin: "0 0 10px" }}>Thanks — that&apos;s everything we need to get going.</h1>
+        <h1 style={{ fontFamily: display, fontWeight: 800, fontSize: 27, lineHeight: 1.15,
+                     letterSpacing: "-0.02em", margin: "0 0 10px" }}>
+          Thanks — that&apos;s everything we need to get going.
+        </h1>
         <p style={{ color: C.dim, lineHeight: 1.65 }}>
           We&apos;ll be in touch if anything&apos;s missing. If you think of more photos later,
           this link still works — just come back and add them.
@@ -267,23 +275,30 @@ export default function OnboardingForm({ token }: { token: string }) {
 
   return (
     <Shell>
-      <header style={{ marginBottom: 18 }}>
-        <div style={{ fontSize: 12, letterSpacing: ".08em", textTransform: "uppercase", color: C.faint }}>
-          {business || "Website onboarding"}
-        </div>
-        <h1 style={{ fontSize: 25, margin: "6px 0 0", lineHeight: 1.2 }}>{section.title}</h1>
+      <header style={{ marginBottom: 16 }}>
+        <Eyebrow>{business || "Website onboarding"}</Eyebrow>
+        <h1 style={{
+          fontFamily: display, fontWeight: 800, fontSize: 29, lineHeight: 1.12,
+          letterSpacing: "-0.02em", color: C.ink, margin: "9px 0 0",
+        }}>{section.title}</h1>
         {section.intro && (
-          <p style={{ color: C.dim, lineHeight: 1.6, margin: "10px 0 0", fontSize: 15 }}>{section.intro}</p>
+          <p style={{ color: C.dim, lineHeight: 1.65, margin: "11px 0 0", fontSize: 15 }}>{section.intro}</p>
         )}
       </header>
 
-      <div style={{ display: "flex", gap: 4, marginBottom: 22 }}>
-        {SECTIONS.map((s, i) => (
-          <div key={s.id} style={{
-            flex: 1, height: 3, borderRadius: 2,
-            background: i <= step ? C.accent : C.line,
-          }} />
-        ))}
+      <div style={{ margin: "20px 0 24px" }}>
+        <div style={{ display: "flex", gap: 4 }}>
+          {SECTIONS.map((s, i) => (
+            <div key={s.id} style={{
+              flex: 1, height: 4, borderRadius: 3,
+              background: i <= step ? C.accent : C.line,
+              transition: "background .2s",
+            }} />
+          ))}
+        </div>
+        <div style={{ fontSize: 12, color: C.faint, marginTop: 8, letterSpacing: "0.01em" }}>
+          Step {step + 1} of {SECTIONS.length}
+        </div>
       </div>
 
       {!online && (
@@ -300,7 +315,8 @@ export default function OnboardingForm({ token }: { token: string }) {
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 28,
                     paddingTop: 18, borderTop: `1px solid ${C.line}` }}>
         {step > 0 && (
-          <button onClick={() => { save(); setStep(step - 1); window.scrollTo(0, 0); }} style={btn(false)}>
+          <button className="ob-btn ob-btn-ghost"
+                  onClick={() => { save(); setStep(step - 1); window.scrollTo(0, 0); }}>
             Back
           </button>
         )}
@@ -308,7 +324,8 @@ export default function OnboardingForm({ token }: { token: string }) {
           {saving === "saving" ? "Saving…" : saving === "saved" ? "Saved" : ""}
         </div>
         {!isLast ? (
-          <button onClick={() => { save(); setStep(step + 1); window.scrollTo(0, 0); }} style={btn(true)}>
+          <button className="ob-btn ob-btn-primary"
+                  onClick={() => { save(); setStep(step + 1); window.scrollTo(0, 0); }}>
             Next
           </button>
         ) : (
@@ -321,7 +338,7 @@ export default function OnboardingForm({ token }: { token: string }) {
               });
               setSubmitted(true); setStep(SECTIONS.length); window.scrollTo(0, 0);
             }}
-            style={btn(true)}
+            className="ob-btn ob-btn-primary"
           >
             {status === "open" ? "Send it over" : "Save changes"}
           </button>
@@ -343,13 +360,10 @@ export default function OnboardingForm({ token }: { token: string }) {
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ minHeight: "100dvh", background: C.bg, color: C.ink,
-                  padding: "24px 16px 64px", boxSizing: "border-box" }}>
-      <div style={{ maxWidth: 640, margin: "0 auto", background: C.card, borderRadius: 14,
-                    border: `1px solid ${C.line}`, padding: "24px 20px" }}>
-        {children}
-      </div>
-    </div>
+    <Frame>
+      <div style={{ marginBottom: 16 }}><Wordmark /></div>
+      <Card>{children}</Card>
+    </Frame>
   );
 }
 
@@ -362,17 +376,8 @@ function Banner({ tone, children }: { tone: "warn" | "bad"; children: React.Reac
   );
 }
 
-const btn = (primary: boolean): React.CSSProperties => ({
-  appearance: "none", border: primary ? "none" : `1px solid ${C.line}`,
-  background: primary ? C.accent : "transparent", color: primary ? C.accentInk : C.dim,
-  padding: "11px 20px", borderRadius: 9, fontSize: 15, fontWeight: 600, cursor: "pointer",
-});
-
-const inputStyle: React.CSSProperties = {
-  width: "100%", boxSizing: "border-box", padding: "11px 12px", fontSize: 16,
-  border: `1px solid ${C.line}`, borderRadius: 9, background: "#fff", color: C.ink,
-  fontFamily: "inherit", outline: "none",
-};
+// Buttons and fields use the classes defined once in OnboardingBrand's <style>
+// block: focus rings, hover and disabled states cannot be expressed inline.
 
 function FieldView({ field, answers, assets, progress, onChange, onPick, onRemove, onCaption }: {
   field: Field; answers: Answers; assets: Asset[]; progress: Record<string, Progress>;
@@ -395,10 +400,10 @@ function FieldView({ field, answers, assets, progress, onChange, onPick, onRemov
       <>
         {lines.map((line, i) => (
           <Wrap key={i} label={field.label.replace("{{line}}", line)} help={i === 0 ? field.help : undefined}>
-            <textarea
+            <textarea className="ob-field"
               value={String((answers[`${field.id}__${i}`] as string) ?? "")}
               onChange={(e) => onChange(`${field.id}__${i}`, e.target.value)}
-              rows={3} style={{ ...inputStyle, resize: "vertical" }}
+              rows={3} style={{ resize: "vertical" }}
             />
           </Wrap>
         ))}
@@ -413,8 +418,7 @@ function FieldView({ field, answers, assets, progress, onChange, onPick, onRemov
     const inflight = Object.entries(progress).filter(([k]) => k.startsWith(field.id + ":"));
     return (
       <Wrap label={field.label} help={field.help} required={field.required}>
-        <label style={{ display: "block", border: `1.5px dashed ${C.line}`, borderRadius: 11,
-                        padding: "18px 14px", textAlign: "center", cursor: "pointer", background: "#fcfcfd" }}>
+        <label className="ob-drop">
           <input
             type="file" multiple
             accept={field.upload!.accept === "video" ? "video/*"
@@ -422,7 +426,7 @@ function FieldView({ field, answers, assets, progress, onChange, onPick, onRemov
             style={{ display: "none" }}
             onChange={(e) => { onPick(field, e.target.files); e.currentTarget.value = ""; }}
           />
-          <div style={{ fontSize: 15, fontWeight: 600, color: C.accent }}>
+          <div style={{ fontSize: 15.5, fontWeight: 600, color: C.accent, fontFamily: display }}>
             {field.upload!.accept === "video" ? "Choose a video" : "Choose files"}
           </div>
           <div style={{ fontSize: 13, color: C.faint, marginTop: 3 }}>
@@ -457,8 +461,9 @@ function FieldView({ field, answers, assets, progress, onChange, onPick, onRemov
                   {field.upload!.captions && (
                     <input
                       defaultValue={a.caption} placeholder="What's in this photo?"
+                      className="ob-field"
                       onBlur={(e) => onCaption(a.id, e.target.value)}
-                      style={{ ...inputStyle, padding: "6px 8px", fontSize: 13, marginTop: 5 }}
+                      style={{ padding: "7px 9px", fontSize: 13, marginTop: 6 }}
                     />
                   )}
                 </div>
@@ -487,7 +492,7 @@ function FieldView({ field, answers, assets, progress, onChange, onPick, onRemov
                   : opt)}
                 style={{ textAlign: "left", padding: "11px 13px", fontSize: 15, cursor: "pointer",
                          borderRadius: 9, border: `1.5px solid ${on ? C.accent : C.line}`,
-                         background: on ? "#fff6f0" : "#fff", color: C.ink, fontFamily: "inherit" }}>
+                         background: on ? B.accentWash : "#fff", color: C.ink, fontFamily: "inherit" }}>
                 {opt}
               </button>
             );
@@ -498,7 +503,7 @@ function FieldView({ field, answers, assets, progress, onChange, onPick, onRemov
   }
 
   const common = {
-    style: inputStyle,
+    className: "ob-field",
     value: String(v ?? ""),
     placeholder: field.placeholder,
     onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => onChange(field.id, e.target.value),
@@ -509,7 +514,7 @@ function FieldView({ field, answers, assets, progress, onChange, onPick, onRemov
       {field.type === "textarea" || field.type === "lines" || field.type === "hours" ? (
         <textarea {...common} rows={field.type === "lines" ? 5 : 4}
           placeholder={field.type === "lines" ? "One per line" : field.placeholder}
-          style={{ ...inputStyle, resize: "vertical" }} />
+          style={{ resize: "vertical" }} />
       ) : (
         <input {...common}
           type={field.type === "number" ? "number" : field.type === "tel" ? "tel"

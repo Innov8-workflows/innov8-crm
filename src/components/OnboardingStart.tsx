@@ -1,24 +1,29 @@
 "use client";
 
 import { useState } from "react";
+import { B, display, Eyebrow, Wordmark, Frame, Card } from "./OnboardingBrand";
 
 // Landing page for the shared link. Two fields, then it mints a private
-// resumable link and moves them straight onto the real form.
+// resumable link and moves them onto the real form.
 //
-// Colours are explicit rather than CSS variables: the root layout applies Jay's
-// saved CRM theme from localStorage, and that must never leak onto a client's
-// screen.
+// Styled to match the pricing deck and the website-package one-pager, because
+// this is often the first Innov8 page a prospect sees after the quote — the
+// three reassurance points below are lifted from that one-pager for the same
+// reason ("No lock-in", "It stays yours", "Live in 7 business days").
 
-const C = {
-  bg: "#f6f7f9", card: "#ffffff", ink: "#14181f", dim: "#5b6472",
-  line: "#e3e7ec", accent: "#ff6a1f", bad: "#c8321f",
-};
+const POINTS: [string, string][] = [
+  ["Takes about fifteen minutes", "And you don't have to do it in one go."],
+  ["Your own link", "Come back to it whenever — nothing is lost."],
+  ["Send photos straight off your phone", "As many as you like, any size."],
+];
 
 export default function OnboardingStart() {
   const [business, setBusiness] = useState("");
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+
+  const ready = business.trim().length >= 2 && /\S+@\S+\.\S+/.test(email);
 
   async function start() {
     setBusy(true); setError("");
@@ -29,8 +34,8 @@ export default function OnboardingStart() {
       });
       const d = await res.json();
       if (!res.ok) { setError(d.error || "Something went wrong. Try again."); setBusy(false); return; }
-      // Straight onto their own link — bookmarking THIS is what lets them
-      // come back to a part-finished form.
+      // Straight onto their own link — bookmarking THIS is what lets them come
+      // back to a part-finished form.
       window.location.href = `/onboarding/${d.token}`;
     } catch {
       setError("Couldn't reach us just then. Check your signal and try again.");
@@ -38,61 +43,66 @@ export default function OnboardingStart() {
     }
   }
 
-  const input: React.CSSProperties = {
-    width: "100%", boxSizing: "border-box", padding: "11px 12px", fontSize: 16,
-    border: `1px solid ${C.line}`, borderRadius: 9, marginBottom: 16,
-    fontFamily: "inherit", color: C.ink, background: "#fff",
-  };
-
   return (
-    <div style={{ minHeight: "100dvh", background: C.bg, color: C.ink,
-                  padding: "24px 16px 64px", boxSizing: "border-box" }}>
-      <div style={{ maxWidth: 520, margin: "0 auto", background: C.card, borderRadius: 14,
-                    border: `1px solid ${C.line}`, padding: "26px 20px" }}>
-        <div style={{ fontSize: 12, letterSpacing: ".08em", textTransform: "uppercase", color: "#8b93a1" }}>
-          innov8 Workflows
-        </div>
-        <h1 style={{ fontSize: 25, margin: "8px 0 10px", lineHeight: 1.2 }}>
-          Let&apos;s get your website started
+    <Frame maxWidth={560}>
+      <div style={{ marginBottom: 18 }}><Wordmark /></div>
+
+      <Card>
+        <Eyebrow>Website onboarding</Eyebrow>
+        <h1 style={{
+          fontFamily: display, fontWeight: 800, fontSize: 30, lineHeight: 1.12,
+          letterSpacing: "-0.02em", color: B.ink, margin: "10px 0 12px",
+        }}>
+          Let&apos;s get your website started.
         </h1>
-        <p style={{ color: C.dim, lineHeight: 1.65, fontSize: 15, margin: "0 0 22px" }}>
+        <p style={{ color: B.body, lineHeight: 1.65, fontSize: 15.5, margin: "0 0 24px" }}>
           A few questions about your business, and somewhere to send your photos.
-          It takes about fifteen minutes, and you don&apos;t have to do it all in one go —
-          you&apos;ll get your own link you can come back to.
+          That&apos;s everything we need to build it.
         </p>
 
-        <label style={{ display: "block", fontSize: 15, fontWeight: 600, marginBottom: 7 }}>
+        <label htmlFor="ob-biz" style={{ display: "block", fontSize: 15, fontWeight: 600, marginBottom: 7 }}>
           Business name
         </label>
-        <input value={business} onChange={(e) => setBusiness(e.target.value)}
-               placeholder="e.g. XYZ Home Improvements" style={input} />
+        <input id="ob-biz" className="ob-field" value={business} autoComplete="organization"
+               onChange={(e) => setBusiness(e.target.value)}
+               placeholder="e.g. XYZ Home Improvements" style={{ marginBottom: 16 }} />
 
-        <label style={{ display: "block", fontSize: 15, fontWeight: 600, marginBottom: 7 }}>
+        <label htmlFor="ob-email" style={{ display: "block", fontSize: 15, fontWeight: 600, marginBottom: 7 }}>
           Your email
         </label>
-        <input value={email} onChange={(e) => setEmail(e.target.value)}
-               type="email" inputMode="email" placeholder="you@yourbusiness.co.uk" style={input} />
+        <input id="ob-email" className="ob-field" value={email} type="email" inputMode="email"
+               autoComplete="email" onChange={(e) => setEmail(e.target.value)}
+               placeholder="you@yourbusiness.co.uk" style={{ marginBottom: 20 }} />
 
-        {error && <p style={{ color: C.bad, fontSize: 14, margin: "0 0 14px" }}>{error}</p>}
+        {error && (
+          <p style={{ color: B.bad, fontSize: 14, margin: "0 0 14px", lineHeight: 1.5 }}>{error}</p>
+        )}
 
-        <button
-          onClick={start}
-          disabled={busy || business.trim().length < 2 || !email.includes("@")}
-          style={{
-            width: "100%", padding: "13px 20px", fontSize: 16, fontWeight: 600,
-            border: "none", borderRadius: 9, color: "#fff", fontFamily: "inherit",
-            background: busy || business.trim().length < 2 || !email.includes("@") ? "#c9ced6" : C.accent,
-            cursor: busy ? "default" : "pointer",
-          }}
-        >
+        <button className="ob-btn ob-btn-primary" onClick={start} disabled={busy || !ready}
+                style={{ width: "100%" }}>
           {busy ? "One moment…" : "Start"}
         </button>
 
-        <p style={{ color: "#8b93a1", fontSize: 13, lineHeight: 1.55, margin: "16px 0 0" }}>
-          Already started? Use the link we sent you rather than starting again,
-          so you keep what you&apos;ve already filled in.
+        <p style={{ color: B.muted, fontSize: 13, lineHeight: 1.55, margin: "16px 0 0" }}>
+          Already started? Use the link we sent you rather than starting again, so you
+          keep what you&apos;ve already filled in.
         </p>
+      </Card>
+
+      <div style={{ marginTop: 18, display: "grid", gap: 1, background: B.line,
+                    border: `1px solid ${B.line}`, borderRadius: 12, overflow: "hidden" }}>
+        {POINTS.map(([title, sub]) => (
+          <div key={title} style={{ background: B.card, padding: "13px 16px" }}>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 9 }}>
+              <span style={{ color: B.accent, fontWeight: 700, fontSize: 13 }}>—</span>
+              <div>
+                <div style={{ fontSize: 14.5, fontWeight: 600, color: B.ink }}>{title}</div>
+                <div style={{ fontSize: 13.5, color: B.body, marginTop: 2, lineHeight: 1.5 }}>{sub}</div>
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
-    </div>
+    </Frame>
   );
 }
