@@ -19,7 +19,7 @@ export interface BootstrapData {
   callRollup: CallRollup;
   clientLeadRollup: ClientLeadRollup;
   leadStats: LeadStats;
-  counts: { clients: number; projects: number; todos: number };
+  counts: { clients: number; projects: number; todos: number; onboarding?: number };
   clientStats?: ClientStats;
 }
 

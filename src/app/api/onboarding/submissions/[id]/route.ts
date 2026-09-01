@@ -32,6 +32,15 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
   }));
   if (!sub) return NextResponse.json({ error: "not found" }, { status: 404 });
 
+  // Opening it is what "seen" means, so the badge clears by reading, not by a
+  // separate dismiss action nobody would remember to press.
+  if (!sub.seen_at) {
+    await db.execute({
+      sql: "UPDATE onboarding_submissions SET seen_at = ? WHERE id = ? AND seen_at = ''",
+      args: [sqlNow(), subId],
+    });
+  }
+
   const answersRow = first(await db.execute({
     sql: "SELECT answers_json FROM onboarding_answers WHERE submission_id = ?",
     args: [subId],

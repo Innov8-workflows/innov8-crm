@@ -19,6 +19,7 @@ interface Row {
   id: number; project_id: number | null; token: string; status: string;
   business_name: string; label: string; expires_at: string; submitted_at: string;
   asset_count: number; stored: number; failed: number; created_at: string; archived: number;
+  seen_at: string; notified_at: string;
   queued_at: string; build_folder: string; build_started_at: string; build_result: string;
 }
 interface Asset {
@@ -50,7 +51,7 @@ const bytes = (n: number) =>
   : n >= 1048576 ? `${Math.round(n / 1048576)} MB`
   : `${Math.max(1, Math.round(n / 1024))} KB`;
 
-export default function Onboarding({ active }: { active: boolean }) {
+export default function Onboarding({ active, onSeen }: { active: boolean; onSeen?: (n: number) => void }) {
   const [rows, setRows] = useState<Row[]>([]);
   const [selected, setSelected] = useState<number | null>(null);
   const [detail, setDetail] = useState<Detail | null>(null);
@@ -65,8 +66,13 @@ export default function Onboarding({ active }: { active: boolean }) {
 
   const loadRows = useCallback(async () => {
     const d = await (await fetch(`/api/onboarding/submissions${showArchived ? "?archived=1" : ""}`)).json();
-    setRows(d.submissions || []);
-    return d.submissions as Row[];
+    const list = (d.submissions || []) as Row[];
+    setRows(list);
+    // Keep the tab badge honest without another round trip: opening a submission
+    // marks it seen server-side, so the count changes as Jay reads.
+    onSeen?.(list.filter((r) => !r.seen_at && !r.archived
+      && r.status !== "open" && r.status !== "revoked").length);
+    return list;
   }, [showArchived]);
 
   const loadDetail = useCallback(async (id: number) => {
@@ -182,6 +188,10 @@ export default function Onboarding({ active }: { active: boolean }) {
                 boxShadow: isSel ? "inset 3px 0 0 var(--accent)" : "none",
               }}>
               <div className="flex items-center justify-between gap-2">
+                {!r.seen_at && r.status !== "open" && (
+                  <span style={{ width: 7, height: 7, borderRadius: 4, background: "var(--accent)",
+                                 flexShrink: 0 }} />
+                )}
                 <span className="text-sm font-bold truncate cf-name"
                       style={{ color: "var(--text)", opacity: r.archived ? 0.5 : 1 }}>
                   {r.business_name || "Unnamed"}
@@ -313,6 +323,13 @@ export default function Onboarding({ active }: { active: boolean }) {
                 <div className="text-xs mt-1.5" style={{ color: "var(--text-dim)", lineHeight: 1.5 }}>
                   These are the client&apos;s own words. Nothing here goes on the site until you&apos;ve seen the certificate.
                 </div>
+              </div>
+            )}
+
+            {detail.submission.submitted_at && !detail.submission.notified_at && (
+              <div className="mt-3 p-2.5 rounded-lg text-xs"
+                   style={{ background: "var(--surface2)", border: "1px solid var(--border-light)", color: "var(--text-muted)" }}>
+                No alert email went out for this one — check Resend is configured in Vercel.
               </div>
             )}
 

@@ -28,7 +28,8 @@ export async function GET(request: NextRequest) {
                  -- shared link has no project, and an inner join would hide it
                  -- entirely — which is precisely the pile Jay needs to see.
                  COALESCE(l.business_name, s.label, '') AS business_name,
-                 s.label, s.archived, s.queued_at, s.build_folder, s.build_started_at, s.build_result,
+                 s.label, s.archived, s.seen_at, s.notified_at,
+                 s.queued_at, s.build_folder, s.build_started_at, s.build_result,
                  (SELECT COUNT(*) FROM onboarding_assets a
                    WHERE a.submission_id = s.id AND a.status = 'stored') AS stored,
                  (SELECT COUNT(*) FROM onboarding_assets a

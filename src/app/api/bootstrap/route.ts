@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
     clientStats,
     projectCountRes,
     todoCountRes,
+    onboardingCountRes,
   ] = await Promise.all([
     db.execute("SELECT username FROM users ORDER BY username ASC"),
     db.execute("SELECT * FROM column_config ORDER BY sort_order ASC"),
@@ -44,6 +45,14 @@ export async function GET(request: NextRequest) {
     getClientStats(db, null),
     db.execute("SELECT COUNT(*) as count FROM projects WHERE completed_at = ''"),
     db.execute("SELECT COUNT(*) as count FROM todos WHERE done = 0"),
+    // Submissions the client has sent that Jay has never opened. Deliberately
+    // not "everything not yet accepted": a submission he has read and left
+    // alone is a decision, not an unread item, and a badge that counts those
+    // is a badge he learns to ignore.
+    db.execute(
+      "SELECT COUNT(*) as count FROM onboarding_submissions " +
+      "WHERE seen_at = '' AND archived = 0 AND status NOT IN ('open','revoked')",
+    ),
   ]);
 
   // Nested map — same shape LeadGrid builds client-side, minus the JSON overhead
@@ -65,6 +74,7 @@ export async function GET(request: NextRequest) {
     clientLeadRollup,
     leadStats,
     counts: {
+      onboarding: Number(first(onboardingCountRes)?.count) || 0,
       clients: clientStats.clientCount,
       projects: Number(first(projectCountRes)?.count) || 0,
       todos: Number(first(todoCountRes)?.count) || 0,

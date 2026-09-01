@@ -77,6 +77,7 @@ export default function Home() {
   const [projectCount, setProjectCount] = useState(cachedCounts?.projects || 0);
   const [clientCount, setClientCount] = useState(cachedCounts?.clients || 0);
   const [todoCount, setTodoCount] = useState(cachedCounts?.todos || 0);
+  const [onboardingCount, setOnboardingCount] = useState(cachedCounts?.onboarding || 0);
 
   // Track which views have been visited at least once. Heavy views (LeadGrid,
   // KanbanBoard, LiveClients) mount on first visit and stay mounted-but-hidden
@@ -113,6 +114,7 @@ export default function Home() {
       setClientCount(b.counts.clients || 0);
       setProjectCount(b.counts.projects || 0);
       setTodoCount(b.counts.todos || 0);
+      setOnboardingCount(b.counts.onboarding || 0);
     }).catch(() => refreshCounts());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -143,7 +145,7 @@ export default function Home() {
   return (
     <ToastProvider>
       <div className="flex flex-col h-screen" style={{ background: "var(--bg)" }}>
-        <ViewNav active={view} onChange={setView} projectCount={projectCount} clientCount={clientCount} todoCount={todoCount}
+        <ViewNav active={view} onChange={setView} projectCount={projectCount} clientCount={clientCount} todoCount={todoCount} onboardingCount={onboardingCount}
           ownerFilter={ownerFilter} onOwnerChange={handleOwnerChange} />
         <Suspense fallback={<LoadingAI message="Loading" />}>
           {persistedView("prospects",    "Prospects failed to load",    () => <LeadGrid ownerFilter={ownerFilter} />)}
@@ -156,7 +158,7 @@ export default function Home() {
           {persistedView("ai_solutions", "AI Solutions failed to load", () => <AISolutions />, false)}
           {/* persist=false — an occasional-visit view, and its data should be
               fresh on every visit rather than showing a stale snapshot. */}
-          {persistedView("onboarding",   "Onboarding failed to load",   () => <Onboarding active={view === "onboarding"} />, false)}
+          {persistedView("onboarding",   "Onboarding failed to load",   () => <Onboarding active={view === "onboarding"} onSeen={setOnboardingCount} />, false)}
           {persistedView("site_health",  "Site Health failed to load",  () => <SiteHealth />, false)}
           {persistedView("schedule",     "Schedule failed to load",     () => <Schedule />)}
           {persistedView("todos",        "To-Do failed to load",        () => <Todos ownerFilter={ownerFilter} onCountChanged={setTodoCount} />)}

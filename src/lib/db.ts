@@ -61,7 +61,7 @@ async function doInitDb() {
   // ~100-300ms, so this is the single biggest "slow first load" win. Bump
   // SCHEMA_VERSION whenever a migration/index/seed below changes → the heavy block
   // re-runs exactly once on the next deploy, then cold starts go fast again.
-  const SCHEMA_VERSION = "2026-09-01-onboarding-buildqueue";
+  const SCHEMA_VERSION = "2026-09-01-onboarding-notify";
   await db.execute("CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT DEFAULT '')");
   const schemaMarker = first(await db.execute("SELECT value FROM app_meta WHERE key = 'schema_version'"));
   if (schemaMarker?.value === SCHEMA_VERSION) return;
@@ -468,6 +468,15 @@ async function doInitDb() {
       -- build_folder is the client's EXISTING demo folder: the build-out runs
       -- inside it so it inherits the theme, the build script and the media that
       -- already converted the customer.
+      -- Stamped the first time Jay opens the submission. Drives the unseen
+      -- badge on the Onboarding tab: a submission he has never clicked into is
+      -- the thing the badge is counting.
+      seen_at TEXT NOT NULL DEFAULT '',
+      -- Stamped when the "they submitted" email actually sent. Its ABSENCE on a
+      -- submitted row is the signal that the alert failed - a caught exception
+      -- with nothing recorded is how you end up believing alerts work when they
+      -- have been silently dead for months.
+      notified_at TEXT NOT NULL DEFAULT '',
       queued_at TEXT NOT NULL DEFAULT '',
       build_folder TEXT NOT NULL DEFAULT '',
       build_note TEXT NOT NULL DEFAULT '',
@@ -640,6 +649,8 @@ async function doInitDb() {
     // Hide tests without losing their status. Runs before relaxOnboardingProjectId,
     // whose rebuild carries the column across.
     "ALTER TABLE onboarding_submissions ADD COLUMN archived INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE onboarding_submissions ADD COLUMN seen_at TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE onboarding_submissions ADD COLUMN notified_at TEXT NOT NULL DEFAULT ''",
     "ALTER TABLE onboarding_submissions ADD COLUMN queued_at TEXT NOT NULL DEFAULT ''",
     "ALTER TABLE onboarding_submissions ADD COLUMN build_folder TEXT NOT NULL DEFAULT ''",
     "ALTER TABLE onboarding_submissions ADD COLUMN build_note TEXT NOT NULL DEFAULT ''",
@@ -965,6 +976,8 @@ async function relaxOnboardingProjectId(db: Client) {
       schema_version TEXT NOT NULL DEFAULT '',
       label TEXT NOT NULL DEFAULT '',
       archived INTEGER NOT NULL DEFAULT 0,
+      seen_at TEXT NOT NULL DEFAULT '',
+      notified_at TEXT NOT NULL DEFAULT '',
       queued_at TEXT NOT NULL DEFAULT '',
       build_folder TEXT NOT NULL DEFAULT '',
       build_note TEXT NOT NULL DEFAULT '',
@@ -982,7 +995,7 @@ async function relaxOnboardingProjectId(db: Client) {
       FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
     );
     INSERT INTO onboarding_submissions_new
-      SELECT id, project_id, token, fetch_key, schema_version, label, archived,
+      SELECT id, project_id, token, fetch_key, schema_version, label, archived, seen_at, notified_at,
              queued_at, build_folder, build_note, build_started_at, build_result, status, r2_prefix,
              expires_at, submitted_at, fetched_at, bytes_declared, asset_count,
              created_at, updated_at FROM onboarding_submissions;
