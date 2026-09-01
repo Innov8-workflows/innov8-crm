@@ -19,6 +19,7 @@ interface Row {
   id: number; project_id: number | null; token: string; status: string;
   business_name: string; label: string; expires_at: string; submitted_at: string;
   asset_count: number; stored: number; failed: number; created_at: string; archived: number;
+  queued_at: string; build_folder: string; build_started_at: string; build_result: string;
 }
 interface Asset {
   id: number; role: string; pair_id: string; original_name: string; caption: string;
@@ -57,6 +58,8 @@ export default function Onboarding({ active }: { active: boolean }) {
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState("");
   const [showArchived, setShowArchived] = useState(false);
+  const [folder, setFolder] = useState("");
+  const [note, setNote] = useState("");
 
   const origin = typeof window !== "undefined" ? window.location.origin : "";
 
@@ -82,6 +85,10 @@ export default function Onboarding({ active }: { active: boolean }) {
   }, [active]);
 
   useEffect(() => { if (selected) loadDetail(selected); }, [selected, loadDetail]);
+  useEffect(() => {
+    setFolder(detail?.submission.build_folder || "");
+    setNote("");
+  }, [detail?.submission.id, detail?.submission.build_folder]);
   useEffect(() => { if (active) loadRows(); }, [showArchived, active, loadRows]);
 
   const act = async (id: number, action: string, extra: Record<string, unknown> = {}) => {
@@ -179,6 +186,14 @@ export default function Onboarding({ active }: { active: boolean }) {
                       style={{ color: "var(--text)", opacity: r.archived ? 0.5 : 1 }}>
                   {r.business_name || "Unnamed"}
                 </span>
+                {r.queued_at && !r.build_started_at && (
+                  <span className="text-xs px-1.5 py-0.5 rounded flex-shrink-0"
+                        style={{ background: "rgba(234,88,12,0.15)", color: "var(--accent)" }}>queued</span>
+                )}
+                {r.build_started_at && (
+                  <span className="text-xs px-1.5 py-0.5 rounded flex-shrink-0"
+                        style={{ background: "rgba(18,136,90,0.15)", color: "#12885a" }}>building</span>
+                )}
                 {r.project_id === null && (
                   <span className="text-xs px-1.5 py-0.5 rounded flex-shrink-0"
                         style={{ background: "rgba(234,88,12,0.15)", color: "var(--accent)" }}>new</span>
@@ -300,6 +315,66 @@ export default function Onboarding({ active }: { active: boolean }) {
                 </div>
               </div>
             )}
+
+            {/* Hand it to the build runner. */}
+            <div className="mt-4 p-3 rounded-lg"
+                 style={{ background: "var(--surface2)", border: "1px solid var(--border-light)" }}>
+              <div className="text-xs font-bold mb-2" style={{ color: "var(--text-muted)" }}>
+                BUILD OUT THE FULL SITE
+              </div>
+              {detail.submission.build_started_at ? (
+                <div className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                  Running since {detail.submission.build_started_at.slice(0, 16)} in{" "}
+                  <span style={{ color: "var(--text-dim)" }}>{detail.submission.build_folder}</span>
+                </div>
+              ) : detail.submission.queued_at ? (
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span className="text-sm" style={{ color: "var(--accent)" }}>
+                    Queued — the runner will pick it up within a few minutes.
+                  </span>
+                  <button disabled={busy} onClick={() => act(detail.submission.id, "unqueue")}
+                    className="px-3 py-1.5 rounded-lg text-xs"
+                    style={{ background: "var(--surface3)", border: "1px solid var(--border-light)", color: "var(--text-muted)" }}>
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <input
+                    value={folder} onChange={(e) => setFolder(e.target.value)}
+                    placeholder="Path to their demo folder, e.g. C:\\Users\\Jay\\Projects\\coburn-roofing"
+                    className="w-full px-2 py-2 rounded-lg text-xs mb-2"
+                    style={{ background: "var(--surface)", border: "1px solid var(--border-light)", color: "var(--text-secondary)" }}
+                  />
+                  <input
+                    value={note} onChange={(e) => setNote(e.target.value)}
+                    placeholder="Anything the build should know (optional)"
+                    className="w-full px-2 py-2 rounded-lg text-xs mb-2"
+                    style={{ background: "var(--surface)", border: "1px solid var(--border-light)", color: "var(--text-secondary)" }}
+                  />
+                  <button
+                    disabled={busy || folder.trim().length < 3}
+                    onClick={() => act(detail.submission.id, "queue", { folder, note })}
+                    className="px-3 py-1.5 rounded-lg text-xs font-bold"
+                    style={{
+                      background: folder.trim().length < 3 ? "var(--surface3)" : "var(--accent)",
+                      border: "1px solid var(--border-light)",
+                      color: folder.trim().length < 3 ? "var(--text-dim)" : "#fff",
+                    }}>
+                    Queue for build
+                  </button>
+                  <div className="text-xs mt-2" style={{ color: "var(--text-dim)", lineHeight: 1.5 }}>
+                    Runs inside their existing demo folder so the theme, build script and videos
+                    stay as they are. Stops before deploying.
+                  </div>
+                </>
+              )}
+              {detail.submission.build_result && (
+                <div className="text-xs mt-2" style={{ color: "var(--text-secondary)" }}>
+                  Last run: {detail.submission.build_result}
+                </div>
+              )}
+            </div>
 
             {/* Media, grouped the way the build consumes it. */}
             {detail.assets.length > 0 && (

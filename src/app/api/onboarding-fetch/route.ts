@@ -46,6 +46,23 @@ export async function GET(request: NextRequest) {
   const db = getClient();
   const id = Number(request.nextUrl.searchParams.get("id") || 0);
 
+  // ---- the build queue ----------------------------------------------------
+  // What the runner polls. Only ever returns work that is queued and NOT already
+  // claimed by another run, so two runners cannot build the same site at once.
+  if (!id && request.nextUrl.searchParams.get("queued") === "1") {
+    const rows = all(await db.execute({
+      sql: `SELECT s.id, s.build_folder, s.build_note, s.queued_at,
+                   COALESCE(l.business_name, s.label, '') AS business_name
+              FROM onboarding_submissions s
+              LEFT JOIN projects p ON p.id = s.project_id
+              LEFT JOIN leads l    ON l.id = p.lead_id
+             WHERE s.queued_at != '' AND s.build_started_at = ''
+               AND s.archived = 0 AND s.status != 'revoked'
+             ORDER BY s.queued_at ASC LIMIT 10`,
+    }));
+    return NextResponse.json({ queued: rows }, { headers: NO_STORE });
+  }
+
   // ---- list ---------------------------------------------------------------
   if (!id) {
     const status = request.nextUrl.searchParams.get("status") || "";
@@ -126,18 +143,47 @@ export async function POST(request: NextRequest) {
   const auth = authorise(request);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status, headers: NO_STORE });
 
-  let body: { id?: number; action?: string; url?: string };
+  let body: { id?: number; action?: string; url?: string; result?: string };
   try { body = await request.json(); } catch { return NextResponse.json({ error: "bad body" }, { status: 400 }); }
   const id = Number(body.id);
-  if (!id || body.action !== "built") {
-    return NextResponse.json({ error: "expected { id, action: 'built' }" }, { status: 400, headers: NO_STORE });
+  const action = String(body.action || "");
+  if (!id || !["claim", "built", "failed"].includes(action)) {
+    return NextResponse.json({ error: "expected { id, action: 'claim' | 'built' | 'failed' }" },
+      { status: 400, headers: NO_STORE });
   }
 
   await initDb();
   const db = getClient();
+  const now = sqlNow();
+
+  // Claiming is conditional on build_started_at still being empty, so if two
+  // runners race, exactly one of them wins and the other is told to move on.
+  if (action === "claim") {
+    const res = await db.execute({
+      sql: `UPDATE onboarding_submissions SET build_started_at = ?, updated_at = ?
+             WHERE id = ? AND queued_at != '' AND build_started_at = ''`,
+      args: [now, now, id],
+    });
+    const won = Number(res.rowsAffected) > 0;
+    return NextResponse.json({ ok: won, claimed: won },
+      { status: won ? 200 : 409, headers: NO_STORE });
+  }
+
+  if (action === "failed") {
+    await db.execute({
+      sql: `UPDATE onboarding_submissions
+               SET build_result = ?, build_started_at = '', updated_at = ?
+             WHERE id = ?`,
+      args: [String(body.result || "failed").slice(0, 500), now, id],
+    });
+    return NextResponse.json({ ok: true }, { headers: NO_STORE });
+  }
+
   await db.execute({
-    sql: "UPDATE onboarding_submissions SET status = 'built', updated_at = ? WHERE id = ?",
-    args: [sqlNow(), id],
+    sql: `UPDATE onboarding_submissions
+             SET status = 'built', queued_at = '', build_result = ?, updated_at = ?
+           WHERE id = ?`,
+    args: [String(body.result || "built").slice(0, 500), now, id],
   });
   return NextResponse.json({ ok: true }, { headers: NO_STORE });
 }

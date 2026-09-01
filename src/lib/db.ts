@@ -61,7 +61,7 @@ async function doInitDb() {
   // ~100-300ms, so this is the single biggest "slow first load" win. Bump
   // SCHEMA_VERSION whenever a migration/index/seed below changes → the heavy block
   // re-runs exactly once on the next deploy, then cold starts go fast again.
-  const SCHEMA_VERSION = "2026-09-01-onboarding-archive";
+  const SCHEMA_VERSION = "2026-09-01-onboarding-buildqueue";
   await db.execute("CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT DEFAULT '')");
   const schemaMarker = first(await db.execute("SELECT value FROM app_meta WHERE key = 'schema_version'"));
   if (schemaMarker?.value === SCHEMA_VERSION) return;
@@ -463,6 +463,17 @@ async function doInitDb() {
       -- and a real submission archived after the site ships still has to keep
       -- its history. Orthogonal flag, not a status value.
       archived INTEGER NOT NULL DEFAULT 0,
+      -- Build queue. Jay clicks "Queue for build" in the CRM; the runner on his
+      -- machine polls for these, claims one, and prepares the folder.
+      -- build_folder is the client's EXISTING demo folder: the build-out runs
+      -- inside it so it inherits the theme, the build script and the media that
+      -- already converted the customer.
+      queued_at TEXT NOT NULL DEFAULT '',
+      build_folder TEXT NOT NULL DEFAULT '',
+      build_note TEXT NOT NULL DEFAULT '',
+      -- Stamped when a runner picks it up, so two runs can't collide.
+      build_started_at TEXT NOT NULL DEFAULT '',
+      build_result TEXT NOT NULL DEFAULT '',
       -- open | submitted | accepted | built | revoked
       status TEXT NOT NULL DEFAULT 'open',
       r2_prefix TEXT NOT NULL DEFAULT '',
@@ -629,6 +640,11 @@ async function doInitDb() {
     // Hide tests without losing their status. Runs before relaxOnboardingProjectId,
     // whose rebuild carries the column across.
     "ALTER TABLE onboarding_submissions ADD COLUMN archived INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE onboarding_submissions ADD COLUMN queued_at TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE onboarding_submissions ADD COLUMN build_folder TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE onboarding_submissions ADD COLUMN build_note TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE onboarding_submissions ADD COLUMN build_started_at TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE onboarding_submissions ADD COLUMN build_result TEXT NOT NULL DEFAULT ''",
     // The day the client churned. NOT backfillable — client_status='lost' overwrites
     // in place with no date and there is no transition log. Stamped forward from here;
     // '' on an already-lost client means "churned before history began".
@@ -949,6 +965,11 @@ async function relaxOnboardingProjectId(db: Client) {
       schema_version TEXT NOT NULL DEFAULT '',
       label TEXT NOT NULL DEFAULT '',
       archived INTEGER NOT NULL DEFAULT 0,
+      queued_at TEXT NOT NULL DEFAULT '',
+      build_folder TEXT NOT NULL DEFAULT '',
+      build_note TEXT NOT NULL DEFAULT '',
+      build_started_at TEXT NOT NULL DEFAULT '',
+      build_result TEXT NOT NULL DEFAULT '',
       status TEXT NOT NULL DEFAULT 'open',
       r2_prefix TEXT NOT NULL DEFAULT '',
       expires_at TEXT NOT NULL DEFAULT '',
@@ -961,7 +982,8 @@ async function relaxOnboardingProjectId(db: Client) {
       FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
     );
     INSERT INTO onboarding_submissions_new
-      SELECT id, project_id, token, fetch_key, schema_version, label, archived, status, r2_prefix,
+      SELECT id, project_id, token, fetch_key, schema_version, label, archived,
+             queued_at, build_folder, build_note, build_started_at, build_result, status, r2_prefix,
              expires_at, submitted_at, fetched_at, bytes_declared, asset_count,
              created_at, updated_at FROM onboarding_submissions;
     DROP TABLE onboarding_submissions;

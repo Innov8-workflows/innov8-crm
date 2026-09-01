@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
                  -- shared link has no project, and an inner join would hide it
                  -- entirely — which is precisely the pile Jay needs to see.
                  COALESCE(l.business_name, s.label, '') AS business_name,
-                 s.label, s.archived,
+                 s.label, s.archived, s.queued_at, s.build_folder, s.build_started_at, s.build_result,
                  (SELECT COUNT(*) FROM onboarding_assets a
                    WHERE a.submission_id = s.id AND a.status = 'stored') AS stored,
                  (SELECT COUNT(*) FROM onboarding_assets a
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
-  let body: { id?: number; action?: string; project_id?: number };
+  let body: { id?: number; action?: string; project_id?: number; folder?: string; note?: string };
   try { body = await request.json(); } catch { return NextResponse.json({ error: "bad body" }, { status: 400 }); }
   const id = Number(body.id);
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
@@ -107,6 +107,28 @@ export async function PUT(request: NextRequest) {
     await db.execute({
       sql: "UPDATE onboarding_submissions SET project_id = ?, updated_at = ? WHERE id = ?",
       args: [projectId, now, id],
+    });
+    return NextResponse.json({ ok: true }, { headers: NO_STORE });
+  }
+
+  // Hand it to the runner. The folder is the client's existing demo folder —
+  // the build-out runs inside it rather than starting a new project.
+  if (body.action === "queue") {
+    const folder = String(body.folder || "").trim().slice(0, 400);
+    if (!folder) return NextResponse.json({ error: "folder required" }, { status: 400 });
+    await db.execute({
+      sql: `UPDATE onboarding_submissions
+               SET queued_at = ?, build_folder = ?, build_note = ?,
+                   build_started_at = '', build_result = '', updated_at = ?
+             WHERE id = ?`,
+      args: [now, folder, String(body.note || "").slice(0, 1000), now, id],
+    });
+    return NextResponse.json({ ok: true }, { headers: NO_STORE });
+  }
+  if (body.action === "unqueue") {
+    await db.execute({
+      sql: "UPDATE onboarding_submissions SET queued_at = '', build_started_at = '', updated_at = ? WHERE id = ?",
+      args: [now, id],
     });
     return NextResponse.json({ ok: true }, { headers: NO_STORE });
   }
