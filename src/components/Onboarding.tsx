@@ -270,6 +270,12 @@ export default function Onboarding({ active, onSeen }: { active: boolean; onSeen
                   style={{ background: "var(--surface2)", border: "1px solid var(--border-light)", color: "var(--text-secondary)" }}>
                   {copied === "link" ? "Copied" : "Copy their link"}
                 </button>
+                <button onClick={() => window.open(`/onboarding-print/${detail.submission.id}`, "_blank")}
+                  title="Opens a clean printable version — choose Save as PDF in the print dialog"
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold"
+                  style={{ background: "var(--surface2)", border: "1px solid var(--border-light)", color: "var(--text-secondary)" }}>
+                  Export PDF
+                </button>
                 <button onClick={() => copy(buildPrompt(detail), "prompt")}
                   title="Paste this into a Claude Code session to build the full site"
                   className="px-3 py-1.5 rounded-lg text-xs font-bold"
