@@ -113,10 +113,31 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
  *      PRAGMA. So ON DELETE CASCADE cannot be relied on, and every child table
  *      is deleted by hand and in order.
  */
-export async function DELETE(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export async function DELETE(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   const subId = Number(id);
   if (!subId) return NextResponse.json({ error: "bad id" }, { status: 400 });
+
+  // The PIN lives in Vercel, never in this repo — the repo is public.
+  //
+  // What it is for: stopping Jay destroying a real client's submission by
+  // mis-clicking. It is NOT an access control. Anyone reaching this route has
+  // already passed the session check and could hold the PIN too; the value is
+  // that permanent deletion needs a deliberate act rather than a stray click
+  // next to Revoke.
+  //
+  // Fails CLOSED when unset — 503, never "allow because it isn't configured",
+  // which is the shape that quietly left /api/webhook/prospects wide open.
+  const pin = process.env.ONBOARDING_DELETE_PIN;
+  if (!pin) {
+    return NextResponse.json(
+      { error: "ONBOARDING_DELETE_PIN is not set in Vercel, so nothing can be deleted." },
+      { status: 503, headers: NO_STORE },
+    );
+  }
+  if ((request.headers.get("x-delete-pin") || "") !== pin) {
+    return NextResponse.json({ error: "Wrong PIN." }, { status: 401, headers: NO_STORE });
+  }
 
   await initDb();
   const db = getClient();

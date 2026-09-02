@@ -60,6 +60,7 @@ export default function Onboarding({ active, onSeen }: { active: boolean; onSeen
   const [copied, setCopied] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [pin, setPin] = useState("");
   const [folder, setFolder] = useState("");
   const [note, setNote] = useState("");
 
@@ -96,6 +97,7 @@ export default function Onboarding({ active, onSeen }: { active: boolean; onSeen
     setFolder(detail?.submission.build_folder || "");
     setNote("");
     setConfirmDelete(false);
+    setPin("");
   }, [detail?.submission.id, detail?.submission.build_folder]);
   useEffect(() => { if (active) loadRows(); }, [showArchived, active, loadRows]);
 
@@ -301,24 +303,47 @@ export default function Onboarding({ active, onSeen }: { active: boolean; onSeen
                 {detail.submission.archived === 1 && (
                   <button
                     disabled={busy}
-                    onClick={async () => {
-                      if (!confirmDelete) { setConfirmDelete(true); return; }
-                      setBusy(true);
-                      const r = await fetch(`/api/onboarding/submissions/${detail.submission.id}`, { method: "DELETE" });
-                      const d = await r.json().catch(() => ({}));
-                      setBusy(false);
-                      if (!r.ok) { alert(d.error || "Couldn't delete that."); return; }
-                      setSelected(null); setDetail(null); setConfirmDelete(false);
-                      await loadRows();
-                    }}
+                    onClick={() => setConfirmDelete(true)}
                     className="px-3 py-1.5 rounded-lg text-xs font-bold"
-                    style={{
-                      background: confirmDelete ? "#c8321f" : "var(--surface2)",
-                      border: `1px solid ${confirmDelete ? "#c8321f" : "var(--border-light)"}`,
-                      color: confirmDelete ? "#fff" : "var(--text-muted)",
-                    }}>
-                    {confirmDelete ? "Delete forever — click again" : "Delete"}
+                    style={{ background: "var(--surface2)", border: "1px solid var(--border-light)", color: "var(--text-muted)" }}>
+                    Delete
                   </button>
+                )}
+                {detail.submission.archived === 1 && confirmDelete && (
+                  <span className="flex items-center gap-2">
+                    <input
+                      type="password" inputMode="numeric" value={pin} autoFocus
+                      onChange={(e) => setPin(e.target.value)}
+                      placeholder="PIN"
+                      className="px-2 py-1.5 rounded-lg text-xs"
+                      style={{ width: 78, background: "var(--surface)", border: "1px solid var(--border-light)", color: "var(--text-secondary)" }}
+                    />
+                    <button
+                      disabled={busy || pin.length < 4}
+                      onClick={async () => {
+                        setBusy(true);
+                        const r = await fetch(`/api/onboarding/submissions/${detail.submission.id}`, {
+                          method: "DELETE", headers: { "x-delete-pin": pin },
+                        });
+                        const d = await r.json().catch(() => ({}));
+                        setBusy(false);
+                        if (!r.ok) { alert(d.error || "Couldn't delete that."); setPin(""); return; }
+                        setSelected(null); setDetail(null); setConfirmDelete(false); setPin("");
+                        await loadRows();
+                      }}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold"
+                      style={{
+                        background: pin.length < 4 ? "var(--surface3)" : "#c8321f",
+                        border: "1px solid " + (pin.length < 4 ? "var(--border-light)" : "#c8321f"),
+                        color: pin.length < 4 ? "var(--text-dim)" : "#fff",
+                      }}>
+                      Delete forever
+                    </button>
+                    <button onClick={() => { setConfirmDelete(false); setPin(""); }}
+                      className="text-xs" style={{ background: "none", border: "none", color: "var(--text-dim)", cursor: "pointer" }}>
+                      cancel
+                    </button>
+                  </span>
                 )}
                 {detail.submission.status !== "revoked" && (
                   <button disabled={busy} onClick={() => act(detail.submission.id, "revoke")}
