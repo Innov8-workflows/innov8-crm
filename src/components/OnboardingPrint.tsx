@@ -44,17 +44,12 @@ export default function OnboardingPrint({ id }: { id: string }) {
       .catch(() => setErr("Couldn't load that submission."));
   }, [id]);
 
-  // Print once the images are in. Printing too early gives a PDF full of gaps
-  // where the photos should be, which is the usual way this goes wrong.
-  useEffect(() => {
-    if (!d) return;
-    const imgs = Array.from(document.images);
-    let left = imgs.filter((i) => !i.complete).length;
-    if (!left) { const t = setTimeout(() => window.print(), 400); return () => clearTimeout(t); }
-    const done = () => { if (--left <= 0) setTimeout(() => window.print(), 300); };
-    imgs.forEach((i) => { i.addEventListener("load", done); i.addEventListener("error", done); });
-    return () => imgs.forEach((i) => { i.removeEventListener("load", done); i.removeEventListener("error", done); });
-  }, [d]);
+  // Deliberately does NOT print on load.
+  //
+  // This is a document Jay may hand to someone, so he should see it before it
+  // becomes a PDF. Auto-printing also opens a modal dialog the moment the page
+  // appears, which blocks the page entirely — you cannot even read what you are
+  // about to send. The button in the bar does it when he is ready.
 
   if (err) return <div style={{ padding: 40, fontFamily: "system-ui" }}>{err}</div>;
   if (!d) return <div style={{ padding: 40, fontFamily: "system-ui", color: B.muted }}>Loading…</div>;
