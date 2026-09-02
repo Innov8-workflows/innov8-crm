@@ -59,6 +59,7 @@ export default function Onboarding({ active, onSeen }: { active: boolean; onSeen
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState("");
   const [showArchived, setShowArchived] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [folder, setFolder] = useState("");
   const [note, setNote] = useState("");
 
@@ -94,6 +95,7 @@ export default function Onboarding({ active, onSeen }: { active: boolean; onSeen
   useEffect(() => {
     setFolder(detail?.submission.build_folder || "");
     setNote("");
+    setConfirmDelete(false);
   }, [detail?.submission.id, detail?.submission.build_folder]);
   useEffect(() => { if (active) loadRows(); }, [showArchived, active, loadRows]);
 
@@ -296,6 +298,28 @@ export default function Onboarding({ active, onSeen }: { active: boolean; onSeen
                   style={{ background: "var(--surface2)", border: "1px solid var(--border-light)", color: "var(--text-muted)" }}>
                   {detail.submission.archived ? "Unarchive" : "Archive"}
                 </button>
+                {detail.submission.archived === 1 && (
+                  <button
+                    disabled={busy}
+                    onClick={async () => {
+                      if (!confirmDelete) { setConfirmDelete(true); return; }
+                      setBusy(true);
+                      const r = await fetch(`/api/onboarding/submissions/${detail.submission.id}`, { method: "DELETE" });
+                      const d = await r.json().catch(() => ({}));
+                      setBusy(false);
+                      if (!r.ok) { alert(d.error || "Couldn't delete that."); return; }
+                      setSelected(null); setDetail(null); setConfirmDelete(false);
+                      await loadRows();
+                    }}
+                    className="px-3 py-1.5 rounded-lg text-xs font-bold"
+                    style={{
+                      background: confirmDelete ? "#c8321f" : "var(--surface2)",
+                      border: `1px solid ${confirmDelete ? "#c8321f" : "var(--border-light)"}`,
+                      color: confirmDelete ? "#fff" : "var(--text-muted)",
+                    }}>
+                    {confirmDelete ? "Delete forever — click again" : "Delete"}
+                  </button>
+                )}
                 {detail.submission.status !== "revoked" && (
                   <button disabled={busy} onClick={() => act(detail.submission.id, "revoke")}
                     className="px-3 py-1.5 rounded-lg text-xs"

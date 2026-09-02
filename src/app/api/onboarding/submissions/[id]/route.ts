@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getClient, initDb, all, first } from "@/lib/db";
-import { presign, isR2Configured } from "@/lib/r2";
+import { presign, isR2Configured, r2Request } from "@/lib/r2";
 import { sqlNow } from "@/lib/onboarding";
 import { REQUIRED, FIELDS } from "@/lib/onboardingSchema";
 
@@ -94,4 +94,85 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
     confirm: claimAnswers,
     server_time: sqlNow(),
   }, { headers: NO_STORE });
+}
+
+
+/**
+ * Delete a submission for good: its R2 objects, its media rows, its answers and
+ * the submission itself.
+ *
+ * ONLY works on an ARCHIVED submission. That is the whole safety design — it
+ * makes deletion a deliberate two-step (archive, then delete) instead of one
+ * mis-click next to "Revoke", and there is no undo here at all.
+ *
+ * The files are cleared FIRST and explicitly. Two reasons:
+ *   1. Orphaned objects in R2 are invisible and cost money forever, because
+ *      nothing else in the system knows their keys once the rows are gone.
+ *   2. SQLite foreign keys are OFF by default on this database — verified when
+ *      the schema was written, where a cascade only fired after an explicit
+ *      PRAGMA. So ON DELETE CASCADE cannot be relied on, and every child table
+ *      is deleted by hand and in order.
+ */
+export async function DELETE(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const { id } = await context.params;
+  const subId = Number(id);
+  if (!subId) return NextResponse.json({ error: "bad id" }, { status: 400 });
+
+  await initDb();
+  const db = getClient();
+
+  const sub = first(await db.execute({
+    sql: "SELECT id, archived, label FROM onboarding_submissions WHERE id = ? LIMIT 1",
+    args: [subId],
+  }));
+  if (!sub) return NextResponse.json({ error: "not found" }, { status: 404 });
+  if (Number(sub.archived) !== 1) {
+    return NextResponse.json(
+      { error: "Archive it first. Deleting is only possible on an archived submission." },
+      { status: 409, headers: NO_STORE },
+    );
+  }
+
+  const assets = all(await db.execute({
+    sql: "SELECT id, r2_key, upload_id, status FROM onboarding_assets WHERE submission_id = ?",
+    args: [subId],
+  }));
+
+  let filesDeleted = 0;
+  const fileErrors: string[] = [];
+  if (isR2Configured()) {
+    for (const a of assets) {
+      const key = String(a.r2_key || "");
+      if (!key) continue;
+      try {
+        // An upload that never completed leaves parts behind that a plain
+        // DELETE does not touch; abort it so R2 releases them now rather than
+        // waiting on the 7-day lifecycle rule.
+        if (a.upload_id && a.status !== "stored") {
+          await r2Request("DELETE", key, { query: { uploadId: String(a.upload_id) } });
+        }
+        const res = await r2Request("DELETE", key);
+        if (res.ok || res.status === 404) filesDeleted++;
+        else fileErrors.push(`${key}: ${res.status}`);
+      } catch (e) {
+        fileErrors.push(`${key}: ${(e as Error).message}`);
+      }
+    }
+  }
+
+  // Children first, parent last — see the note above about cascades.
+  for (const a of assets) {
+    await db.execute({ sql: "DELETE FROM onboarding_asset_parts WHERE asset_id = ?", args: [Number(a.id)] });
+  }
+  await db.batch([
+    { sql: "DELETE FROM onboarding_assets WHERE submission_id = ?", args: [subId] },
+    { sql: "DELETE FROM onboarding_answers WHERE submission_id = ?", args: [subId] },
+    { sql: "DELETE FROM onboarding_submissions WHERE id = ?", args: [subId] },
+  ], "write");
+
+  return NextResponse.json(
+    { ok: true, deleted: { submission: subId, assets: assets.length, files: filesDeleted },
+      file_errors: fileErrors },
+    { headers: NO_STORE },
+  );
 }
