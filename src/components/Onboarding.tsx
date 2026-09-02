@@ -127,6 +127,28 @@ export default function Onboarding({ active, onSeen }: { active: boolean; onSeen
 
   const sharedLink = `${origin}/onboarding/start`;
 
+  /**
+   * A paste-able instruction for a Claude Code session.
+   *
+   * NOT the client's link — that renders a form and returns HTML, so pasting it
+   * at Claude Code gets markup, not answers. And a client-held token can never
+   * hand out bulk file access by design. This gives the session the two things
+   * it actually needs: which submission, and where the folder is.
+   */
+  const buildPrompt = (d: Detail) => {
+    const name = d.submission.business_name || "this client";
+    const folder = d.submission.build_folder;
+    return [
+      `Run /site-buildout for onboarding submission ${d.submission.id} — ${name}.`,
+      "",
+      folder
+        ? `Work in: ${folder}\nEverything is already downloaded to _source/ in that folder (answers.json, site.config.draft.js and the media). Read BUILD-BRIEF.md first.`
+        : `Pull it down first using the innov8-onboarding connector: get_submission for id ${d.submission.id}, then fetch_assets into the client's existing demo folder.`,
+      "",
+      "Do not restructure the demo homepage and do not re-encode or replace any existing video — that demo is what converted the customer. Stop before deploying.",
+    ].join("\n");
+  };
+
   return (
     <div className="flex-1 flex min-h-0">
       {/* ── rail ─────────────────────────────────────────────────────────── */}
@@ -239,9 +261,16 @@ export default function Onboarding({ active, onSeen }: { active: boolean; onSeen
               </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <button onClick={() => copy(`${origin}/onboarding/${detail.submission.token}`, "link")}
+                  title="The client's own form link — send them this so they can come back and add more"
                   className="px-3 py-1.5 rounded-lg text-xs font-bold"
                   style={{ background: "var(--surface2)", border: "1px solid var(--border-light)", color: "var(--text-secondary)" }}>
                   {copied === "link" ? "Copied" : "Copy their link"}
+                </button>
+                <button onClick={() => copy(buildPrompt(detail), "prompt")}
+                  title="Paste this into a Claude Code session to build the full site"
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold"
+                  style={{ background: "var(--surface2)", border: "1px solid var(--border-light)", color: "var(--text-secondary)" }}>
+                  {copied === "prompt" ? "Copied" : "Copy build prompt"}
                 </button>
                 {detail.submission.status !== "accepted" && (
                   <button disabled={busy} onClick={() => act(detail.submission.id, "accept")}
