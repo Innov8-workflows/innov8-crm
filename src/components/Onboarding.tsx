@@ -347,13 +347,17 @@ export default function Onboarding({ active, onSeen }: { active: boolean; onSeen
               ) : detail.submission.queued_at ? (
                 <div className="flex items-center gap-3 flex-wrap">
                   <span className="text-sm" style={{ color: "var(--accent)" }}>
-                    Queued — the runner will pick it up within a few minutes.
+                    Queued, waiting for the runner on your machine.
                   </span>
                   <button disabled={busy} onClick={() => act(detail.submission.id, "unqueue")}
                     className="px-3 py-1.5 rounded-lg text-xs"
                     style={{ background: "var(--surface3)", border: "1px solid var(--border-light)", color: "var(--text-muted)" }}>
                     Cancel
                   </button>
+                  <div className="w-full text-xs mt-1" style={{ color: "var(--text-dim)", lineHeight: 1.5 }}>
+                    Picked up automatically if the runner is scheduled. Otherwise run{" "}
+                    <code style={{ color: "var(--text-muted)" }}>node ~/.claude/mcp/onboarding/run-queue.mjs</code>
+                  </div>
                 </div>
               ) : (
                 <>
