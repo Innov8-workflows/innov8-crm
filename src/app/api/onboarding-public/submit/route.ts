@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getClient, initDb, first, all } from "@/lib/db";
 import { sendEmail, isEmailConfigured } from "@/lib/email";
-import { REQUIRED, FIELDS } from "@/lib/onboardingSchema";
+import { formFor, missingFor, missingLabel } from "@/lib/onboardingSchema";
 import { getByToken, GONE, sqlNow } from "@/lib/onboarding";
 import { rateLimit, clientIp } from "@/lib/rateLimit";
 
@@ -79,7 +79,7 @@ async function notify(db: ReturnType<typeof getClient>, id: number) {
   if (!isEmailConfigured()) throw new Error("Resend is not configured (RESEND_API_KEY / RESEND_FROM)");
 
   const row = first(await db.execute({
-    sql: `SELECT COALESCE(l.business_name, s.label, '') AS name, s.project_id
+    sql: `SELECT COALESCE(l.business_name, s.label, '') AS name, s.project_id, s.kind
             FROM onboarding_submissions s
             LEFT JOIN projects p ON p.id = s.project_id
             LEFT JOIN leads l    ON l.id = p.lead_id
@@ -95,18 +95,18 @@ async function notify(db: ReturnType<typeof getClient>, id: number) {
   }));
 
   const name = String(row?.name || "A business");
-  const missing = REQUIRED.filter((fid) => {
-    const f = FIELDS[fid];
-    if (f?.type === "upload") return !assets.some((a) => a.role === f.upload!.role);
-    return String(answers[fid] ?? "").trim() === "";
-  }).map((fid) => FIELDS[fid]?.label || fid);
+  const form = formFor(String(row?.kind || ""));
+  const missing = missingFor(form, answers, assets.map((a) => String(a.role))).map(missingLabel);
 
+  // Driven by the form rather than hard-coded, so a second questionnaire's
+  // alert summarises its own answers instead of reporting a row of em-dashes
+  // for fields it never asked about.
   const rows: [string, string][] = [
     ["Business", name],
-    ["Contact", `${answers.owner_name ?? "—"} · ${answers.phone_mobile ?? "—"} · ${answers.email ?? "—"}`],
-    ["Town", String(answers.home_town ?? "—")],
-    ["Services", String(answers.primary_services ?? "—").split("\n").join(", ")],
-    ["Areas", String(answers.primary_areas ?? "—").split("\n").join(", ")],
+    ...form.summaryFields.map((fid): [string, string] => [
+      form.fields[fid]?.label || fid,
+      String(answers[fid] ?? "").trim().split("\n").filter(Boolean).join(", ") || "—",
+    ]),
     ["Files", `${assets.length} uploaded`],
     ["Attached to", row?.project_id ? "a project" : "NOT attached to a project yet"],
   ];
@@ -130,7 +130,7 @@ async function notify(db: ReturnType<typeof getClient>, id: number) {
 
   await sendEmail({
     to: ALERT_TO,
-    subject: `Onboarding form: ${name}`,
+    subject: `${form.label} onboarding: ${name}`,
     html,
     text: `${name} has sent their onboarding form.\n\n` +
           rows.map(([k, v]) => `${k}: ${v}`).join("\n") +

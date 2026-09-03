@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getClient, initDb, all, first } from "@/lib/db";
 import { presign, isR2Configured, r2Request } from "@/lib/r2";
 import { sqlNow } from "@/lib/onboarding";
-import { REQUIRED, FIELDS } from "@/lib/onboardingSchema";
+import { formFor, missingFor } from "@/lib/onboardingSchema";
 
 // One submission in full, for the CRM's Onboarding view. Session-guarded.
 //
@@ -66,23 +66,21 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
   }));
 
   // What Jay would otherwise have to work out by eye before chasing the client.
-  const missing = REQUIRED.filter((fid) => {
-    const f = FIELDS[fid];
-    if (f?.type === "upload") {
-      return !assets.some((a) => a.role === f.upload!.role && a.status === "stored");
-    }
-    const v = answers[fid];
-    return v === undefined || v === null || String(v).trim() === "";
-  }).map((fid) => ({ id: fid, label: FIELDS[fid]?.label || fid }));
+  const form = formFor(String(sub.kind || ""));
+  const missing = missingFor(
+    form,
+    answers,
+    assets.filter((a) => a.status === "stored").map((a) => String(a.role)),
+  );
 
   // Answers that are evidence for a claim are reported for confirmation, never
   // promoted automatically. A claim means Jay saw the certificate — the whole
   // safety model in site-kit's check.js rests on that, and two live clients are
   // on record as NOT insured.
   const claimAnswers = Object.entries(answers)
-    .filter(([k]) => FIELDS[k]?.claimGated)
+    .filter(([k]) => form.fields[k]?.claimGated)
     .filter(([, v]) => String(v ?? "").trim() !== "")
-    .map(([k, v]) => ({ id: k, label: FIELDS[k].label, value: String(v) }));
+    .map(([k, v]) => ({ id: k, label: form.fields[k].label, value: String(v) }));
 
   delete (sub as Record<string, unknown>).fetch_key;   // never to the browser
 

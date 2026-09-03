@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getClient, initDb, all, first } from "@/lib/db";
 import { mintToken, mintFetchKey, sqlNow } from "@/lib/onboarding";
-import { SCHEMA_ID } from "@/lib/onboardingSchema";
+import { FORMS } from "@/lib/onboardingSchema";
 
 // Admin side of onboarding: mint a link, list submissions, revoke one.
 // Session-guarded by the middleware — deliberately NOT in PUBLIC_PATHS.
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
   await initDb();
   const db = getClient();
   const rows = all(await db.execute({
-    sql: `SELECT s.id, s.project_id, s.token, s.status, s.expires_at, s.submitted_at,
+    sql: `SELECT s.id, s.project_id, s.token, s.status, s.kind, s.expires_at, s.submitted_at,
                  s.fetched_at, s.asset_count, s.bytes_declared, s.created_at, s.updated_at,
                  -- LEFT JOIN, and COALESCE onto the label: a submission from the
                  -- shared link has no project, and an inner join would hide it
@@ -46,10 +46,17 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  let body: { project_id?: number };
+  let body: { project_id?: number; kind?: string };
   try { body = await request.json(); } catch { return NextResponse.json({ error: "bad body" }, { status: 400 }); }
   const projectId = Number(body.project_id);
   if (!projectId) return NextResponse.json({ error: "project_id required" }, { status: 400 });
+
+  // Which questionnaire this link opens. Validated against the registry rather
+  // than trusted: an unrecognised kind must never create a row whose `kind`
+  // column says one thing while formFor() resolves another — the row would look
+  // like a Meta submission in the CRM and render the website questions.
+  const form = FORMS[String(body.kind || "website")];
+  if (!form) return NextResponse.json({ error: "unknown form" }, { status: 400 });
 
   await initDb();
   const db = getClient();
@@ -61,9 +68,9 @@ export async function POST(request: NextRequest) {
   // first would silently lose it when Jay copies the link again.
   const existing = first(await db.execute({
     sql: `SELECT id, token FROM onboarding_submissions
-           WHERE project_id = ? AND status IN ('open','submitted') AND expires_at > ?
+           WHERE project_id = ? AND kind = ? AND status IN ('open','submitted') AND expires_at > ?
            ORDER BY created_at DESC LIMIT 1`,
-    args: [projectId, sqlNow()],
+    args: [projectId, form.kind, sqlNow()],
   }));
   if (existing) {
     return NextResponse.json({ id: existing.id, token: existing.token, reused: true }, { headers: NO_STORE });
@@ -73,9 +80,9 @@ export async function POST(request: NextRequest) {
   const token = mintToken();
   const ins = await db.execute({
     sql: `INSERT INTO onboarding_submissions
-            (project_id, token, fetch_key, schema_version, status, r2_prefix, expires_at, created_at, updated_at)
-          VALUES (?,?,?,?, 'open', '', ?, ?, ?)`,
-    args: [projectId, token, mintFetchKey(), SCHEMA_ID, sqlNow(LINK_DAYS), now, now],
+            (project_id, token, fetch_key, schema_version, kind, status, r2_prefix, expires_at, created_at, updated_at)
+          VALUES (?,?,?,?,?, 'open', '', ?, ?, ?)`,
+    args: [projectId, token, mintFetchKey(), form.schemaId, form.kind, sqlNow(LINK_DAYS), now, now],
   });
   const id = Number(ins.lastInsertRowid);
   // r2_prefix needs the id, so it's set once the row exists. One place decides

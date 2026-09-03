@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { SECTIONS, FIELDS, REQUIRED, type Field, type Section } from "@/lib/onboardingSchema";
+import { formFor, missingFor, type Field, type Section } from "@/lib/onboardingSchema";
 import { B, display, Eyebrow, Wordmark, Frame, Card } from "./OnboardingBrand";
 
 // The client-facing onboarding form.
@@ -75,6 +75,10 @@ export default function OnboardingForm({ token }: { token: string }) {
   const [gone, setGone] = useState(false);
   const [business, setBusiness] = useState("");
   const [status, setStatus] = useState("open");
+  // Which questionnaire this token opens. Comes back from /state; until it
+  // does, formFor() resolves to the website form, which is what every existing
+  // token is.
+  const [kind, setKind] = useState("");
   const [answers, setAnswers] = useState<Answers>({});
   const [assets, setAssets] = useState<Asset[]>([]);
   const [step, setStep] = useState(0);
@@ -96,6 +100,7 @@ export default function OnboardingForm({ token }: { token: string }) {
         const d = await res.json();
         setBusiness(d.business_name || "");
         setStatus(d.status);
+        setKind(d.kind || "");
         setSubmitted(d.status !== "open");
         setAnswers(d.answers || {});
         answersRef.current = d.answers || {};
@@ -247,12 +252,13 @@ export default function OnboardingForm({ token }: { token: string }) {
     </Shell>
   );
 
-  const missing = REQUIRED.filter((id) => {
-    const f = FIELDS[id];
-    if (f?.type === "upload") return !assets.some((a) => a.role === f.upload!.role && a.status === "stored");
-    const v = answers[id];
-    return v === undefined || v === null || String(v).trim() === "";
-  });
+  const schema = formFor(kind);
+  const SECTIONS = schema.sections;
+  const missing = missingFor(
+    schema,
+    answers,
+    assets.filter((a) => a.status === "stored").map((a) => a.role),
+  );
 
   if (submitted && step >= SECTIONS.length) return (
     <Shell>
@@ -260,11 +266,10 @@ export default function OnboardingForm({ token }: { token: string }) {
         <div style={{ fontSize: 40, marginBottom: 8 }}>✓</div>
         <h1 style={{ fontFamily: display, fontWeight: 800, fontSize: 27, lineHeight: 1.15,
                      letterSpacing: "-0.02em", margin: "0 0 10px" }}>
-          Thanks — that&apos;s everything we need to get going.
+          {schema.copy.doneTitle}
         </h1>
         <p style={{ color: C.dim, lineHeight: 1.65 }}>
-          We&apos;ll be in touch if anything&apos;s missing. If you think of more photos later,
-          this link still works — just come back and add them.
+          {schema.copy.doneBody}
         </p>
       </div>
     </Shell>
@@ -276,7 +281,7 @@ export default function OnboardingForm({ token }: { token: string }) {
   return (
     <Shell>
       <header style={{ marginBottom: 16 }}>
-        <Eyebrow>{business || "Website onboarding"}</Eyebrow>
+        <Eyebrow>{business || schema.copy.eyebrow}</Eyebrow>
         <h1 style={{
           fontFamily: display, fontWeight: 800, fontSize: 29, lineHeight: 1.12,
           letterSpacing: "-0.02em", color: C.ink, margin: "9px 0 0",
@@ -340,7 +345,7 @@ export default function OnboardingForm({ token }: { token: string }) {
             }}
             className="ob-btn ob-btn-primary"
           >
-            {status === "open" ? "Send it over" : "Save changes"}
+            {status === "open" ? schema.copy.submit : schema.copy.submitAgain}
           </button>
         )}
       </div>
@@ -348,7 +353,7 @@ export default function OnboardingForm({ token }: { token: string }) {
       {isLast && missing.length > 0 && (
         <p style={{ fontSize: 13, color: C.dim, marginTop: 14, lineHeight: 1.6 }}>
           {missing.length} thing{missing.length === 1 ? "" : "s"} still to fill in
-          {" "}({missing.slice(0, 4).map((m) => FIELDS[m]?.label.toLowerCase()).join(", ")}
+          {" "}({missing.slice(0, 4).map((m) => m.label.toLowerCase()).join(", ")}
           {missing.length > 4 ? "…" : ""}). You can still send it over and add them later.
         </p>
       )}

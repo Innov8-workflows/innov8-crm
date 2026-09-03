@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { SECTIONS, FIELDS } from "@/lib/onboardingSchema";
+import { formFor } from "@/lib/onboardingSchema";
 import { B, display } from "./OnboardingBrand";
 
 // A print-ready view of one submission, opened in its own tab from the CRM.
@@ -22,7 +22,7 @@ interface Asset {
   content_type: string; actual_size: number; status: string; url: string | null;
 }
 interface Data {
-  submission: { id: number; business_name: string; status: string; created_at: string;
+  submission: { id: number; business_name: string; status: string; kind: string; created_at: string;
                 submitted_at: string; project_id: number | null };
   answers: Record<string, unknown>;
   assets: Asset[];
@@ -139,7 +139,7 @@ export default function OnboardingPrint({ id }: { id: string }) {
         )}
 
         {/* the answers, in the order the form asks them */}
-        {SECTIONS.map((s) => {
+        {formFor(d.submission.kind).sections.map((s) => {
           const filled = s.fields.filter((f) => f.type !== "upload" && val(d.answers[f.id]) !== "");
           const repeats = Object.keys(d.answers).filter(
             (k) => k.includes("__") && s.fields.some((f) => k.startsWith(f.id + "__")) && val(d.answers[k]) !== "");
@@ -160,7 +160,7 @@ export default function OnboardingPrint({ id }: { id: string }) {
               {repeats.map((k) => (
                 <div key={k} style={{ display: "flex", gap: 14, marginBottom: 7, fontSize: 13 }}>
                   <div style={{ width: 190, flexShrink: 0, color: B.muted, lineHeight: 1.45 }}>
-                    {FIELDS[k.split("__")[0]]?.label.replace("{{line}}", `#${Number(k.split("__")[1]) + 1}`) || k}
+                    {formFor(d.submission.kind).fields[k.split("__")[0]]?.label.replace("{{line}}", `#${Number(k.split("__")[1]) + 1}`) || k}
                   </div>
                   <div style={{ flex: 1, whiteSpace: "pre-wrap", lineHeight: 1.5 }}>{val(d.answers[k])}</div>
                 </div>

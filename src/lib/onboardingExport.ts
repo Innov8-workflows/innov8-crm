@@ -12,7 +12,7 @@
 // check.js blocks the words "insured", "NICEIC", "NAPIT", "Gas Safe" unless
 // declared, and two live clients are on record as NOT insured. A client typing
 // "yes" into a form is not evidence.
-import { SECTIONS, FIELDS, REQUIRED } from "@/lib/onboardingSchema";
+import { formFor, missingFor, missingLabel } from "@/lib/onboardingSchema";
 
 export interface Phone { display: string; tel: string; wa: string }
 
@@ -66,6 +66,10 @@ export function buildExport(
   answers: Record<string, unknown>,
   assets: ExportAsset[],
 ) {
+  // This builder is WEBSITE-shaped throughout — every field id below belongs to
+  // the website questionnaire, and site_config_draft feeds the site-buildout
+  // skill. A second form gets its own builder rather than a flag in here.
+  const form = formFor("website");
   const biz = str(answers, "business_name");
   const phone = parsePhone(str(answers, "phone_mobile"));
   const shortName = biz.replace(/\b(Ltd|Limited|LTD|Ltd\.)\b/g, "").trim();
@@ -101,20 +105,16 @@ export function buildExport(
   // because that is the only thing that turns it into something publishable.
   const hasCert = assets.some((a) => a.role === "certificate");
   const confirm = Object.keys(answers)
-    .filter((k) => FIELDS[k]?.claimGated && str(answers, k))
+    .filter((k) => form.fields[k]?.claimGated && str(answers, k))
     .map((k) => ({
       field: k,
-      label: FIELDS[k].label,
+      label: form.fields[k].label,
       value: str(answers, k),
       certificate_attached: hasCert,
       note: "Client's own words. Do not publish until the certificate has been seen.",
     }));
 
-  const missing = REQUIRED.filter((fid) => {
-    const f = FIELDS[fid];
-    if (f?.type === "upload") return !assets.some((a) => a.role === f.upload!.role);
-    return !str(answers, fid);
-  }).map((fid) => FIELDS[fid]?.label || fid);
+  const missing = missingFor(form, answers, assets.map((a) => a.role)).map(missingLabel);
 
   const counts = assets.reduce((acc, a) => { acc[a.role] = (acc[a.role] || 0) + 1; return acc; }, {} as Record<string, number>);
 
@@ -207,7 +207,7 @@ export function buildExport(
     },
 
     // For an agent deciding what still needs a human.
-    sections: SECTIONS.map((s) => ({
+    sections: form.sections.map((s) => ({
       id: s.id,
       title: s.title,
       answered: s.fields.filter((f) => f.type !== "upload" && str(answers, f.id)).length,

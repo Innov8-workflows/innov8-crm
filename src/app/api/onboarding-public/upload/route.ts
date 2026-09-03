@@ -3,6 +3,7 @@ import { getClient, initDb, all, first } from "@/lib/db";
 import { getByToken, GONE, planKey, checkQuota, sqlNow } from "@/lib/onboarding";
 import { presign, r2Request, isR2Configured, MULTIPART_THRESHOLD, PART_SIZE } from "@/lib/r2";
 import { rateLimit, clientIp } from "@/lib/rateLimit";
+import { formFor } from "@/lib/onboardingSchema";
 
 // The upload control plane. The BYTES never come here — Vercel caps a function
 // request body at 4.5MB and a phone video is routinely 400MB+, so this route
@@ -60,6 +61,12 @@ export async function POST(request: NextRequest) {
     // about, areas, video) matches.
     const role = String(b.role || "gallery");
     if (!/^[a-z][a-z0-9_]{0,31}$/.test(role)) return bad("Unrecognised upload type.");
+
+    // …and it must be a role THIS form actually asks for. The character check
+    // above stops the key being weaponised; this stops a token for one
+    // questionnaire filing uploads under the other one's roles, which the
+    // export would then read as photos that were never sent.
+    if (!formFor(sub.kind).roles.includes(role)) return bad("Unrecognised upload type.");
     const filename = String(b.filename || "").slice(0, 200);
     const size = Number(b.size || 0);
     const sortOrder = Number(b.sort_order || 0);

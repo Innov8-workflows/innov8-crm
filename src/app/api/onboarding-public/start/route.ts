@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getClient, initDb } from "@/lib/db";
 import { mintToken, mintFetchKey, sqlNow } from "@/lib/onboarding";
-import { SCHEMA_ID } from "@/lib/onboardingSchema";
+import { FORMS } from "@/lib/onboardingSchema";
 import { rateLimit, clientIp } from "@/lib/rateLimit";
 
 // The shared "anyone" link. One bookmarkable address Jay can send to a prospect
@@ -29,9 +29,16 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  let body: { business_name?: string; email?: string };
+  let body: { business_name?: string; email?: string; kind?: string };
   try { body = await request.json(); }
   catch { return NextResponse.json({ error: "bad body" }, { status: 400, headers: NO_STORE }); }
+
+  // Which questionnaire this link opens. Validated against the registry rather
+  // than trusted: an unrecognised kind must never create a row whose `kind`
+  // column says one thing while formFor() resolves another — the row would look
+  // like a Meta submission in the CRM and render the website questions.
+  const form = FORMS[String(body.kind || "website")];
+  if (!form) return NextResponse.json({ error: "bad body" }, { status: 400, headers: NO_STORE });
 
   const business = String(body.business_name || "").trim().slice(0, 120);
   const email = String(body.email || "").trim().slice(0, 160);
@@ -51,9 +58,9 @@ export async function POST(request: NextRequest) {
   // attaches it in the CRM.
   const ins = await db.execute({
     sql: `INSERT INTO onboarding_submissions
-            (project_id, token, fetch_key, schema_version, label, status, r2_prefix, expires_at, created_at, updated_at)
-          VALUES (NULL, ?, ?, ?, ?, 'open', '', ?, ?, ?)`,
-    args: [token, mintFetchKey(), SCHEMA_ID, business, sqlNow(LINK_DAYS), now, now],
+            (project_id, token, fetch_key, schema_version, kind, label, status, r2_prefix, expires_at, created_at, updated_at)
+          VALUES (NULL, ?, ?, ?, ?, ?, 'open', '', ?, ?, ?)`,
+    args: [token, mintFetchKey(), form.schemaId, form.kind, business, sqlNow(LINK_DAYS), now, now],
   });
   const id = Number(ins.lastInsertRowid);
 

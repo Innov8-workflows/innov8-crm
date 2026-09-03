@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { SECTIONS, FIELDS } from "@/lib/onboardingSchema";
+import { formFor } from "@/lib/onboardingSchema";
 import Icon from "./Icon";
 
 // The Onboarding view: every submission, what each one is still missing, and the
@@ -16,7 +16,7 @@ import Icon from "./Icon";
 // they are the ones needing an action from Jay.
 
 interface Row {
-  id: number; project_id: number | null; token: string; status: string;
+  id: number; project_id: number | null; token: string; status: string; kind: string;
   business_name: string; label: string; expires_at: string; submitted_at: string;
   asset_count: number; stored: number; failed: number; created_at: string; archived: number;
   seen_at: string; notified_at: string;
@@ -526,7 +526,7 @@ export default function Onboarding({ active, onSeen }: { active: boolean; onSeen
             {/* The answers, in the order the form asks them. */}
             <div className="mt-5">
               <div className="text-xs font-bold mb-2" style={{ color: "var(--text-muted)" }}>ANSWERS</div>
-              {SECTIONS.map((s) => {
+              {formFor(detail.submission.kind).sections.map((s) => {
                 const filled = s.fields.filter((f) => {
                   const v = detail.answers[f.id];
                   return f.type !== "upload" && v !== undefined && String(v).trim() !== "";
@@ -552,7 +552,7 @@ export default function Onboarding({ active, onSeen }: { active: boolean; onSeen
                       {repeats.map((k) => (
                         <div key={k} className="px-3 py-2" style={{ borderTop: "1px solid var(--border)" }}>
                           <div className="text-xs" style={{ color: "var(--text-dim)" }}>
-                            {FIELDS[k.split("__")[0]]?.label.replace("{{line}}", `#${Number(k.split("__")[1]) + 1}`) || k}
+                            {formFor(detail.submission.kind).fields[k.split("__")[0]]?.label.replace("{{line}}", `#${Number(k.split("__")[1]) + 1}`) || k}
                           </div>
                           <div className="text-sm whitespace-pre-wrap" style={{ color: "var(--text-secondary)" }}>
                             {String(detail.answers[k])}

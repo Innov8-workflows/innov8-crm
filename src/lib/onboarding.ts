@@ -13,7 +13,7 @@ import crypto from "crypto";
 import type { Client } from "@libsql/client";
 import { first } from "@/lib/db";
 import { safeName, contentTypeFor } from "@/lib/r2";
-import { QUOTA } from "@/lib/onboardingSchema";
+import { formFor } from "@/lib/onboardingSchema";
 
 /** 128 bits. It is in a client's WhatsApp message, and it authorises writes. */
 export const mintToken = () => "ob_" + crypto.randomBytes(16).toString("hex");
@@ -88,6 +88,11 @@ export interface QuotaVerdict { ok: boolean; error?: string }
  * this much junk in one prefix, which is one lifecycle rule to clear.
  */
 export function checkQuota(sub: Submission, size: number, isVideo: boolean, videoCount: number): QuotaVerdict {
+  // Per-form, not global: the website form wants a lot of photos and a handful
+  // of videos; a Meta ad-creative form is the other way round, because Grade A
+  // is all video. Resolved from the submission rather than passed in, so a
+  // caller cannot pair one form's submission with another form's ceilings.
+  const QUOTA = formFor(sub.kind).quota;
   if (!Number.isFinite(size) || size <= 0) return { ok: false, error: "bad file size" };
   if (size > QUOTA.maxBytesPerObject) {
     return { ok: false, error: `That file is ${(size / 1073741824).toFixed(1)}GB. The limit is 2GB per file — send it over separately and we'll add it.` };

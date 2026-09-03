@@ -52,6 +52,9 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     status: sub.status,
+    // Which questionnaire to render. Without this the form has no way to know,
+    // and every token would open the website questions.
+    kind: sub.kind,
     schema_version: sub.schema_version,
     business_name: (business?.business_name as string) || sub.label || "",
     answers: JSON.parse((answers?.answers_json as string) || "{}"),
