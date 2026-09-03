@@ -45,7 +45,21 @@ export async function POST(request: NextRequest) {
 
   // ---------------------------------------------------------------- begin ---
   if (action === "begin") {
-    const role = String(b.role || "gallery").slice(0, 32);
+    // `role` decides the folder an upload lands in — onboarding/<id>/<role>/… —
+    // and it arrives from the browser. It is NOT just a label. It flows into the
+    // R2 key, back out through /api/onboarding-fetch as the asset's `path`, and
+    // from there into path.join() on whichever machine downloads the assets.
+    // path.join RESOLVES "..", so a role of "../../.." wrote files outside the
+    // download folder entirely. safeName() guards the filename; nothing guarded
+    // this.
+    //
+    // Refused outright rather than stripped: a role that isn't a plain
+    // identifier is a bug in our own form, and it should surface as an error
+    // instead of quietly creating a folder nobody meant to exist. Every role the
+    // schema actually uses (logo, hero, gallery, before_after, certificate,
+    // about, areas, video) matches.
+    const role = String(b.role || "gallery");
+    if (!/^[a-z][a-z0-9_]{0,31}$/.test(role)) return bad("Unrecognised upload type.");
     const filename = String(b.filename || "").slice(0, 200);
     const size = Number(b.size || 0);
     const sortOrder = Number(b.sort_order || 0);
