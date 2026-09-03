@@ -26,7 +26,7 @@ interface Data {
                 submitted_at: string; project_id: number | null };
   answers: Record<string, unknown>;
   assets: Asset[];
-  missing: { id: string; label: string }[];
+  missing: { id: string; label: string; have: number; need: number }[];
   confirm: { id: string; label: string; value: string }[];
 }
 
@@ -116,7 +116,7 @@ export default function OnboardingPrint({ id }: { id: string }) {
                    textTransform: "uppercase", color: B.accent, marginBottom: 3 }}>
               Still missing ({d.missing.length})
             </div>
-            <div style={{ fontSize: 13, color: B.body }}>{d.missing.map((m) => m.label).join(" · ")}</div>
+            <div style={{ fontSize: 13, color: B.body }}>{d.missing.map((m) => m.need > 1 ? `${m.label} (${m.have} of ${m.need})` : m.label).join(" · ")}</div>
           </div>
         )}
 

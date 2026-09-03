@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { B, display, Eyebrow, Wordmark, Frame, Card } from "./OnboardingBrand";
+import { formFor } from "@/lib/onboardingSchema";
 
 // Landing page for the shared link. Two fields, then it mints a private
 // resumable link and moves them onto the real form.
@@ -11,13 +12,12 @@ import { B, display, Eyebrow, Wordmark, Frame, Card } from "./OnboardingBrand";
 // three reassurance points below are lifted from that one-pager for the same
 // reason ("No lock-in", "It stays yours", "Live in 7 business days").
 
-const POINTS: [string, string][] = [
-  ["Takes about fifteen minutes", "And you don't have to do it in one go."],
-  ["Your own link", "Come back to it whenever — nothing is lost."],
-  ["Send photos straight off your phone", "As many as you like, any size."],
-];
+export default function OnboardingStart({ kind = "website" }: { kind?: string }) {
+  // Which questionnaire this page starts. Everything the page says comes from
+  // the form itself, so a third one would be a new route and nothing else.
+  const form = formFor(kind);
+  const POINTS = form.copy.startPoints;
 
-export default function OnboardingStart() {
   const [business, setBusiness] = useState("");
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
@@ -30,7 +30,7 @@ export default function OnboardingStart() {
     try {
       const res = await fetch("/api/onboarding-public/start", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ business_name: business, email }),
+        body: JSON.stringify({ business_name: business, email, kind }),
       });
       const d = await res.json();
       if (!res.ok) { setError(d.error || "Something went wrong. Try again."); setBusy(false); return; }
@@ -48,16 +48,15 @@ export default function OnboardingStart() {
       <div style={{ marginBottom: 18 }}><Wordmark /></div>
 
       <Card>
-        <Eyebrow>Website onboarding</Eyebrow>
+        <Eyebrow>{form.copy.eyebrow}</Eyebrow>
         <h1 style={{
           fontFamily: display, fontWeight: 800, fontSize: 30, lineHeight: 1.12,
           letterSpacing: "-0.02em", color: B.ink, margin: "10px 0 12px",
         }}>
-          Let&apos;s get your website started.
+          {form.copy.startTitle}
         </h1>
         <p style={{ color: B.body, lineHeight: 1.65, fontSize: 15.5, margin: "0 0 24px" }}>
-          A few questions about your business, and somewhere to send your photos.
-          That&apos;s everything we need to build it.
+          {form.copy.startIntro}
         </p>
 
         <label htmlFor="ob-biz" style={{ display: "block", fontSize: 15, fontWeight: 600, marginBottom: 7 }}>

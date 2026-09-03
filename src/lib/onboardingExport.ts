@@ -215,3 +215,127 @@ export function buildExport(
     })),
   };
 }
+
+/**
+ * The ad-creatives export. A sibling of buildExport, not a mode of it.
+ *
+ * buildExport emits the parse-onboarding.js contract — biz, primaryServices,
+ * primaryAreas, site_config_draft — which exists to feed a website build. None
+ * of that means anything for a set of ad creatives, and a flag inside one
+ * function would have meant half the keys were dead on any given call.
+ *
+ * The keys that ARE shared are shared deliberately: fetch-onboarding.mjs reads
+ * business_name, assets[], asset_counts, missing[] and confirm[] on every
+ * submission it downloads, so both builders must emit all five.
+ *
+ * The grades are graded by ROLE PREFIX rather than a hard-coded list, so adding
+ * another Grade B slot to the questionnaire needs no change here.
+ */
+export function buildMetaExport(
+  submission: Record<string, unknown>,
+  answers: Record<string, unknown>,
+  assets: ExportAsset[],
+) {
+  const form = formFor("meta_ads");
+  const phone = parsePhone(str(answers, "phone_mobile"));
+  const whatsapp = parsePhone(str(answers, "whatsapp")) || phone;
+
+  const counts = assets.reduce((acc, a) => {
+    acc[a.role] = (acc[a.role] || 0) + 1; return acc;
+  }, {} as Record<string, number>);
+  const byGrade = (prefix: string) => assets.filter((a) => a.role.startsWith(prefix));
+
+  return {
+    id: Number(submission.id),
+    kind: "meta_ads",
+    business_name: str(answers, "business_name") || String(submission.business_name ?? ""),
+    status: String(submission.status ?? ""),
+    submitted_at: String(submission.submitted_at ?? ""),
+    schema_version: String(submission.schema_version ?? ""),
+
+    owner: str(answers, "owner_name"),
+    email: str(answers, "email"),
+    phone,
+    whatsapp,
+    website: str(answers, "website"),
+
+    facebook: {
+      has_page: str(answers, "fb_page_exists"),
+      page: str(answers, "facebook_page"),
+      instagram: str(answers, "instagram"),
+      managed_by: str(answers, "page_manager"),
+      ads_before: str(answers, "ads_before"),
+      ads_experience: str(answers, "ads_experience"),
+      ad_account: str(answers, "ad_account"),
+    },
+
+    offer: {
+      hook: str(answers, "offer_hook"),
+      wants: str(answers, "want_work"),
+      avoids: str(answers, "avoid_work"),
+      job_value: str(answers, "job_value"),
+      busy_season: str(answers, "busy_season"),
+      // Unverified by construction. Same rule as the website export: the client
+      // saying it does not make it publishable, so it travels in confirm[] as
+      // well and nothing downstream may promote it on its own.
+      guarantee_unverified: str(answers, "guarantee"),
+      must_not_claim: str(answers, "must_not_say"),
+    },
+
+    targeting: {
+      towns: lines(answers, "target_towns"),
+      radius: str(answers, "radius"),
+      audience: lines(answers, "audience"),
+      property_type: str(answers, "property_type"),
+      exclude: lines(answers, "exclude_areas"),
+    },
+
+    leads: {
+      destinations: lines(answers, "lead_destination"),
+      mobile: str(answers, "lead_mobile") || str(answers, "phone_mobile"),
+      email: str(answers, "lead_email") || str(answers, "email"),
+      answered_by: str(answers, "who_answers"),
+      response_time: str(answers, "response_time"),
+      qualifying_questions: lines(answers, "qualifying_questions"),
+      calendar: str(answers, "calendar_link"),
+    },
+
+    // Permission is its own top-level key, not buried in notes. It decides
+    // whether a customer's face may appear in a paid advert at all.
+    permission: {
+      answer: str(answers, "permission"),
+      notes: str(answers, "permission_notes"),
+    },
+
+    competitors: str(answers, "competitors"),
+    notes: str(answers, "additional_notes"),
+
+    grades: {
+      a: byGrade("a_"),
+      b: byGrade("b_"),
+      c: byGrade("c_"),
+    },
+
+    confirm: form.claimGated
+      .filter((k) => str(answers, k))
+      .map((k) => ({
+        field: k,
+        label: form.fields[k].label,
+        value: str(answers, k),
+        certificate_attached: false,
+        note: "Client's own words. Do not put it in an advert until it has been checked.",
+      })),
+
+    missing: missingFor(form, answers, assets.map((a) => a.role)).map(missingLabel),
+
+    assets,
+    asset_counts: counts,
+
+    sections: form.sections.map((s) => ({
+      id: s.id,
+      title: s.title,
+      answered: s.fields.filter((f) => f.type !== "upload" && str(answers, f.id)).length,
+      total: s.fields.filter((f) => f.type !== "upload").length,
+    })),
+  };
+}

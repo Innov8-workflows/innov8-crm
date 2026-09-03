@@ -19,6 +19,7 @@
 
 import type { FormSchema } from "./forms/types";
 import { websiteForm } from "./forms/website";
+import { metaAdsForm } from "./forms/metaAds";
 
 export * from "./forms/types";
 
@@ -32,6 +33,7 @@ export * from "./forms/types";
  */
 export const FORMS: Record<string, FormSchema> = {
   [websiteForm.kind]: websiteForm,
+  [metaAdsForm.kind]: metaAdsForm,
 };
 
 /**

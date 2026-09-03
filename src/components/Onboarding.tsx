@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { formFor } from "@/lib/onboardingSchema";
+import { formFor, FORMS } from "@/lib/onboardingSchema";
+import TabBar from "./TabBar";
 import Icon from "./Icon";
 
 // The Onboarding view: every submission, what each one is still missing, and the
@@ -30,7 +31,7 @@ interface Detail {
   submission: Row & { r2_prefix: string };
   answers: Record<string, unknown>;
   assets: Asset[];
-  missing: { id: string; label: string }[];
+  missing: { id: string; label: string; have: number; need: number }[];
   confirm: { id: string; label: string; value: string }[];
 }
 interface ProjectOpt { id: number; business_name: string; stage: string }
@@ -46,6 +47,13 @@ const chip = (status: string): { bg: string; fg: string; text: string } => {
   }
 };
 
+// One tab per questionnaire, labelled and ordered by the registry so a third
+// form needs no change here.
+const TABS: string[] = Object.values(FORMS).map((f) => f.label);
+const KIND_OF: Record<string, string> = Object.fromEntries(
+  Object.values(FORMS).map((f) => [f.label, f.kind]),
+);
+
 const bytes = (n: number) =>
   n >= 1073741824 ? `${(n / 1073741824).toFixed(1)} GB`
   : n >= 1048576 ? `${Math.round(n / 1048576)} MB`
@@ -59,6 +67,11 @@ export default function Onboarding({ active, onSeen }: { active: boolean; onSeen
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState("");
   const [showArchived, setShowArchived] = useState(false);
+  // Which questionnaire's submissions the rail is showing. Plain state: this
+  // view is mounted with persist=false in page.tsx, so it unmounts on every
+  // navigation — reading a stored value into useState would hydrate-mismatch,
+  // and defaulting back to Website on each visit is the right default anyway.
+  const [tab, setTab] = useState(TABS[0]);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [pin, setPin] = useState("");
   const [folder, setFolder] = useState("");
@@ -70,8 +83,10 @@ export default function Onboarding({ active, onSeen }: { active: boolean; onSeen
     const d = await (await fetch(`/api/onboarding/submissions${showArchived ? "?archived=1" : ""}`)).json();
     const list = (d.submissions || []) as Row[];
     setRows(list);
-    // Keep the tab badge honest without another round trip: opening a submission
-    // marks it seen server-side, so the count changes as Jay reads.
+    // `rows` deliberately holds EVERY kind. The rail filters it per tab, but the
+    // nav badge must count both or it halves the moment you switch tabs — and
+    // the API has no kind filter for exactly this reason. Opening a submission
+    // marks it seen server-side, so the count falls as Jay reads.
     onSeen?.(list.filter((r) => !r.seen_at && !r.archived
       && r.status !== "open" && r.status !== "revoked").length);
     return list;
@@ -84,13 +99,28 @@ export default function Onboarding({ active, onSeen }: { active: boolean; onSeen
 
   useEffect(() => {
     if (!active) return;
-    loadRows().then((list) => { if (list?.length && selected === null) setSelected(list[0].id); });
+    loadRows().then((list) => {
+      const first = (list || []).find((r) => KIND_OF[tab] === r.kind);
+      if (first && selected === null) setSelected(first.id);
+    });
     fetch("/api/projects?completed=false").then((r) => r.json()).then((d) => {
       const list = (d.projects || d || []) as ProjectOpt[];
       setProjects(list);
     }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active]);
+
+  // Switching tab while a submission from the other kind is selected left the
+  // detail pane rendering website answers under a Meta heading, with nothing
+  // highlighted in the rail. Re-seed from what the new tab actually shows.
+  useEffect(() => {
+    const mine = rows.filter((r) => r.kind === KIND_OF[tab]);
+    if (!mine.some((r) => r.id === selected)) {
+      setSelected(mine.length ? mine[0].id : null);
+      if (!mine.length) setDetail(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, rows]);
 
   useEffect(() => { if (selected) loadDetail(selected); }, [selected, loadDetail]);
   useEffect(() => {
@@ -115,7 +145,7 @@ export default function Onboarding({ active, onSeen }: { active: boolean; onSeen
     setBusy(true);
     const r = await (await fetch("/api/onboarding/submissions", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ project_id: projectId }),
+      body: JSON.stringify({ project_id: projectId, kind: KIND_OF[tab] }),
     })).json();
     const list = await loadRows();
     if (r.id) setSelected(r.id);
@@ -129,7 +159,10 @@ export default function Onboarding({ active, onSeen }: { active: boolean; onSeen
     }).catch(() => {});
   };
 
-  const sharedLink = `${origin}/onboarding/start`;
+  // One shared link per questionnaire. /onboarding/start keeps its name
+  // because that URL is already out with clients and has a link card for it.
+  const SHARED_PATH: Record<string, string> = { website: "/onboarding/start", meta_ads: "/onboarding/ads" };
+  const sharedLink = `${origin}${SHARED_PATH[KIND_OF[tab]] || "/onboarding/start"}`;
 
   /**
    * A paste-able instruction for a Claude Code session.
@@ -153,8 +186,69 @@ export default function Onboarding({ active, onSeen }: { active: boolean; onSeen
     ].join("\n");
   };
 
+  /**
+   * The ad-creatives counterpart of buildPrompt: everything needed to write the
+   * ads, in one paste.
+   *
+   * Written for a person as much as an agent — there is no meta-ads skill yet,
+   * so this most often lands in a notes app or a message to whoever is building
+   * the campaign. It leads with the constraints (what must not be claimed, what
+   * permission was given) because those are the two things that are expensive
+   * to get wrong in public.
+   */
+  const creativeBrief = (d: Detail) => {
+    const a = (id: string) => String(d.answers[id] ?? "").trim();
+    const list = (id: string) => a(id).split(/[\n,]/).map((x) => x.trim()).filter(Boolean).join(", ");
+    const counts = d.assets.filter((x) => x.status === "stored")
+      .reduce((acc, x) => { acc[x.role] = (acc[x.role] || 0) + 1; return acc; }, {} as Record<string, number>);
+    const grade = (prefix: string) => Object.entries(counts)
+      .filter(([r]) => r.startsWith(prefix)).map(([r, n]) => r + " " + n).join(", ") || "none";
+
+    return [
+      "Meta ads brief — " + (d.submission.business_name || "this client") +
+        " (onboarding submission " + d.submission.id + ")",
+      "",
+      "OFFER: " + (a("offer_hook") || "NOT GIVEN"),
+      "Wants: " + (a("want_work") || "—"),
+      "Avoid: " + (a("avoid_work") || "—"),
+      "Typical job: " + (a("job_value") || "—"),
+      "Guarantee (UNVERIFIED — client's own words): " + (a("guarantee") || "—"),
+      "MUST NOT CLAIM: " + (a("must_not_say") || "nothing flagged"),
+      "",
+      "TARGET: " + (list("target_towns") || "NOT GIVEN") +
+        (a("radius") ? " · within " + a("radius") : ""),
+      "Audience: " + (list("audience") || "—"),
+      "Exclude: " + (list("exclude_areas") || "—"),
+      "",
+      "LEADS TO: " + (list("lead_destination") || "NOT GIVEN") +
+        " · answered by " + (a("who_answers") || "—") +
+        " · " + (a("response_time") || "response time not given"),
+      "Qualifying questions: " + (list("qualifying_questions") || "—"),
+      "",
+      "FACEBOOK: page " + (a("fb_page_exists") || "?") +
+        (a("facebook_page") ? " (" + a("facebook_page") + ")" : "") +
+        " · managed by " + (a("page_manager") || "?") +
+        " · ad account " + (a("ad_account") || "?"),
+      "PERMISSION to use faces/properties: " + (a("permission") || "NOT ANSWERED") +
+        (a("permission_notes") ? " — " + a("permission_notes") : ""),
+      "",
+      "GRADE A (video, people talking): " + grade("a_"),
+      "GRADE B (photos with people): " + grade("b_"),
+      "GRADE C (silent b-roll, last resort): " + grade("c_"),
+      "",
+      d.missing.length
+        ? "STILL MISSING: " + d.missing.map((m) => m.label + (m.need > 1 ? " (" + m.have + " of " + m.need + ")" : "")).join(" · ")
+        : "Nothing outstanding.",
+    ].join("\n");
+  };
+
+  const visible = rows.filter((r) => r.kind === KIND_OF[tab]);
+
   return (
-    <div className="flex-1 flex min-h-0">
+    <div className="flex-1 flex flex-col min-h-0">
+      <TabBar tabs={TABS} active={tab} onChange={setTab} />
+
+      <div className="flex-1 flex min-h-0">
       {/* ── rail ─────────────────────────────────────────────────────────── */}
       <div className="flex flex-col flex-shrink-0 overflow-y-auto"
            style={{ width: 260, borderRight: "1px solid var(--border)", background: "var(--surface)" }}>
@@ -197,12 +291,12 @@ export default function Onboarding({ active, onSeen }: { active: boolean; onSeen
           {showArchived ? "\u2713 Showing archived" : "Show archived"}
         </button>
 
-        {rows.length === 0 && (
+        {visible.length === 0 && (
           <div className="px-3 py-6 text-xs" style={{ color: "var(--text-dim)", lineHeight: 1.6 }}>
             No submissions yet. Mint a link above, or send someone the shared link.
           </div>
         )}
-        {rows.map((r) => {
+        {visible.map((r) => {
           const c = chip(r.status);
           const isSel = selected === r.id;
           return (
@@ -276,11 +370,18 @@ export default function Onboarding({ active, onSeen }: { active: boolean; onSeen
                   style={{ background: "var(--surface2)", border: "1px solid var(--border-light)", color: "var(--text-secondary)" }}>
                   Export PDF
                 </button>
-                <button onClick={() => copy(buildPrompt(detail), "prompt")}
-                  title="Paste this into a Claude Code session to build the full site"
+                <button
+                  onClick={() => copy(
+                    detail.submission.kind === "website" ? buildPrompt(detail) : creativeBrief(detail),
+                    "prompt",
+                  )}
+                  title={detail.submission.kind === "website"
+                    ? "Paste this into a Claude Code session to build the full site"
+                    : "Everything needed to write the ads, in one paste"}
                   className="px-3 py-1.5 rounded-lg text-xs font-bold"
                   style={{ background: "var(--surface2)", border: "1px solid var(--border-light)", color: "var(--text-secondary)" }}>
-                  {copied === "prompt" ? "Copied" : "Copy build prompt"}
+                  {copied === "prompt" ? "Copied"
+                    : detail.submission.kind === "website" ? "Copy build prompt" : "Copy creative brief"}
                 </button>
                 {detail.submission.status !== "accepted" && (
                   <button disabled={busy} onClick={() => act(detail.submission.id, "accept")}
@@ -388,7 +489,7 @@ export default function Onboarding({ active, onSeen }: { active: boolean; onSeen
                   STILL MISSING ({detail.missing.length})
                 </div>
                 <div className="text-sm" style={{ color: "var(--text-secondary)" }}>
-                  {detail.missing.map((m) => m.label).join(" · ")}
+                  {detail.missing.map((m) => m.need > 1 ? `${m.label} (${m.have} of ${m.need})` : m.label).join(" · ")}
                 </div>
               </div>
             )}
@@ -417,7 +518,12 @@ export default function Onboarding({ active, onSeen }: { active: boolean; onSeen
               </div>
             )}
 
-            {/* Hand it to the build runner. */}
+            {/* Hand it to the build runner. Website submissions only: there is no
+                site to build from ad creatives, and the runner sends a fixed
+                /site-buildout prompt, so queuing one here would burn a whole
+                Claude Code session building the wrong thing. The API refuses it
+                too — this is the half that stops it being offered. */}
+            {detail.submission.kind === "website" && (
             <div className="mt-4 p-3 rounded-lg"
                  style={{ background: "var(--surface2)", border: "1px solid var(--border-light)" }}>
               <div className="text-xs font-bold mb-2" style={{ color: "var(--text-muted)" }}>
@@ -480,6 +586,7 @@ export default function Onboarding({ active, onSeen }: { active: boolean; onSeen
                 </div>
               )}
             </div>
+            )}
 
             {/* Media, grouped the way the build consumes it. */}
             {detail.assets.length > 0 && (
@@ -566,6 +673,7 @@ export default function Onboarding({ active, onSeen }: { active: boolean; onSeen
             </div>
           </>
         )}
+      </div>
       </div>
     </div>
   );

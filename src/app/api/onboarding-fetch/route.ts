@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getClient, initDb, all, first } from "@/lib/db";
 import { presign, isR2Configured } from "@/lib/r2";
 import { sqlNow } from "@/lib/onboarding";
-import { buildExport, type ExportAsset } from "@/lib/onboardingExport";
+import { buildExport, buildMetaExport, type ExportAsset } from "@/lib/onboardingExport";
 
 // The agent API. This is what a Claude Code session (or a cron job, or curl)
 // talks to in order to pull a submission and its media down and start building.
@@ -58,6 +58,11 @@ export async function GET(request: NextRequest) {
               LEFT JOIN leads l    ON l.id = p.lead_id
              WHERE s.queued_at != '' AND s.build_started_at = ''
                AND s.archived = 0 AND s.status != 'revoked'
+               -- The runner only knows how to build websites. Queuing an
+               -- ad-creatives submission is refused at the other end too; this
+               -- makes sure one can never be handed out even if a row got
+               -- queued some other way.
+               AND s.kind = 'website'
              ORDER BY s.queued_at ASC LIMIT 10`,
     }));
     return NextResponse.json({ queued: rows }, { headers: NO_STORE });
@@ -67,7 +72,7 @@ export async function GET(request: NextRequest) {
   if (!id) {
     const status = request.nextUrl.searchParams.get("status") || "";
     const rows = all(await db.execute({
-      sql: `SELECT s.id, s.project_id, s.status, s.submitted_at, s.fetched_at, s.created_at,
+      sql: `SELECT s.id, s.project_id, s.status, s.kind, s.submitted_at, s.fetched_at, s.created_at,
                    COALESCE(l.business_name, s.label, '') AS business_name,
                    (SELECT COUNT(*) FROM onboarding_assets a
                      WHERE a.submission_id = s.id AND a.status = 'stored') AS files
@@ -133,7 +138,16 @@ export async function GET(request: NextRequest) {
   });
 
   return NextResponse.json(
-    { ...buildExport(sub, answers, assets), url_expires_in: URL_TTL },
+    {
+      // The two forms have genuinely different shapes — a website export carries
+      // site_config_draft and the parse-onboarding contract, an ad-creatives one
+      // carries the offer, the targeting and the grades. One ternary, because the
+      // assets above are assembled identically either way.
+      ...(String(sub.kind || "website") === "meta_ads"
+        ? buildMetaExport(sub, answers, assets)
+        : buildExport(sub, answers, assets)),
+      url_expires_in: URL_TTL,
+    },
     { headers: NO_STORE },
   );
 }

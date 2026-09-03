@@ -122,6 +122,18 @@ export async function PUT(request: NextRequest) {
   // Hand it to the runner. The folder is the client's existing demo folder —
   // the build-out runs inside it rather than starting a new project.
   if (body.action === "queue") {
+    // Hiding the button is UI. This is the rule. The runner sends a fixed
+    // /site-buildout prompt, so a queued ad-creatives submission would spend a
+    // whole Claude Code session trying to build a website out of video clips.
+    const kindRow = first(await db.execute({
+      sql: "SELECT kind FROM onboarding_submissions WHERE id = ? LIMIT 1", args: [id],
+    }));
+    if (String(kindRow?.kind || "website") !== "website") {
+      return NextResponse.json(
+        { error: "Only a website submission can be queued for a site build." },
+        { status: 400, headers: NO_STORE },
+      );
+    }
     const folder = String(body.folder || "").trim().slice(0, 400);
     if (!folder) return NextResponse.json({ error: "folder required" }, { status: 400 });
     await db.execute({

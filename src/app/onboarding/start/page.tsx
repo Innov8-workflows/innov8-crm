@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import OnboardingStart from "@/components/OnboardingStart";
+import { FORMS } from "@/lib/onboardingSchema";
+
+const copy = FORMS.website.copy;
 
 // The shared "anyone" link: onboarding.innov8workflows.co.uk/onboarding/start
 //
@@ -7,11 +10,11 @@ import OnboardingStart from "@/components/OnboardingStart";
 // Tokens are always ob_<hex>, so there is no collision to worry about either way.
 
 export const metadata: Metadata = {
-  title: "Website onboarding · innov8 Workflows",
-  description: "Tell us about your business so we can build your website.",
+  title: copy.title,
+  description: copy.description,
   openGraph: {
-    title: "Website onboarding · Innov8 Workflows",
-    description: "Tell us about your business and send us your photos — that's everything we need to build your website.",
+    title: copy.ogTitle,
+    description: copy.ogDescription,
     siteName: "Innov8 Workflows",
     type: "website",
     // Distinct filename: WhatsApp and Facebook cache the preview per URL, so a
