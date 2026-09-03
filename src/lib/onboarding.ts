@@ -32,6 +32,9 @@ export interface Submission {
   /** NULL until Jay attaches it — submissions from the shared link start life unowned. */
   project_id: number | null;
   status: string;
+  /** Which questionnaire: 'website' or 'meta_ads'. Decides the questions, the
+   *  upload roles that are allowed, and the quota. */
+  kind: string;
   r2_prefix: string;
   expires_at: string;
   schema_version: string;
@@ -50,7 +53,7 @@ export interface Submission {
 export async function getByToken(db: Client, token: string): Promise<Submission | null> {
   if (!/^ob_[0-9a-f]{32}$/.test(token)) return null;
   const row = first(await db.execute({
-    sql: `SELECT id, project_id, status, r2_prefix, expires_at, schema_version,
+    sql: `SELECT id, project_id, status, kind, r2_prefix, expires_at, schema_version,
                  label, bytes_declared, asset_count
             FROM onboarding_submissions
            WHERE token = ? AND status != 'revoked' AND expires_at > ?

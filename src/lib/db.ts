@@ -61,7 +61,7 @@ async function doInitDb() {
   // ~100-300ms, so this is the single biggest "slow first load" win. Bump
   // SCHEMA_VERSION whenever a migration/index/seed below changes → the heavy block
   // re-runs exactly once on the next deploy, then cold starts go fast again.
-  const SCHEMA_VERSION = "2026-09-01-onboarding-notify";
+  const SCHEMA_VERSION = "2026-09-03-onboarding-kind";
   await db.execute("CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT DEFAULT '')");
   const schemaMarker = first(await db.execute("SELECT value FROM app_meta WHERE key = 'schema_version'"));
   if (schemaMarker?.value === SCHEMA_VERSION) return;
@@ -449,6 +449,14 @@ async function doInitDb() {
       -- somewhere: 128 bits, expiring, revocable, and it authorises writes only
       -- to its own prefix. Same construction as mintLeadKey in clientReporting.ts.
       token TEXT NOT NULL DEFAULT '',
+      -- Which questionnaire this submission answers. The discriminator, and
+      -- deliberately its own column rather than a prefix on schema_version:
+      -- schema_version is a DATE that changes whenever the questions change, so
+      -- encoding the kind in it would mean every read site did string surgery
+      -- and a future version bump would silently re-point the form.
+      -- Defaulting to 'website' is what makes the existing rows correct with no
+      -- backfill.
+      kind TEXT NOT NULL DEFAULT 'website',
       -- of_<32 hex>. Jay's read key for the agent API. Lazily minted. NEVER
       -- returned to the onboarding page — only to an authenticated CRM response.
       fetch_key TEXT NOT NULL DEFAULT '',
@@ -656,6 +664,9 @@ async function doInitDb() {
     "ALTER TABLE onboarding_submissions ADD COLUMN build_note TEXT NOT NULL DEFAULT ''",
     "ALTER TABLE onboarding_submissions ADD COLUMN build_started_at TEXT NOT NULL DEFAULT ''",
     "ALTER TABLE onboarding_submissions ADD COLUMN build_result TEXT NOT NULL DEFAULT ''",
+    // Which questionnaire this is: 'website' or 'meta_ads'. Runs BEFORE
+    // relaxOnboardingProjectId, whose rebuild carries the column across.
+    "ALTER TABLE onboarding_submissions ADD COLUMN kind TEXT NOT NULL DEFAULT 'website'",
     // The day the client churned. NOT backfillable — client_status='lost' overwrites
     // in place with no date and there is no transition log. Stamped forward from here;
     // '' on an already-lost client means "churned before history began".
@@ -753,6 +764,23 @@ async function doInitDb() {
   // re-runs on EVERY version bump, and a table rebuild that runs twice would
   // destroy data.
   await relaxOnboardingProjectId(db);
+
+  // Only mark the schema current if it actually IS current.
+  //
+  // Every statement in `migrations` is fire-and-swallow, because the normal
+  // failure ("duplicate column name") is exactly what idempotency looks like.
+  // The cost of that is real: if an ALTER fails for some OTHER reason, stamping
+  // the version anyway means every later cold start takes the fast path at the
+  // top of this function, the column never appears, and every query naming it
+  // 500s forever with no way to self-heal short of another version bump.
+  //
+  // So spot-check the newest column before claiming success. A slow cold start
+  // is a far better failure than a permanently missing column.
+  const obCols = all(await db.execute("PRAGMA table_info(onboarding_submissions)"));
+  if (!obCols.some((c) => c.name === "kind")) {
+    console.error("[db] onboarding_submissions.kind missing after migration — not stamping schema_version");
+    return;
+  }
 
   // Mark the schema current so subsequent cold starts take the fast path at the top.
   await db.execute({ sql: "INSERT OR REPLACE INTO app_meta (key, value) VALUES ('schema_version', ?)", args: [SCHEMA_VERSION] });
@@ -974,6 +1002,7 @@ async function relaxOnboardingProjectId(db: Client) {
       token TEXT NOT NULL DEFAULT '',
       fetch_key TEXT NOT NULL DEFAULT '',
       schema_version TEXT NOT NULL DEFAULT '',
+      kind TEXT NOT NULL DEFAULT 'website',
       label TEXT NOT NULL DEFAULT '',
       archived INTEGER NOT NULL DEFAULT 0,
       seen_at TEXT NOT NULL DEFAULT '',
@@ -995,7 +1024,7 @@ async function relaxOnboardingProjectId(db: Client) {
       FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
     );
     INSERT INTO onboarding_submissions_new
-      SELECT id, project_id, token, fetch_key, schema_version, label, archived, seen_at, notified_at,
+      SELECT id, project_id, token, fetch_key, schema_version, kind, label, archived, seen_at, notified_at,
              queued_at, build_folder, build_note, build_started_at, build_result, status, r2_prefix,
              expires_at, submitted_at, fetched_at, bytes_declared, asset_count,
              created_at, updated_at FROM onboarding_submissions;
