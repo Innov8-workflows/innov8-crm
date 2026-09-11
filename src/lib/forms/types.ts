@@ -18,7 +18,7 @@
 // easier to say otherwise by accident.
 
 export type FieldType =
-  | "text" | "textarea" | "tel" | "email" | "url" | "number"
+  | "text" | "textarea" | "tel" | "email" | "url" | "number" | "money"
   | "radio" | "checkboxes" | "lines" | "hours" | "upload";
 
 export interface UploadSpec {
@@ -46,6 +46,18 @@ export interface Field {
   showIf?: { field: string; equals: string };
   /** Answer is evidence for a claim, never a claim itself. */
   claimGated?: boolean;
+  /**
+   * A "money" field holding a DAILY figure, so the monthly equivalent is shown
+   * as they type.
+   *
+   * Worth the extra flag because nobody budgets in days. Both Meta and Google
+   * take a daily number, and a tradesman reading "£50 a day" does the sum in
+   * his head wrong or not at all — then gets a surprise at the end of month
+   * one. Showing the real monthly figure at the moment he types it is the
+   * honest thing to do, and it is also the moment he decides whether he means
+   * it.
+   */
+  dailyBudget?: boolean;
   /** Repeat this question once per line the named field contains. */
   repeatOf?: string;
   maxLength?: number;

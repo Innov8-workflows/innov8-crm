@@ -94,8 +94,6 @@ const SECTIONS: Section[] = [
         help: "The reason someone stops scrolling. \"Free roof check\", \"Free no-obligation quote\", " +
               "\"£250 off a full re-roof this month\". \"Contact us\" is not an offer — everyone " +
               "says that, and it's why most trade ads do nothing." },
-      { id: "job_value", label: "What's a typical job worth?", type: "text", placeholder: "£2,000 to £8,000",
-        help: "A rough range is fine. It tells us what a lead is worth and therefore how hard to push." },
       { id: "guarantee", label: "Any guarantee you offer", type: "text", claimGated: true,
         placeholder: "10 year workmanship guarantee",
         help: "Only something you'd genuinely honour — it goes in the ad, and people will hold you to it." },
@@ -104,6 +102,36 @@ const SECTIONS: Section[] = [
               "advertise. We'd far rather have this list than guess and get it wrong in public." },
       { id: "busy_season", label: "When are you busiest?", type: "text",
         help: "So we can push harder when you're quiet and ease off when you're flat out." },
+    ],
+  },
+  {
+    id: "budget",
+    title: "Your ad budget",
+    intro:
+      "Ad spend goes straight to Meta or Google. It is separate from our management fee, it never " +
+      "passes through us, and you can change it or stop it whenever you like. " +
+      "Both platforms work in DAILY budgets, so that is what we ask for. The monthly figure appears " +
+      "underneath as you type — it is the daily number times 30.4, which is the same sum Meta and " +
+      "Google use to work out what they actually charge you.",
+    fields: [
+      { id: "meta_daily_budget", label: "Meta (Facebook and Instagram) daily budget",
+        type: "money", dailyBudget: true, placeholder: "35",
+        help: "We recommend £25 to £50+ a day, and £50 is where it really starts working. Below about " +
+              "£25 the campaign never gets enough data to learn who actually buys, so you end up " +
+              "paying MORE per lead rather than less — it is the most common way a small budget " +
+              "wastes money instead of saving it." },
+      { id: "google_daily_budget", label: "Google Ads daily budget",
+        type: "money", dailyBudget: true, placeholder: "55",
+        help: "Only if you want Google search as well — leave it blank if you are Meta-only. £45 to " +
+              "£75+ a day. It costs more per click than Meta because you are paying to reach someone " +
+              "who is already typing your trade into Google, and those people convert harder." },
+      { id: "job_value", label: "Average job value", type: "money", placeholder: "3500",
+        help: "What a typical job invoices at. A rough average across a normal month is fine." },
+      { id: "avg_profit", label: "Average profit on that job", type: "money", placeholder: "1200",
+        help: "Roughly what is left after materials and labour. This is for your file, never for the " +
+              "ads, and nobody outside sees it. It is the number that decides how hard we can push: " +
+              "if a job leaves you £1,200 then a £40 lead is cheap and we chase volume, and if it " +
+              "leaves you £200 we target far more tightly instead." },
     ],
   },
   {
@@ -242,10 +270,11 @@ const SECTIONS: Section[] = [
 
 export const metaAdsForm = defineForm({
   kind: "meta_ads",
-  schemaId: "2026-09-03",
+  schemaId: "2026-09-11",
   label: "Meta Ad Creatives",
   sections: SECTIONS,
-  summaryFields: ["owner_name", "phone_mobile", "offer_hook", "target_towns", "response_time"],
+  summaryFields: ["owner_name", "phone_mobile", "offer_hook", "meta_daily_budget",
+                  "google_daily_budget", "job_value", "target_towns", "response_time"],
   // The mirror image of the website form's ceilings. Grade A is all video, and
   // a 40-second vertical clip off a recent iPhone is comfortably 300MB, so the
   // video count goes up and the object count comes down.

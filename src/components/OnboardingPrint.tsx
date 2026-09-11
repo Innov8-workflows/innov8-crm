@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { formFor } from "@/lib/onboardingSchema";
+import { formFor, displayAnswer } from "@/lib/onboardingSchema";
 import { B, display } from "./OnboardingBrand";
 
 // A print-ready view of one submission, opened in its own tab from the CRM.
@@ -154,7 +154,7 @@ export default function OnboardingPrint({ id }: { id: string }) {
               {filled.map((f) => (
                 <div key={f.id} style={{ display: "flex", gap: 14, marginBottom: 7, fontSize: 13 }}>
                   <div style={{ width: 190, flexShrink: 0, color: B.muted, lineHeight: 1.45 }}>{f.label}</div>
-                  <div style={{ flex: 1, whiteSpace: "pre-wrap", lineHeight: 1.5 }}>{val(d.answers[f.id])}</div>
+                  <div style={{ flex: 1, whiteSpace: "pre-wrap", lineHeight: 1.5 }}>{displayAnswer(f, d.answers[f.id])}</div>
                 </div>
               ))}
               {repeats.map((k) => (

@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { formFor, missingFor, type Field, type Section } from "@/lib/onboardingSchema";
+import { formFor, missingFor, parseMoney, gbp, monthlyFromDaily,
+         type Field, type Section } from "@/lib/onboardingSchema";
 import { B, display, Eyebrow, Wordmark, Frame, Card } from "./OnboardingBrand";
 
 // The client-facing onboarding form.
@@ -503,6 +504,37 @@ function FieldView({ field, answers, assets, progress, onChange, onPick, onRemov
             );
           })}
         </div>
+      </Wrap>
+    );
+  }
+
+  if (field.type === "money") {
+    const n = parseMoney(v);
+    return (
+      <Wrap label={field.label} help={field.help} required={field.required}>
+        <div style={{ position: "relative" }}>
+          {/* The pound sign sits INSIDE the field rather than in the label, so
+              there is no doubt what unit the box wants — and the value stored
+              stays a plain number. */}
+          <span aria-hidden style={{ position: "absolute", left: 13, top: "50%",
+                 transform: "translateY(-50%)", color: C.dim, fontSize: 16, pointerEvents: "none" }}>
+            £
+          </span>
+          <input
+            className="ob-field"
+            inputMode="decimal"
+            value={String(v ?? "")}
+            placeholder={field.placeholder}
+            onChange={(e) => onChange(field.id, e.target.value.replace(/[^0-9.,]/g, ""))}
+            style={{ paddingLeft: 27 }}
+          />
+        </div>
+        {field.dailyBudget && n > 0 && (
+          <p style={{ fontSize: 13.5, color: C.dim, margin: "7px 0 0", lineHeight: 1.5 }}>
+            That is about <strong style={{ color: C.ink }}>{gbp(monthlyFromDaily(n))} a month</strong>,
+            {" "}paid straight to the platform.
+          </p>
+        )}
       </Wrap>
     );
   }

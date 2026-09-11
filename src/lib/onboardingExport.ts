@@ -12,7 +12,7 @@
 // check.js blocks the words "insured", "NICEIC", "NAPIT", "Gas Safe" unless
 // declared, and two live clients are on record as NOT insured. A client typing
 // "yes" into a form is not evidence.
-import { formFor, missingFor, missingLabel } from "@/lib/onboardingSchema";
+import { formFor, missingFor, missingLabel, parseMoney, monthlyFromDaily } from "@/lib/onboardingSchema";
 
 export interface Phone { display: string; tel: string; wa: string }
 
@@ -273,13 +273,28 @@ export function buildMetaExport(
       hook: str(answers, "offer_hook"),
       wants: str(answers, "want_work"),
       avoids: str(answers, "avoid_work"),
-      job_value: str(answers, "job_value"),
       busy_season: str(answers, "busy_season"),
       // Unverified by construction. Same rule as the website export: the client
       // saying it does not make it publishable, so it travels in confirm[] as
       // well and nothing downstream may promote it on its own.
       guarantee_unverified: str(answers, "guarantee"),
       must_not_claim: str(answers, "must_not_say"),
+    },
+
+    // Numbers, as numbers. The form stores what the client typed, so parsing
+    // once here means nothing downstream has to guess whether "£1,500" is a
+    // string, a range, or per month.
+    budget: {
+      meta_daily: parseMoney(answers.meta_daily_budget),
+      meta_monthly: monthlyFromDaily(parseMoney(answers.meta_daily_budget)),
+      google_daily: parseMoney(answers.google_daily_budget),
+      google_monthly: monthlyFromDaily(parseMoney(answers.google_daily_budget)),
+      currency: "GBP",
+    },
+
+    economics: {
+      avg_job_value: parseMoney(answers.job_value),
+      avg_profit: parseMoney(answers.avg_profit),
     },
 
     targeting: {

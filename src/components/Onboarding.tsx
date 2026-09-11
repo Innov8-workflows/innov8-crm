@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { formFor, FORMS } from "@/lib/onboardingSchema";
+import { formFor, FORMS, displayAnswer, parseMoney, gbp, monthlyFromDaily } from "@/lib/onboardingSchema";
 import TabBar from "./TabBar";
 import Icon from "./Icon";
 
@@ -201,6 +201,30 @@ export default function Onboarding({ active, onSeen }: { active: boolean; onSeen
     const list = (id: string) => a(id).split(/[\n,]/).map((x) => x.trim()).filter(Boolean).join(", ");
     const counts = d.assets.filter((x) => x.status === "stored")
       .reduce((acc, x) => { acc[x.role] = (acc[x.role] || 0) + 1; return acc; }, {} as Record<string, number>);
+    // The three money answers are the ones Jay actually reasons with on a
+    // kickoff call, so they get formatted rather than dumped raw.
+    const money = (id: string) => {
+      const n = parseMoney(a(id));
+      if (!n) return "not given";
+      const f = FORMS.meta_ads.fields[id];
+      return f?.dailyBudget ? gbp(n) + "/day (" + gbp(monthlyFromDaily(n)) + "/mo)" : gbp(n);
+    };
+
+    /**
+     * How many jobs a month the ad spend has to produce before it has paid for
+     * itself — management fee included, because the client counts it whether we
+     * do or not. Silent unless both numbers are there; a made-up break-even is
+     * worse than none.
+     */
+    const breakEven = () => {
+      const profit = parseMoney(a("avg_profit"));
+      const spend = monthlyFromDaily(parseMoney(a("meta_daily_budget")) + parseMoney(a("google_daily_budget")));
+      if (!profit || !spend) return "Break-even: needs both the profit figure and a budget.";
+      const total = spend + 600;   // + the management fee
+      return "Break-even: " + Math.ceil(total / profit) + " job(s)/mo to cover " +
+             gbp(spend) + " spend + " + gbp(600) + " fee.";
+    };
+
     const grade = (prefix: string) => Object.entries(counts)
       .filter(([r]) => r.startsWith(prefix)).map(([r, n]) => r + " " + n).join(", ") || "none";
 
@@ -211,7 +235,12 @@ export default function Onboarding({ active, onSeen }: { active: boolean; onSeen
       "OFFER: " + (a("offer_hook") || "NOT GIVEN"),
       "Wants: " + (a("want_work") || "—"),
       "Avoid: " + (a("avoid_work") || "—"),
-      "Typical job: " + (a("job_value") || "—"),
+      "",
+      "BUDGET (spend goes direct to the platform, not through us)",
+      "  Meta:   " + money("meta_daily_budget"),
+      "  Google: " + money("google_daily_budget"),
+      "  Average job " + money("job_value") + " · average profit " + money("avg_profit"),
+      "  " + breakEven(),
       "Guarantee (UNVERIFIED — client's own words): " + (a("guarantee") || "—"),
       "MUST NOT CLAIM: " + (a("must_not_say") || "nothing flagged"),
       "",
@@ -650,9 +679,7 @@ export default function Onboarding({ active, onSeen }: { active: boolean; onSeen
                              style={{ borderTop: i ? "1px solid var(--border)" : "none" }}>
                           <div className="text-xs" style={{ color: "var(--text-dim)" }}>{f.label}</div>
                           <div className="text-sm whitespace-pre-wrap" style={{ color: "var(--text-secondary)" }}>
-                            {Array.isArray(detail.answers[f.id])
-                              ? (detail.answers[f.id] as string[]).join(", ")
-                              : String(detail.answers[f.id])}
+                            {displayAnswer(f, detail.answers[f.id])}
                           </div>
                         </div>
                       ))}

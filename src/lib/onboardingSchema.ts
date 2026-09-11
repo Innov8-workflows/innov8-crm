@@ -17,7 +17,7 @@
 // Everything a form needs to describe itself lives in ./forms/types.ts, which is
 // re-exported here so `@/lib/onboardingSchema` stays the one import path.
 
-import type { FormSchema } from "./forms/types";
+import type { Field, FormSchema } from "./forms/types";
 import { websiteForm } from "./forms/website";
 import { metaAdsForm } from "./forms/metaAds";
 
@@ -100,4 +100,46 @@ export function missingFor(
 /** "Photos of your best work" or "Photos of your best work (3 of 20)". */
 export function missingLabel(m: MissingItem): string {
   return m.need > 1 ? `${m.label} (${m.have} of ${m.need})` : m.label;
+}
+
+/**
+ * Days in an average month.
+ *
+ * Not 30, and not 28-31. Both Meta and Google multiply a daily budget by 30.4
+ * to get the monthly cap they will actually charge you, so this is the number
+ * that matches the invoice. Showing a client a rounder-but-wrong figure here
+ * would be a small lie they discover at the end of month one.
+ */
+export const DAYS_PER_MONTH = 30.4;
+
+/** Lenient: the field accepts "1,500", "1500", "£1500" and a stray decimal. */
+export function parseMoney(v: unknown): number {
+  const n = Number(String(v ?? "").replace(/[^0-9.]/g, ""));
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+export function gbp(n: number): string {
+  return "£" + n.toLocaleString("en-GB", { maximumFractionDigits: 0 });
+}
+
+export function monthlyFromDaily(daily: number): number {
+  return Math.round(daily * DAYS_PER_MONTH);
+}
+
+/**
+ * Render one stored answer for a human: the CRM pane, the PDF, the brief.
+ *
+ * Money is the only type that needs it, and it needs it badly — a bare "3500"
+ * in the CRM is ambiguous (per job? per month? pounds?), and a daily ad budget
+ * shown without its monthly equivalent is the one number a client is most
+ * likely to have misjudged. Everything else passes straight through.
+ */
+export function displayAnswer(field: Field | undefined, value: unknown): string {
+  const raw = Array.isArray(value) ? value.join(", ") : String(value ?? "").trim();
+  if (!raw || field?.type !== "money") return raw;
+  const n = parseMoney(raw);
+  if (!n) return raw;
+  return field.dailyBudget
+    ? `${gbp(n)} a day (about ${gbp(monthlyFromDaily(n))} a month)`
+    : gbp(n);
 }
