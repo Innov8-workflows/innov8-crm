@@ -2,6 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { getClient, initDb, all, first } from "@/lib/db";
 import { presign, isR2Configured } from "@/lib/r2";
 import { sqlNow } from "@/lib/onboarding";
+import { sendEmail, isEmailConfigured } from "@/lib/email";
+
+/**
+ * How many times the runner may try one build before we stop handing it out.
+ *
+ * Three, because the failures worth retrying are transient (a locked file, a
+ * network blip) and they clear on the second go. Anything still failing on the
+ * fourth attempt is a real problem, and re-serving it every fifteen minutes
+ * just buries the evidence — which is exactly what happened against an expired
+ * login: six identical cycles, scheduler reporting success each time.
+ */
+const MAX_BUILD_ATTEMPTS = 3;
+const ALERT_TO = "jamie@innov8workflows.co.uk";
 import { buildExport, buildMetaExport, type ExportAsset } from "@/lib/onboardingExport";
 
 // The agent API. This is what a Claude Code session (or a cron job, or curl)
@@ -58,6 +71,7 @@ export async function GET(request: NextRequest) {
               LEFT JOIN leads l    ON l.id = p.lead_id
              WHERE s.queued_at != '' AND s.build_started_at = ''
                AND s.archived = 0 AND s.status != 'revoked'
+               AND s.build_attempts < ${MAX_BUILD_ATTEMPTS}
                -- The runner only knows how to build websites. Queuing an
                -- ad-creatives submission is refused at the other end too; this
                -- makes sure one can never be handed out even if a row got
@@ -161,8 +175,8 @@ export async function POST(request: NextRequest) {
   try { body = await request.json(); } catch { return NextResponse.json({ error: "bad body" }, { status: 400 }); }
   const id = Number(body.id);
   const action = String(body.action || "");
-  if (!id || !["claim", "built", "failed"].includes(action)) {
-    return NextResponse.json({ error: "expected { id, action: 'claim' | 'built' | 'failed' }" },
+  if (!id || !["claim", "built", "failed", "prepared"].includes(action)) {
+    return NextResponse.json({ error: "expected { id, action: 'claim' | 'built' | 'failed' | 'prepared' }" },
       { status: 400, headers: NO_STORE });
   }
 
@@ -183,13 +197,70 @@ export async function POST(request: NextRequest) {
       { status: won ? 200 : 409, headers: NO_STORE });
   }
 
-  if (action === "failed") {
+  // The runner prepared the folder but could not run the build itself — media
+  // downloaded, BUILD-BRIEF.md written, waiting for a human. This used to be
+  // reported as 'failed' purely to release the claim, which showed red in the
+  // CRM for a job that had gone perfectly well. It clears queued_at so the
+  // runner stops offering it, and leaves the folder ready.
+  if (action === "prepared") {
     await db.execute({
       sql: `UPDATE onboarding_submissions
-               SET build_result = ?, build_started_at = '', updated_at = ?
+               SET build_result = ?, build_started_at = '', queued_at = '', updated_at = ?
              WHERE id = ?`,
-      args: [String(body.result || "failed").slice(0, 500), now, id],
+      args: [String(body.result || "prepared").slice(0, 500), now, id],
     });
+    return NextResponse.json({ ok: true }, { headers: NO_STORE });
+  }
+
+  if (action === "failed") {
+    const result = String(body.result || "failed").slice(0, 500);
+    await db.execute({
+      sql: `UPDATE onboarding_submissions
+               SET build_result = ?, build_started_at = '',
+                   build_attempts = build_attempts + 1, updated_at = ?
+             WHERE id = ?`,
+      args: [result, now, id],
+    });
+
+    // Tell Jay the moment it gives up, not on every attempt. Nothing reads the
+    // runner's log file, and the .cmd wrapper reports success to Task Scheduler
+    // even when every cycle fails — so without this the only symptom is a build
+    // that silently never happens.
+    const row = first(await db.execute({
+      sql: `SELECT s.build_attempts, s.build_folder,
+                   COALESCE(l.business_name, s.label, '') AS business_name
+              FROM onboarding_submissions s
+              LEFT JOIN projects p ON p.id = s.project_id
+              LEFT JOIN leads l    ON l.id = p.lead_id
+             WHERE s.id = ? LIMIT 1`,
+      args: [id],
+    }));
+    if (Number(row?.build_attempts) >= MAX_BUILD_ATTEMPTS && isEmailConfigured()) {
+      const name = String(row?.business_name || `submission ${id}`);
+      try {
+        await sendEmail({
+          to: ALERT_TO,
+          subject: `Build gave up: ${name}`,
+          text: `The build runner has stopped trying submission ${id} (${name}) after `
+              + `${MAX_BUILD_ATTEMPTS} attempts.
+
+Last error: ${result}
+`
+              + `Folder: ${row?.build_folder || "(none)"}
+
+`
+              + `It will not be picked up again until you re-queue it in the CRM.`,
+          html: `<p>The build runner has stopped trying <strong>${name}</strong> `
+              + `(submission ${id}) after ${MAX_BUILD_ATTEMPTS} attempts.</p>`
+              + `<p><strong>Last error:</strong> ${result}</p>`
+              + `<p>Folder: ${row?.build_folder || "(none)"}</p>`
+              + `<p>It will not be picked up again until you re-queue it in the CRM.</p>`,
+        });
+      } catch (e) {
+        // A mail failure must never cost the status update that just succeeded.
+        console.error("build give-up alert failed —", (e as Error).message);
+      }
+    }
     return NextResponse.json({ ok: true }, { headers: NO_STORE });
   }
 

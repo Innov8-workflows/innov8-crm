@@ -139,7 +139,11 @@ export async function PUT(request: NextRequest) {
     await db.execute({
       sql: `UPDATE onboarding_submissions
                SET queued_at = ?, build_folder = ?, build_note = ?,
-                   build_started_at = '', build_result = '', updated_at = ?
+                   build_started_at = '', build_result = '',
+                   -- A re-queue is a fresh start, so the attempt count resets.
+                   -- Without this, re-queueing a job that already gave up would
+                   -- be handed straight back as exhausted and never run.
+                   build_attempts = 0, updated_at = ?
              WHERE id = ?`,
       args: [now, folder, String(body.note || "").slice(0, 1000), now, id],
     });

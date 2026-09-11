@@ -22,6 +22,7 @@ interface Row {
   asset_count: number; stored: number; failed: number; created_at: string; archived: number;
   seen_at: string; notified_at: string;
   queued_at: string; build_folder: string; build_started_at: string; build_result: string;
+  build_attempts: number;
 }
 interface Asset {
   id: number; role: string; pair_id: string; original_name: string; caption: string;
@@ -53,6 +54,10 @@ const TABS: string[] = Object.values(FORMS).map((f) => f.label);
 const KIND_OF: Record<string, string> = Object.fromEntries(
   Object.values(FORMS).map((f) => [f.label, f.kind]),
 );
+
+/** Mirrors MAX_BUILD_ATTEMPTS in /api/onboarding-fetch — past this the runner
+ *  stops being offered the job, so the rail must stop calling it "queued". */
+const MAX_BUILD_ATTEMPTS = 3;
 
 const bytes = (n: number) =>
   n >= 1073741824 ? `${(n / 1073741824).toFixed(1)} GB`
@@ -345,7 +350,11 @@ export default function Onboarding({ active, onSeen }: { active: boolean; onSeen
                       style={{ color: "var(--text)", opacity: r.archived ? 0.5 : 1 }}>
                   {r.business_name || "Unnamed"}
                 </span>
-                {r.queued_at && !r.build_started_at && (
+                {r.queued_at && !r.build_started_at && r.build_attempts >= MAX_BUILD_ATTEMPTS && (
+                  <span className="px-1.5 py-0.5 rounded text-xs font-bold"
+                        style={{ background: "rgba(200,50,31,0.15)", color: "#c8321f" }}>gave up</span>
+                )}
+                {r.queued_at && !r.build_started_at && r.build_attempts < MAX_BUILD_ATTEMPTS && (
                   <span className="text-xs px-1.5 py-0.5 rounded flex-shrink-0"
                         style={{ background: "rgba(234,88,12,0.15)", color: "var(--accent)" }}>queued</span>
                 )}
@@ -612,6 +621,19 @@ export default function Onboarding({ active, onSeen }: { active: boolean; onSeen
               {detail.submission.build_result && (
                 <div className="text-xs mt-2" style={{ color: "var(--text-secondary)" }}>
                   Last run: {detail.submission.build_result}
+                  {detail.submission.build_attempts > 0 && (
+                    <> · {detail.submission.build_attempts} attempt
+                      {detail.submission.build_attempts === 1 ? "" : "s"}</>
+                  )}
+                </div>
+              )}
+              {detail.submission.build_attempts >= MAX_BUILD_ATTEMPTS && (
+                <div className="text-xs mt-2 p-2 rounded-lg"
+                     style={{ background: "rgba(200,50,31,0.12)", border: "1px solid rgba(200,50,31,0.35)",
+                              color: "var(--text-secondary)", lineHeight: 1.5 }}>
+                  Stopped after {MAX_BUILD_ATTEMPTS} attempts, so it is no longer being handed to
+                  the runner. Fix whatever the error above says, then queue it again — that resets
+                  the count.
                 </div>
               )}
             </div>

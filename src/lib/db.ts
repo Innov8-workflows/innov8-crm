@@ -61,7 +61,7 @@ async function doInitDb() {
   // ~100-300ms, so this is the single biggest "slow first load" win. Bump
   // SCHEMA_VERSION whenever a migration/index/seed below changes → the heavy block
   // re-runs exactly once on the next deploy, then cold starts go fast again.
-  const SCHEMA_VERSION = "2026-09-03-onboarding-kind";
+  const SCHEMA_VERSION = "2026-09-12-build-attempts";
   await db.execute("CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT DEFAULT '')");
   const schemaMarker = first(await db.execute("SELECT value FROM app_meta WHERE key = 'schema_version'"));
   if (schemaMarker?.value === SCHEMA_VERSION) return;
@@ -491,6 +491,14 @@ async function doInitDb() {
       -- Stamped when a runner picks it up, so two runs can't collide.
       build_started_at TEXT NOT NULL DEFAULT '',
       build_result TEXT NOT NULL DEFAULT '',
+      -- How many times the runner has tried this build and failed.
+      --
+      -- Exists because 'failed' releases the claim but leaves queued_at set, so
+      -- a job that cannot succeed was re-served every five minutes forever — one
+      -- submission burned six identical cycles against an expired login while
+      -- the scheduler reported success every time. The poll skips anything at
+      -- the cap, so a broken build goes visibly stuck instead of quietly looping.
+      build_attempts INTEGER NOT NULL DEFAULT 0,
       -- open | submitted | accepted | built | revoked
       status TEXT NOT NULL DEFAULT 'open',
       r2_prefix TEXT NOT NULL DEFAULT '',
@@ -667,6 +675,8 @@ async function doInitDb() {
     // Which questionnaire this is: 'website' or 'meta_ads'. Runs BEFORE
     // relaxOnboardingProjectId, whose rebuild carries the column across.
     "ALTER TABLE onboarding_submissions ADD COLUMN kind TEXT NOT NULL DEFAULT 'website'",
+    // Stops a build that cannot succeed being re-served every few minutes.
+    "ALTER TABLE onboarding_submissions ADD COLUMN build_attempts INTEGER NOT NULL DEFAULT 0",
     // The day the client churned. NOT backfillable — client_status='lost' overwrites
     // in place with no date and there is no transition log. Stamped forward from here;
     // '' on an already-lost client means "churned before history began".
@@ -777,8 +787,8 @@ async function doInitDb() {
   // So spot-check the newest column before claiming success. A slow cold start
   // is a far better failure than a permanently missing column.
   const obCols = all(await db.execute("PRAGMA table_info(onboarding_submissions)"));
-  if (!obCols.some((c) => c.name === "kind")) {
-    console.error("[db] onboarding_submissions.kind missing after migration — not stamping schema_version");
+  if (!obCols.some((c) => c.name === "build_attempts")) {
+    console.error("[db] onboarding_submissions.build_attempts missing after migration — not stamping schema_version");
     return;
   }
 
@@ -1012,6 +1022,7 @@ async function relaxOnboardingProjectId(db: Client) {
       build_note TEXT NOT NULL DEFAULT '',
       build_started_at TEXT NOT NULL DEFAULT '',
       build_result TEXT NOT NULL DEFAULT '',
+      build_attempts INTEGER NOT NULL DEFAULT 0,
       status TEXT NOT NULL DEFAULT 'open',
       r2_prefix TEXT NOT NULL DEFAULT '',
       expires_at TEXT NOT NULL DEFAULT '',
@@ -1025,7 +1036,7 @@ async function relaxOnboardingProjectId(db: Client) {
     );
     INSERT INTO onboarding_submissions_new
       SELECT id, project_id, token, fetch_key, schema_version, kind, label, archived, seen_at, notified_at,
-             queued_at, build_folder, build_note, build_started_at, build_result, status, r2_prefix,
+             queued_at, build_folder, build_note, build_started_at, build_result, build_attempts, status, r2_prefix,
              expires_at, submitted_at, fetched_at, bytes_declared, asset_count,
              created_at, updated_at FROM onboarding_submissions;
     DROP TABLE onboarding_submissions;
