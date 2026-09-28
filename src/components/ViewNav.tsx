@@ -130,9 +130,10 @@ export default function ViewNav({ active, onChange, projectCount = 0, clientCoun
 
   return (
     <div className="flex items-center gap-2 px-4 py-2 flex-shrink-0" style={{ background: "var(--nav-bg)", borderBottom: "2px solid var(--surface2)" }}>
-      <div className="w-8 h-8 rounded-lg flex items-center justify-center font-mono text-xs font-bold text-white flex-shrink-0" style={{ background: "var(--accent)" }}>
-        i8
-      </div>
+      {/* The transparent i8 mark (same file as the main site's nav, 128px source). */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/innov8-logo-clear.webp" alt="Innov8 Workflows" width={36} height={36} className="flex-shrink-0" />
+
       <div ref={navRef} className="flex items-center gap-1.5 ml-2 min-w-0 flex-1 overflow-hidden">
         {views.slice(0, visibleCount).map((view) => {
           const isActive = active === view.id;
