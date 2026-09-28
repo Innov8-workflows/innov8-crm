@@ -22,8 +22,9 @@ const Todos = lazy(() => import("@/components/Todos"));
 const ClientDashboard = lazy(() => import("@/components/ClientDashboard"));
 const Onboarding = lazy(() => import("@/components/Onboarding"));
 const SiteHealth = lazy(() => import("@/components/SiteHealth"));
+const Today = lazy(() => import("@/components/Today"));
 
-type ViewId = "prospects" | "projects" | "onboarding" | "clients" | "client_dash" | "dashboard" | "map" | "ai_solutions" | "schedule" | "todos" | "pricing" | "referrals" | "site_health";
+type ViewId = "today" | "prospects" | "projects" | "onboarding" | "clients" | "client_dash" | "dashboard" | "map" | "ai_solutions" | "schedule" | "todos" | "pricing" | "referrals" | "site_health";
 
 // Fire the two critical-path requests at module-evaluation time — before React
 // hydrates, renders, or the lazy LeadGrid chunk arrives. By the time the grid
@@ -160,6 +161,8 @@ export default function Home() {
               fresh on every visit rather than showing a stale snapshot. */}
           {persistedView("onboarding",   "Onboarding failed to load",   () => <Onboarding active={view === "onboarding"} onSeen={setOnboardingCount} />, false)}
           {persistedView("site_health",  "Site Health failed to load",  () => <SiteHealth />, false)}
+          {/* persist=false — a morning snapshot should be re-read on every visit. */}
+          {persistedView("today",        "Today failed to load",        () => <Today onNavigate={setView} />, false)}
           {persistedView("schedule",     "Schedule failed to load",     () => <Schedule />)}
           {persistedView("todos",        "To-Do failed to load",        () => <Todos ownerFilter={ownerFilter} onCountChanged={setTodoCount} />)}
           {persistedView("pricing",      "Pricing failed to load",      () => <Pricing />)}
