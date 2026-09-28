@@ -1,6 +1,7 @@
-import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { getClient, initDb, all, first } from "@/lib/db";
+import { getClient, initDb, first } from "@/lib/db";
+import { authoriseAgent as authorise } from "@/lib/agentAuth";
+import { allClients, findClient } from "@/lib/clientMatch";
 import {
   addTask, updateTask, completeTask, reopenTask, getTask, listOutstanding, listSetupGaps,
   listRecentlyResolved, isTemplateTitle, TaskError,
@@ -29,46 +30,8 @@ import { SETUP_ITEMS, isSetupField } from "@/lib/setupFields";
 const NO_STORE = { "Cache-Control": "private, no-store" };
 const MIN_NOTE = 15;
 
-/**
- * The service key only. Deliberately NOT a copy of onboarding-fetch's
- * authorise(), which also lets any string shaped like a submission fetch key
- * through and relies on a later lookup to reject it — here there is no later
- * lookup, so that shape would have been full write access for a made-up key.
- */
-function authorise(request: NextRequest): { ok: true } | { ok: false; status: number; error: string } {
-  const configured = process.env.ONBOARDING_API_KEY;
-  if (!configured) return { ok: false, status: 503, error: "ONBOARDING_API_KEY is not set in Vercel — this endpoint is disabled." };
-  const key = request.headers.get("x-innov8-key") || "";
-  const a = Buffer.from(key), b = Buffer.from(configured);
-  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return { ok: false, status: 401, error: "unknown key" };
-  return { ok: true };
-}
-
-const norm = (s: string) => s.toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/[^a-z0-9]/g, "");
-
-interface ProjectRef { id: number; name: string; domain: string; stage: string }
-
-async function allClients(db: ReturnType<typeof getClient>): Promise<ProjectRef[]> {
-  return all(await db.execute(
-    `SELECT p.id, COALESCE(l.business_name, '') AS name, COALESCE(p.domain, '') AS domain,
-            CASE WHEN p.completed_at != '' THEN 'live' ELSE p.stage END AS stage
-       FROM projects p LEFT JOIN leads l ON l.id = p.lead_id
-      WHERE COALESCE(p.client_status, '') != 'lost'
-      ORDER BY l.business_name`,
-  )).map((r) => ({ id: Number(r.id), name: String(r.name), domain: String(r.domain), stage: String(r.stage) }));
-}
-
-/** Exact match on name or domain first, then substring; never a guess. */
-function findClient(clients: ProjectRef[], q: string): { match?: ProjectRef; candidates: ProjectRef[] } {
-  const n = norm(q);
-  if (!n) return { candidates: [] };
-  const exact = clients.filter((c) => norm(c.name) === n || (c.domain && norm(c.domain) === n));
-  if (exact.length === 1) return { match: exact[0], candidates: exact };
-  if (exact.length > 1) return { candidates: exact };
-  const partial = clients.filter((c) =>
-    norm(c.name).includes(n) || n.includes(norm(c.name)) || (c.domain && norm(c.domain).includes(n)));
-  return partial.length === 1 ? { match: partial[0], candidates: partial } : { candidates: partial };
-}
+// Key check and client lookup live in src/lib/agentAuth.ts and
+// src/lib/clientMatch.ts, shared with /api/brief-agent.
 
 const bad = (error: string, status = 400, extra: object = {}) =>
   NextResponse.json({ error, ...extra }, { status, headers: NO_STORE });

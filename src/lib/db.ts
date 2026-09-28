@@ -61,7 +61,7 @@ async function doInitDb() {
   // ~100-300ms, so this is the single biggest "slow first load" win. Bump
   // SCHEMA_VERSION whenever a migration/index/seed below changes → the heavy block
   // re-runs exactly once on the next deploy, then cold starts go fast again.
-  const SCHEMA_VERSION = "2026-09-28-task-tracker";
+  const SCHEMA_VERSION = "2026-09-28-morning-brief";
   await db.execute("CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT DEFAULT '')");
   const schemaMarker = first(await db.execute("SELECT value FROM app_meta WHERE key = 'schema_version'"));
   if (schemaMarker?.value === SCHEMA_VERSION) return;
@@ -592,6 +592,43 @@ async function doInitDb() {
       key TEXT PRIMARY KEY,
       value TEXT DEFAULT ''
     );
+
+    -- The morning brief, as sent by Claude's 8am task through /api/brief-agent.
+    -- One row per day it arrived. Stored as PLAIN TEXT items, never the HTML
+    -- the brief skill renders: the brief is written by AI from Jay's email and
+    -- the web, so it is untrusted content, and the CRM only ever displays it as
+    -- escaped text.
+    CREATE TABLE IF NOT EXISTS brief_runs (
+      brief_date TEXT PRIMARY KEY,              -- YYYY-MM-DD
+      headline TEXT NOT NULL DEFAULT '',
+      received_at TEXT NOT NULL DEFAULT '',
+      item_count INTEGER NOT NULL DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS brief_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      brief_date TEXT NOT NULL,
+      -- attention | calendar | news | status
+      section TEXT NOT NULL DEFAULT 'attention',
+      title TEXT NOT NULL,
+      summary TEXT NOT NULL DEFAULT '',
+      -- email | calendar | web | crm — where the item came from
+      source_kind TEXT NOT NULL DEFAULT '',
+      -- A Gmail thread id, calendar event id or URL: what makes a re-sent item
+      -- the same item. Never shown as a link unless it is in url.
+      source_ref TEXT NOT NULL DEFAULT '',
+      url TEXT NOT NULL DEFAULT '',             -- https only, checked on the way in
+      project_id INTEGER,                       -- NULL = not about one client
+      client_hint TEXT NOT NULL DEFAULT '',     -- the name given, when it didn't match exactly
+      task_id INTEGER,                          -- an outstanding item this is about
+      suggested_action TEXT NOT NULL DEFAULT '',
+      -- What Prepare would make: reply_draft | site_edit | checklist | tracker | ''
+      action_kind TEXT NOT NULL DEFAULT '',
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT '',
+      dismissed_at TEXT NOT NULL DEFAULT '',
+      UNIQUE (brief_date, source_kind, source_ref, title)
+    );
   `);
 
   const migrations = [
@@ -707,6 +744,7 @@ async function doInitDb() {
     "ALTER TABLE project_tasks ADD COLUMN source TEXT NOT NULL DEFAULT ''",
     "ALTER TABLE project_tasks ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''",
     "CREATE INDEX IF NOT EXISTS idx_project_tasks_open ON project_tasks(completed, project_id)",
+    "CREATE INDEX IF NOT EXISTS idx_brief_items_date ON brief_items(brief_date, dismissed_at)",
     // The day the client churned. NOT backfillable — client_status='lost' overwrites
     // in place with no date and there is no transition log. Stamped forward from here;
     // '' on an already-lost client means "churned before history began".
@@ -820,6 +858,11 @@ async function doInitDb() {
   const taskCols = all(await db.execute("PRAGMA table_info(project_tasks)"));
   if (!taskCols.some((c) => c.name === "updated_at")) {
     console.error("[db] project_tasks.updated_at missing after migration — not stamping schema_version");
+    return;
+  }
+  const briefCols = all(await db.execute("PRAGMA table_info(brief_items)"));
+  if (!briefCols.some((c) => c.name === "action_kind")) {
+    console.error("[db] brief_items missing after migration — not stamping schema_version");
     return;
   }
   if (!obCols.some((c) => c.name === "build_attempts")) {

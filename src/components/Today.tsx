@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 import Icon, { type IconName } from "./Icon";
 import LoadingAI from "./LoadingAI";
+import MorningBrief from "./MorningBrief";
 
 // The "Today" view: one screen of what needs Jay this morning. The top half is
-// live CRM data from /api/today (no AI). The morning brief from Claude lands
-// underneath once it is connected.
+// live CRM data from /api/today (no AI). The morning brief from Claude's 8am
+// task (MorningBrief, /api/brief) sits underneath.
 
 type NavTarget = "prospects" | "projects" | "onboarding" | "site_health" | "client_dash" | "clients";
 
@@ -71,7 +72,7 @@ export default function Today({ onNavigate }: { onNavigate: (v: NavTarget) => vo
         {d && (
           <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2">
             <Stat label="MRR" value={gbp(d.money.mrr)} sub={`${d.money.clients} clients`} />
-            <Stat label={`Enquiries (${d.enquiries.window_hours}h)`} value={d.enquiries.total} good={d.enquiries.total > 0} />
+            <Stat label={`Leads (${d.enquiries.window_hours}h)`} value={d.enquiries.total} good={d.enquiries.total > 0} />
             <Stat label="Sites need attention" value={siteIssues} bad={siteIssues > 0} />
             <Stat label="Follow-ups due" value={followDue} warn={followDue > 0} sub={d.follow_ups.overdue ? `${d.follow_ups.overdue} overdue` : undefined} />
             <Stat label="Onboarding waiting" value={onboardingWaiting} warn={onboardingWaiting > 0} />
@@ -83,6 +84,7 @@ export default function Today({ onNavigate }: { onNavigate: (v: NavTarget) => vo
 
       {d && (
         <div className="px-5 py-4 grid gap-4 lg:grid-cols-2">
+          <MorningBrief />
           <Card title="Sites" icon="shield-check" empty="Every client site is up and no certificate is close to expiring."
             action={{ label: "Site Health", go: () => onNavigate("site_health") }}
             rows={[
@@ -91,10 +93,10 @@ export default function Today({ onNavigate }: { onNavigate: (v: NavTarget) => vo
                 main: `${s.business_name}: certificate ${s.days < 0 ? "EXPIRED" : `expires in ${s.days} day${s.days === 1 ? "" : "s"}`}`, sub: s.domain })),
             ]} />
 
-          <Card title="New enquiries" icon="envelope" empty={`No website enquiries in the last ${d.enquiries.window_hours} hours.`}
+          <Card title="New leads" icon="envelope" empty={`No website leads (forms, calls, WhatsApp taps) in the last ${d.enquiries.window_hours} hours.`}
             action={{ label: "Client Dash", go: () => onNavigate("client_dash") }}
             rows={d.enquiries.by_client.map((e) => ({ key: `e${e.project_id}`, tone: "good" as const,
-              main: `${e.business_name}: ${e.count} enquir${e.count === 1 ? "y" : "ies"}`, sub: `latest ${ago(e.last_at)}` }))} />
+              main: `${e.business_name}: ${e.count} lead${e.count === 1 ? "" : "s"}`, sub: `latest ${ago(e.last_at)}` }))} />
 
           <Card title="Outstanding on me" icon="flag"
             empty="Nothing is waiting on you. Items waiting on clients or Google are in Projects → Outstanding."
@@ -118,15 +120,6 @@ export default function Today({ onNavigate }: { onNavigate: (v: NavTarget) => vo
                 main: `${o.business_name || "Unnamed"}: accepted, not built yet`, sub: o.queued ? "queued for the runner" : "" })),
             ]} />
 
-          <div className="rounded-xl p-4" style={{ background: "var(--surface2)", border: "1px dashed var(--border-light)" }}>
-            <div className="flex items-center gap-2 mb-1">
-              <Icon name="light-bulb" className="w-4 h-4" style={{ color: "var(--accent)" }} />
-              <h2 className="text-sm font-bold" style={{ color: "var(--text)" }}>Morning brief</h2>
-            </div>
-            <p className="text-xs" style={{ color: "var(--text-dim)" }}>
-              Not connected yet. Once it is, Claude&apos;s 8am brief (email, calendar, news) appears here, with a Prepare button on each item.
-            </p>
-          </div>
         </div>
       )}
     </div>
