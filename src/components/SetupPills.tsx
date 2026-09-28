@@ -1,21 +1,10 @@
 "use client";
 
-// Three foundational setup milestones tracked per project/client, rendered as
-// click-to-toggle pills on the Kanban + Live Clients cards. Green = done.
-// Label is "Business Profile" (not "GBP") to avoid clashing with £ on the cards.
-const SETUP_ITEMS = [
-  { field: "ga4_embedded", label: "GA4", title: "Google Analytics 4 embedded" },
-  { field: "ga4_conversions", label: "GA4 Conversions", title: "GA4 conversion events / key events configured" },
-  { field: "search_console_verified", label: "Search Console", title: "Google Search Console verified" },
-  { field: "bing_console", label: "Bing Console", title: "Bing Webmaster Tools verified" },
-  { field: "gbp_setup", label: "Business Profile", title: "Google Business Profile set up" },
-  { field: "mobile_optimised", label: "Mobile", title: "Site is mobile-optimised" },
-  { field: "link_card", label: "Link card", title: "Social link-preview (Open Graph) card set up" },
-  { field: "secure_file", label: "Secure File", title: "Secure file / login details stored" },
-  { field: "google_sheet", label: "Google Sheet", title: "Lead-logging Google Sheet connected (form/call leads land in the sheet)" },
-] as const;
-
-export type SetupField = (typeof SETUP_ITEMS)[number]["field"];
+// Nine setup milestones per project/client, as click-to-toggle pills on the
+// Kanban + Live Clients cards. Green = done. The list itself lives in
+// src/lib/setupFields.ts so the Outstanding view and the Claude route share it.
+import { SETUP_ITEMS, type SetupField } from "@/lib/setupFields";
+export type { SetupField };
 
 export default function SetupPills({ values, onToggle }: {
   values: { ga4_embedded?: number; ga4_conversions?: number; search_console_verified?: number; bing_console?: number; gbp_setup?: number; mobile_optimised?: number; link_card?: number; secure_file?: number; google_sheet?: number };

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getClient, initDb, all, first } from "@/lib/db";
+import { outstandingByProject } from "@/lib/tasks";
 import { DEFAULT_PROJECT_TASKS } from "@/lib/projectTasks";
 import { computeAndStoreCover, computeAndStoreSeo, parseSeoCache } from "@/lib/projectCache";
 
@@ -112,6 +113,17 @@ export async function GET(request: NextRequest) {
       // /api/projects/[id]/lead-key when the snippet is actually being shown.
       delete (p as Record<string, unknown>).lead_ingest_key;
     }));
+
+    // Every card — Kanban and Live Clients alike — shows how much is still
+    // outstanding and the single thing most in the way. Always on, unlike the
+    // total/done pair below, because the Projects board is where Jay asked to see
+    // it. Cheap: project_tasks carries no wide values.
+    const outstanding = await outstandingByProject(db);
+    for (const p of projects) {
+      const o = outstanding.get(p.id as number);
+      (p as Record<string, unknown>).tasks_open = o?.open || 0;
+      (p as Record<string, unknown>).task_top = o?.top || null;
+    }
 
     if (completed === "true" || paying === "true") {
       const taskResult = await db.execute({ sql: `SELECT project_id, COUNT(*) as total, SUM(CASE WHEN completed = 1 THEN 1 ELSE 0 END) as done FROM project_tasks WHERE project_id IN (${placeholders}) GROUP BY project_id`, args: ids as never[] });

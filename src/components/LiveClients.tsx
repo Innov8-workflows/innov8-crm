@@ -5,6 +5,7 @@ import type { Project } from "@/types";
 import { SOLUTION_CATEGORIES } from "@/types";
 import ProjectDetailModal from "./ProjectDetailModal";
 import SetupPills from "./SetupPills";
+import OutstandingLine from "./OutstandingLine";
 import ReviewsBadge, { type ReviewValues } from "./ReviewsBadge";
 import HealthBadge from "./HealthBadge";
 import { getCachedBootstrap } from "@/lib/bootstrap";
@@ -664,7 +665,6 @@ function CardView({ clients, productRollup, formatDate, isOverdue, onOpenProject
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4">
       {clients.map((client) => {
-        const taskPct = client.tasks_total ? Math.round(((client.tasks_done || 0) / client.tasks_total) * 100) : 0;
         const overdue = isOverdue(client.renewal_date);
 
         return (
@@ -844,17 +844,10 @@ function CardView({ clients, productRollup, formatDate, isOverdue, onOpenProject
                 </div>
               )}
 
-              {client.tasks_total !== undefined && client.tasks_total > 0 && (
-                <div className="mt-2">
-                  <div className="flex items-center justify-between text-xs mb-1">
-                    <span style={{ color: "var(--text-dim)" }}>Tasks</span>
-                    <span style={{ color: "var(--text-muted)" }}>{client.tasks_done}/{client.tasks_total}</span>
-                  </div>
-                  <div className="w-full h-1 rounded-full" style={{ background: "var(--border)" }}>
-                    <div className="h-full rounded-full transition-all" style={{ width: `${taskPct}%`, background: taskPct === 100 ? "#22c55e" : "var(--accent)" }} />
-                  </div>
-                </div>
-              )}
+              {/* What's still left for this client and the one thing most in the
+                  way — replaces a done/total bar over the generic build template,
+                  which read 0/31 on a site that had been live for weeks. */}
+              <OutstandingLine project={client} />
 
               <ReviewsBadge values={client} onSave={(f) => onSaveReviews(client.id, f)} />
               <SetupPills values={client} onToggle={(field, next) => onToggleSetup(client.id, field, next)} />

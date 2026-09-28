@@ -61,7 +61,7 @@ async function doInitDb() {
   // ~100-300ms, so this is the single biggest "slow first load" win. Bump
   // SCHEMA_VERSION whenever a migration/index/seed below changes → the heavy block
   // re-runs exactly once on the next deploy, then cold starts go fast again.
-  const SCHEMA_VERSION = "2026-09-12-build-attempts";
+  const SCHEMA_VERSION = "2026-09-28-task-tracker";
   await db.execute("CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT DEFAULT '')");
   const schemaMarker = first(await db.execute("SELECT value FROM app_meta WHERE key = 'schema_version'"));
   if (schemaMarker?.value === SCHEMA_VERSION) return;
@@ -314,6 +314,26 @@ async function doInitDb() {
       sort_order INTEGER DEFAULT 0,
       stage TEXT DEFAULT '',
       created_at TEXT DEFAULT (datetime('now')),
+      -- The outstanding-tracker fields. The table began as a generic 32-step
+      -- build template seeded once per project, and on its own it drifted out of
+      -- step with reality: Fairmont went live with all 31 steps still unticked,
+      -- and Redhart's actual blocker (Business Profile suspended at launch, so no
+      -- live reviews, so neither the on-site reviews nor the review page can be
+      -- finished) was recorded nowhere. These say WHY an item is still open, WHO
+      -- it is waiting on, WHAT blocks it, and who closed it and how.
+      --
+      -- The 9 setup pills are NOT duplicated here. They stay the only record of
+      -- those facts, and the Outstanding view shows each unticked pill as a row
+      -- of its own. A second copy kept in step both ways would sooner or later
+      -- give "is GA4 done?" two answers.
+      detail TEXT NOT NULL DEFAULT '',
+      waiting_on TEXT NOT NULL DEFAULT '',   -- '' = Jay, 'client', 'google', 'other'
+      blocked_by INTEGER NOT NULL DEFAULT 0, -- another task on the SAME project; 0 = none
+      completed_at TEXT NOT NULL DEFAULT '',
+      completed_by TEXT NOT NULL DEFAULT '', -- 'jay' | 'claude'
+      resolution TEXT NOT NULL DEFAULT '',   -- what was actually done
+      source TEXT NOT NULL DEFAULT '',       -- 'manual' | 'claude'; '' = seeded from the template
+      updated_at TEXT NOT NULL DEFAULT '',
       FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
     );
 
@@ -677,6 +697,16 @@ async function doInitDb() {
     "ALTER TABLE onboarding_submissions ADD COLUMN kind TEXT NOT NULL DEFAULT 'website'",
     // Stops a build that cannot succeed being re-served every few minutes.
     "ALTER TABLE onboarding_submissions ADD COLUMN build_attempts INTEGER NOT NULL DEFAULT 0",
+    // The outstanding-client tracker. See the comment on project_tasks.
+    "ALTER TABLE project_tasks ADD COLUMN detail TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE project_tasks ADD COLUMN waiting_on TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE project_tasks ADD COLUMN blocked_by INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE project_tasks ADD COLUMN completed_at TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE project_tasks ADD COLUMN completed_by TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE project_tasks ADD COLUMN resolution TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE project_tasks ADD COLUMN source TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE project_tasks ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''",
+    "CREATE INDEX IF NOT EXISTS idx_project_tasks_open ON project_tasks(completed, project_id)",
     // The day the client churned. NOT backfillable — client_status='lost' overwrites
     // in place with no date and there is no transition log. Stamped forward from here;
     // '' on an already-lost client means "churned before history began".
@@ -787,6 +817,11 @@ async function doInitDb() {
   // So spot-check the newest column before claiming success. A slow cold start
   // is a far better failure than a permanently missing column.
   const obCols = all(await db.execute("PRAGMA table_info(onboarding_submissions)"));
+  const taskCols = all(await db.execute("PRAGMA table_info(project_tasks)"));
+  if (!taskCols.some((c) => c.name === "updated_at")) {
+    console.error("[db] project_tasks.updated_at missing after migration — not stamping schema_version");
+    return;
+  }
   if (!obCols.some((c) => c.name === "build_attempts")) {
     console.error("[db] onboarding_submissions.build_attempts missing after migration — not stamping schema_version");
     return;

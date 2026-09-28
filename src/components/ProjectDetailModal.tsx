@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import type { Project, ProjectTask, ProjectFile, EntitySolution } from "@/types";
 import { PROJECT_STAGES } from "@/types";
 import ProductPicker from "./ProductPicker";
+import { WAITING_LABEL } from "./OutstandingLine";
 
 interface Props {
   project: Project;
@@ -60,7 +61,10 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
     });
 
     // Auto-advance stage when all tasks in current stage are completed
-    if (completed && details.stage !== "completed") {
+    // Never out of "launch": the next stage is "completed", and a live client
+    // must only get there through the deliberate Mark Complete button — not
+    // because the last launch step happened to be ticked.
+    if (completed && details.stage !== "completed" && details.stage !== "launch") {
       const currentStage = details.stage;
       const stageTasks = updatedTasks.filter((t) => t.stage === currentStage);
       const allDone = stageTasks.length > 0 && stageTasks.every((t) => t.completed);
@@ -397,10 +401,7 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
                           {task.completed && <svg className="w-3 h-3" fill="#fff" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>}
                         </button>
-                        <span className="flex-1 text-sm" style={{
-                          color: task.completed ? "var(--text-tertiary)" : "#ddd",
-                          textDecoration: task.completed ? "line-through" : "none",
-                        }}>{task.title}</span>
+                        <TaskText task={task} />
                         <button onClick={() => deleteTask(task.id)}
                           className="opacity-0 group-hover:opacity-100 p-1 transition-opacity"
                           style={{ color: "var(--text-tertiary)" }}
@@ -428,10 +429,7 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
                           {task.completed && <svg className="w-3 h-3" fill="#fff" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>}
                         </button>
-                        <span className="flex-1 text-sm" style={{
-                          color: task.completed ? "var(--text-tertiary)" : "#ddd",
-                          textDecoration: task.completed ? "line-through" : "none",
-                        }}>{task.title}</span>
+                        <TaskText task={task} />
                         <button onClick={() => deleteTask(task.id)}
                           className="opacity-0 group-hover:opacity-100 p-1 transition-opacity" style={{ color: "var(--text-tertiary)" }}>
                           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -686,5 +684,33 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * A task's title plus one quiet line of context: while it's open, who it's
+ * waiting on and why; once it's done, who ticked it and what they did. That
+ * second line is how a tick made by Claude in another session shows up here.
+ */
+function TaskText({ task }: { task: ProjectTask }) {
+  const done = !!task.completed;
+  const meta = done
+    ? (task.completed_by
+        ? `${task.completed_by === "claude" ? "Claude" : "You"}${task.resolution ? ` — ${task.resolution}` : ""}`
+        : "")
+    : [task.waiting_on ? WAITING_LABEL[task.waiting_on] : "", task.detail || ""].filter(Boolean).join(" · ");
+  return (
+    <span className="flex-1 min-w-0">
+      <span className="text-sm" style={{
+        color: done ? "var(--text-tertiary)" : "#ddd",
+        textDecoration: done ? "line-through" : "none",
+      }}>{task.title}</span>
+      {meta && (
+        <span className="block text-xs mt-0.5 truncate" title={meta}
+          style={{ color: done && task.completed_by === "claude" ? "#a855f7" : "var(--text-dim)" }}>
+          {meta}
+        </span>
+      )}
+    </span>
   );
 }

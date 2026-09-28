@@ -7,12 +7,20 @@ import ProjectDetailModal from "./ProjectDetailModal";
 import SetupPills, { type SetupField } from "./SetupPills";
 import ReviewsBadge, { type ReviewValues } from "./ReviewsBadge";
 import LoadingAI from "./LoadingAI";
+import TabBar from "./TabBar";
+import Outstanding from "./Outstanding";
+import OutstandingLine from "./OutstandingLine";
+
+// Board = the stage columns. Outstanding = everything still left to do across
+// every client, in one list (see Outstanding.tsx).
+const TABS = ["Board", "Outstanding"];
 
 export default function KanbanBoard({ ownerFilter = "", onCountsChanged }: { ownerFilter?: string; onCountsChanged?: () => void }) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [dragProject, setDragProject] = useState<number | null>(null);
+  const [tab, setTab] = useState(TABS[0]);
 
   const fetchProjects = useCallback(async () => {
     // Single request for all kanban projects (active + completed) — halves roundtrips
@@ -130,8 +138,32 @@ export default function KanbanBoard({ ownerFilter = "", onCountsChanged }: { own
     return <LoadingAI message="Loading projects" />;
   }
 
+  const modal = selectedProject && (
+    <ProjectDetailModal
+      project={selectedProject}
+      onClose={() => setSelectedProject(null)}
+      onUpdate={fetchProjects}
+      onComplete={completeProject}
+    />
+  );
+
+  if (tab === "Outstanding") {
+    return (
+      <>
+        <TabBar tabs={TABS} active={tab} onChange={setTab} />
+        <Outstanding
+          projects={projects}
+          onOpenProject={(id) => setSelectedProject(projects.find((p) => p.id === id) || null)}
+          onChanged={fetchProjects}
+        />
+        {modal}
+      </>
+    );
+  }
+
   return (
     <>
+      <TabBar tabs={TABS} active={tab} onChange={setTab} />
       {/* Project Dashboard */}
       <div style={{ background: "var(--stats-bg)", borderBottom: "1px solid var(--border)" }}>
         <div className="grid gap-3 px-4 py-3" style={{ gridTemplateColumns: `repeat(${PROJECT_STAGES.length + 1}, 1fr)` }}>
@@ -273,6 +305,7 @@ export default function KanbanBoard({ ownerFilter = "", onCountsChanged }: { own
                           </span>
                         )}
                       </div>
+                      <OutstandingLine project={project} onClick={() => setTab("Outstanding")} />
                       <ReviewsBadge values={project} onSave={(f) => saveReviews(project.id, f)} />
                       <SetupPills values={project} onToggle={(field, next) => toggleSetup(project.id, field, next)} />
                     </div>
@@ -290,14 +323,7 @@ export default function KanbanBoard({ ownerFilter = "", onCountsChanged }: { own
         </div>
       </div>
 
-      {selectedProject && (
-        <ProjectDetailModal
-          project={selectedProject}
-          onClose={() => setSelectedProject(null)}
-          onUpdate={fetchProjects}
-          onComplete={completeProject}
-        />
-      )}
+      {modal}
     </>
   );
 }

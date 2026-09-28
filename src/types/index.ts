@@ -92,6 +92,9 @@ export interface Project {
   cover_version?: number; // id of the file currently serving as cover — cache-buster for the card image
   tasks_total?: number;
   tasks_done?: number;
+  // Outstanding tracker — on every card
+  tasks_open?: number;   // open tasks + unticked setup pills
+  task_top?: { title: string; waiting_on: string; blocked: boolean; kind: "task" | "setup" } | null;
   // Latest SEO report score + the one before it (for the card trend arrow) + its date
   seo_score?: number;
   seo_score_prev?: number;
@@ -118,6 +121,15 @@ export interface ProjectTask {
   sort_order: number;
   stage: string;
   created_at: string;
+  // Outstanding tracker (see src/lib/tasks.ts)
+  detail?: string;
+  waiting_on?: string;      // '' = me, 'client', 'google', 'other'
+  blocked_by?: number;      // task id on the same project; 0 = none
+  completed_at?: string;
+  completed_by?: string;    // 'jay' | 'claude'
+  resolution?: string;
+  source?: string;          // 'manual' | 'claude'; '' = from the template
+  updated_at?: string;
 }
 
 export interface ProjectFile {
