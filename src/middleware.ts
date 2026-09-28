@@ -16,7 +16,11 @@ const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/auth/mfa/verify", "/api
   // The agent API. Key-auth inside the route, failing CLOSED (503 when the key
   // is unset, never 200) — see the header of that file. Another sibling: it is
   // NOT under /api/onboarding/, which stays session-guarded.
-  "/api/onboarding-fetch"];
+  "/api/onboarding-fetch",
+  // The outstanding-task tracker for Claude. Key-authenticated in the route
+  // itself (fails closed). A SIBLING of /api/project-tasks on purpose — see the
+  // startsWith note above.
+  "/api/tasks-agent"];
 
 // In-memory cache for verified JWTs. Cold-start safe (cache resets on new lambda).
 // 60s TTL — short enough that revocation via logout still takes effect quickly.

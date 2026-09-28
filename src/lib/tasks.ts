@@ -49,7 +49,11 @@ const clamp = (v: unknown, n: number) => String(v ?? "").trim().slice(0, n);
  * that came up for this client. Worked out from the title rather than `source`
  * because every row created before this column existed has source ''.
  */
-const TEMPLATE_TITLES = new Set(DEFAULT_PROJECT_TASKS.map((t) => t.title.toLowerCase().trim()));
+const TEMPLATE_TITLES = new Set([
+  ...DEFAULT_PROJECT_TASKS.map((t) => t.title.toLowerCase().trim()),
+  // Earlier wordings of template steps, still on older projects.
+  "seo setup (meta, sitemap)",
+]);
 export const isTemplateTitle = (title: string) => TEMPLATE_TITLES.has(String(title).toLowerCase().trim());
 
 export async function getTask(db: Client, id: number): Promise<TaskRow | null> {
