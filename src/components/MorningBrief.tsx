@@ -69,6 +69,9 @@ export default function MorningBrief() {
 
   if (!data) return null;
 
+  const idx = Math.max(0, data.runs.findIndex((r) => r.date === date));
+  const latest = data.runs[0]?.date || "";
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/London" }); // YYYY-MM-DD
   const visible = data.items.filter((i) => showDismissed || !i.dismissed_at);
   const dismissedCount = data.items.filter((i) => i.dismissed_at).length;
   const sections = ["attention", "calendar", "status", "news"].filter((s) => visible.some((i) => i.section === s));
@@ -78,11 +81,16 @@ export default function MorningBrief() {
       <div className="flex items-center gap-2 flex-wrap mb-1">
         <Icon name="light-bulb" className="w-4 h-4" style={{ color: "var(--accent)" }} />
         <h2 className="text-sm font-bold" style={{ color: "var(--text)" }}>Morning brief</h2>
-        {data.runs.length > 1 && (
-          <select value={date} onChange={(e) => load(e.target.value)} className="text-xs rounded px-1.5 py-0.5"
-            style={{ background: "var(--surface3)", color: "var(--text-secondary)", border: "1px solid var(--border-light)" }}>
-            {data.runs.map((r) => <option key={r.date} value={r.date}>{r.date} ({r.items})</option>)}
-          </select>
+        {data.runs.length > 0 && (
+          <div className="flex items-center gap-1">
+            {/* runs are newest first: an older day is further down the list */}
+            <DayButton label="‹" title="Older brief" to={data.runs[idx + 1]?.date} onGo={load} />
+            <select value={date} onChange={(e) => load(e.target.value)} className="text-xs rounded px-1.5 py-0.5"
+              style={{ background: "var(--surface3)", color: "var(--text-secondary)", border: "1px solid var(--border-light)" }}>
+              {data.runs.map((r) => <option key={r.date} value={r.date}>{dayLabel(r.date)} ({r.items})</option>)}
+            </select>
+            <DayButton label="›" title="Newer brief" to={idx > 0 ? data.runs[idx - 1]?.date : undefined} onGo={load} />
+          </div>
         )}
         {data.run && <span className="text-xs" style={{ color: "var(--text-dim)" }}>received {data.run.received_at.slice(11, 16)} UTC</span>}
         {dismissedCount > 0 && (
@@ -98,6 +106,11 @@ export default function MorningBrief() {
         </p>
       ) : (
         <>
+          {latest && latest < today && date === latest && (
+            <p className="text-xs mb-2 px-2 py-1 rounded" style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.3)", color: "#f59e0b" }}>
+              Today&apos;s brief hasn&apos;t arrived yet — this is the one from {dayLabel(latest)}.
+            </p>
+          )}
           {data.run.headline && <p className="text-sm mb-3" style={{ color: "var(--text-secondary)" }}>{data.run.headline}</p>}
           {visible.length === 0 && <p className="text-xs" style={{ color: "var(--text-dim)" }}>Everything in this brief has been dealt with.</p>}
           {sections.map((s) => (
@@ -149,6 +162,19 @@ export default function MorningBrief() {
         </>
       )}
     </div>
+  );
+}
+
+const dayLabel = (d: string) =>
+  new Date(`${d}T12:00:00Z`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+
+function DayButton({ label, title, to, onGo }: { label: string; title: string; to?: string; onGo: (d: string) => void }) {
+  return (
+    <button onClick={() => to && onGo(to)} disabled={!to} title={title}
+      className="text-sm font-bold w-6 h-6 rounded"
+      style={{ background: "var(--surface3)", color: to ? "var(--text-secondary)" : "var(--text-dim)", opacity: to ? 1 : 0.4, cursor: to ? "pointer" : "default" }}>
+      {label}
+    </button>
   );
 }
 

@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
   const asked = request.nextUrl.searchParams.get("date") || "";
 
   const runs = all(await db.execute(
-    "SELECT brief_date, headline, received_at, item_count FROM brief_runs ORDER BY brief_date DESC LIMIT 14"));
+    "SELECT brief_date, headline, received_at, item_count FROM brief_runs ORDER BY brief_date DESC LIMIT 90"));
   const date = /^\d{4}-\d{2}-\d{2}$/.test(asked) ? asked : String(runs[0]?.brief_date || "");
   if (!date) return NextResponse.json({ run: null, runs: [], items: [] }, { headers: NO_STORE });
 
