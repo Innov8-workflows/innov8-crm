@@ -17,6 +17,8 @@ const catColor = (cat: string) => SOLUTION_CATEGORIES.find((c) => c.value === ca
 const shortProductName = (name: string) => name.replace(/^Website — /, "").replace(/\s*\(T1\)$/, "");
 
 type ProductRollup = Record<string, { count: number; monthly: number; upfront: number; items: { name: string; category: string }[] }>;
+/** Keyed by project id; present only for clients paying for Google or Meta ads. */
+type AdCoverageMap = Record<number, { towns: string[]; radius: number; platforms: string[] }>;
 
 interface ClientStats {
   mrr: number;
@@ -31,8 +33,14 @@ type SortDir = "asc" | "desc";
 type ViewMode = "grid" | "card";
 type ClientFilter = "active" | "lost";
 
-export default function LiveClients({ ownerFilter = "", onCountsChanged, onOpenDashboard }: { ownerFilter?: string; onCountsChanged?: () => void; onOpenDashboard?: (projectId: number) => void }) {
+export default function LiveClients({ ownerFilter = "", onCountsChanged, onOpenDashboard, openProjectId, onOpenedProject }: {
+  ownerFilter?: string; onCountsChanged?: () => void; onOpenDashboard?: (projectId: number) => void;
+  /** Open this client's window once the list has loaded (from the Coverage Map). */
+  openProjectId?: number | null; onOpenedProject?: () => void;
+}) {
   const [clients, setClients] = useState<Project[]>([]);
+  // Ad clients only: where their ads run, for the card's "Ads:" pill.
+  const [adCoverage, setAdCoverage] = useState<AdCoverageMap>({});
   // Seeded from the shared bootstrap payload so the chips paint with the rest of
   // the card instead of after a second round-trip; fetchRollup refreshes it.
   const [leadRollup, setLeadRollup] = useState<Record<string, { month: number; prev: number; unseen: number; last_at: string }>>(
@@ -83,13 +91,32 @@ export default function LiveClients({ ownerFilter = "", onCountsChanged, onOpenD
   // plus the website-enquiry counts. Both are single bounded aggregates and run
   // together, so the card row costs one extra query and zero extra round-trips.
   const fetchRollup = useCallback(async () => {
-    const [products, leads] = await Promise.all([
+    const [products, leads, ads] = await Promise.all([
       fetch("/api/leads/product-rollup").then((r) => r.json()).catch(() => ({})),
       fetch("/api/client-leads/rollup").then((r) => r.json()).catch(() => ({})),
+      fetch("/api/ad-coverage").then((r) => r.json()).catch(() => ({})),
     ]);
     setProductRollup(products.rollup || {});
     setLeadRollup(leads.rollup || {});
+    const map: AdCoverageMap = {};
+    for (const c of (ads.clients || []) as { project_id: number; platforms: string[]; areas: { place: string; radius_miles: number }[] }[]) {
+      map[c.project_id] = {
+        towns: c.areas.map((a) => a.place),
+        radius: c.areas.length ? Math.max(...c.areas.map((a) => a.radius_miles)) : 0,
+        platforms: c.platforms,
+      };
+    }
+    setAdCoverage(map);
   }, []);
+
+  // Opened from elsewhere (the Coverage Map): show that client's window once
+  // the list has it, then hand the request back so it only fires once.
+  useEffect(() => {
+    if (!openProjectId || loading) return;
+    const c = clients.find((x) => x.id === openProjectId);
+    if (c) setSelectedProject(c);
+    onOpenedProject?.();
+  }, [openProjectId, clients, loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { fetchClients(); fetchStats(); fetchRollup(); }, [clientFilter, ownerFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -362,6 +389,7 @@ export default function LiveClients({ ownerFilter = "", onCountsChanged, onOpenD
             onSaveReviews={saveReviews}
             leadRollup={leadRollup}
             onOpenDashboard={onOpenDashboard}
+            adCoverage={adCoverage}
           />
         )}
       </div>
@@ -659,9 +687,10 @@ interface CardProps {
   onShowSeo: (p: Project) => void;
   onToggleSetup: (id: number, field: string, value: number) => void;
   onSaveReviews: (id: number, fields: ReviewValues) => void;
+  adCoverage?: AdCoverageMap;
 }
 
-function CardView({ clients, productRollup, formatDate, isOverdue, onOpenProject, isLostView, onMarkLost, onReactivate, onDelete, onCycleStatus, onToggleInvoiceStatus, onShowAnalytics, onShowSeo, onToggleSetup, onSaveReviews, leadRollup, onOpenDashboard }: CardProps) {
+function CardView({ clients, productRollup, formatDate, isOverdue, onOpenProject, isLostView, onMarkLost, onReactivate, onDelete, onCycleStatus, onToggleInvoiceStatus, onShowAnalytics, onShowSeo, onToggleSetup, onSaveReviews, leadRollup, onOpenDashboard, adCoverage = {} }: CardProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4">
       {clients.map((client) => {
@@ -823,6 +852,22 @@ function CardView({ clients, productRollup, formatDate, isOverdue, onOpenProject
                   ))}
                 </div>
               )}
+
+              {/* Ad clients: where their ads run (Coverage Map). Amber when not
+                  recorded, because the "can I run ads here?" check can't see them. */}
+              {adCoverage[client.id] && (() => {
+                const ad = adCoverage[client.id];
+                const set = ad.towns.length > 0;
+                return (
+                  <div className="mt-1.5 text-[11px] font-semibold inline-flex items-center gap-1 px-1.5 py-0.5 rounded"
+                    title={set ? `Ads cover: ${ad.towns.join(", ")} (${ad.radius} mile radius) — edit in Details → Ad coverage` : "Add this client's ad towns in Details → Ad coverage"}
+                    style={{ background: set ? "rgba(59,130,246,0.12)" : "rgba(245,158,11,0.12)", color: set ? "#3b82f6" : "#f59e0b" }}>
+                    {set
+                      ? <>Ads: {ad.towns[0]}{ad.towns.length > 1 ? ` +${ad.towns.length - 1}` : ""} · {ad.radius}mi</>
+                      : <>Ad coverage not set</>}
+                  </div>
+                );
+              })()}
 
               {client.domain && (
                 <div className="flex items-center gap-1.5 mt-1 min-w-0">

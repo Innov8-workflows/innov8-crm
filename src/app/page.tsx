@@ -51,6 +51,9 @@ export default function Home() {
   const [cachedCounts] = useState(() =>
     typeof window === "undefined" ? null : getCachedBootstrap(localStorage.getItem("crm_ownerFilter") || "")?.counts || null);
   const [dashClientId, setDashClientId] = useState<number | null>(null);
+  // A client window to open on Live Clients, asked for by another view (the Coverage Map).
+  const [openClientId, setOpenClientId] = useState<number | null>(null);
+  const openClient = (projectId: number) => { setOpenClientId(projectId); setView("clients"); };
 
   // The revenue date range, owned HERE rather than inside Dashboard because other
   // views will adopt the same control — one prop now, no migration later. Same
@@ -152,10 +155,11 @@ export default function Home() {
           {persistedView("prospects",    "Prospects failed to load",    () => <LeadGrid ownerFilter={ownerFilter} />)}
           {persistedView("projects",     "Projects failed to load",     () => <KanbanBoard ownerFilter={ownerFilter} onCountsChanged={refreshCounts} />, false)}
           {persistedView("clients",      "Clients failed to load",      () => <LiveClients ownerFilter={ownerFilter} onCountsChanged={refreshCounts}
-            onOpenDashboard={(id) => { setDashClientId(id); setView("client_dash"); }} />)}
+            onOpenDashboard={(id) => { setDashClientId(id); setView("client_dash"); }}
+            openProjectId={openClientId} onOpenedProject={() => setOpenClientId(null)} />)}
           {persistedView("client_dash",  "Client Dashboard failed to load", () => <ClientDashboard projectId={dashClientId} onSelectClient={setDashClientId} active={view === "client_dash"} />)}
           {persistedView("dashboard",    "Dashboard failed to load",    () => <Dashboard ownerFilter={ownerFilter} active={view === "dashboard"} revenueRange={revenueRange.range} revenuePreset={revenueRange.preset} onRevenueRangeChange={handleRevenueRangeChange} />)}
-          {persistedView("map",          "Map failed to load",          () => <MapView ownerFilter={ownerFilter} />, false)}
+          {persistedView("map",          "Map failed to load",          () => <MapView ownerFilter={ownerFilter} onOpenClient={openClient} />, false)}
           {persistedView("ai_solutions", "AI Solutions failed to load", () => <AISolutions />, false)}
           {/* persist=false — an occasional-visit view, and its data should be
               fresh on every visit rather than showing a stale snapshot. */}

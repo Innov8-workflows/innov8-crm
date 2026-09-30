@@ -61,7 +61,7 @@ async function doInitDb() {
   // ~100-300ms, so this is the single biggest "slow first load" win. Bump
   // SCHEMA_VERSION whenever a migration/index/seed below changes → the heavy block
   // re-runs exactly once on the next deploy, then cold starts go fast again.
-  const SCHEMA_VERSION = "2026-09-28-morning-brief";
+  const SCHEMA_VERSION = "2026-09-30-ad-coverage";
   await db.execute("CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT DEFAULT '')");
   const schemaMarker = first(await db.execute("SELECT value FROM app_meta WHERE key = 'schema_version'"));
   if (schemaMarker?.value === SCHEMA_VERSION) return;
@@ -629,6 +629,25 @@ async function doInitDb() {
       dismissed_at TEXT NOT NULL DEFAULT '',
       UNIQUE (brief_date, source_kind, source_ref, title)
     );
+
+    -- Where each ADS client's campaigns run, as towns with a radius. Read by the
+    -- Coverage Map's "can I run ads here?" check: Jay won't run ads for two
+    -- clients in the same trade whose areas overlap. Towns are geocoded once
+    -- when added; place_label is what the geocoder actually matched, shown so
+    -- a wrong "Newport" is visible.
+    CREATE TABLE IF NOT EXISTS ad_coverage (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      project_id INTEGER NOT NULL,
+      place TEXT NOT NULL,
+      place_label TEXT NOT NULL DEFAULT '',
+      lat REAL NOT NULL,
+      lng REAL NOT NULL,
+      radius_miles REAL NOT NULL DEFAULT 15,
+      created_at TEXT NOT NULL DEFAULT '',
+      updated_at TEXT NOT NULL DEFAULT '',
+      UNIQUE (project_id, place),
+      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+    );
   `);
 
   const migrations = [
@@ -745,6 +764,7 @@ async function doInitDb() {
     "ALTER TABLE project_tasks ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''",
     "CREATE INDEX IF NOT EXISTS idx_project_tasks_open ON project_tasks(completed, project_id)",
     "CREATE INDEX IF NOT EXISTS idx_brief_items_date ON brief_items(brief_date, dismissed_at)",
+    "CREATE INDEX IF NOT EXISTS idx_ad_coverage_project ON ad_coverage(project_id)",
     // The day the client churned. NOT backfillable — client_status='lost' overwrites
     // in place with no date and there is no transition log. Stamped forward from here;
     // '' on an already-lost client means "churned before history began".
@@ -858,6 +878,11 @@ async function doInitDb() {
   const taskCols = all(await db.execute("PRAGMA table_info(project_tasks)"));
   if (!taskCols.some((c) => c.name === "updated_at")) {
     console.error("[db] project_tasks.updated_at missing after migration — not stamping schema_version");
+    return;
+  }
+  const coverageCols = all(await db.execute("PRAGMA table_info(ad_coverage)"));
+  if (!coverageCols.some((c) => c.name === "radius_miles")) {
+    console.error("[db] ad_coverage missing after migration — not stamping schema_version");
     return;
   }
   const briefCols = all(await db.execute("PRAGMA table_info(brief_items)"));

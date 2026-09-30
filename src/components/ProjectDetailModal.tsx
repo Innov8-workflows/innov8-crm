@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import type { Project, ProjectTask, ProjectFile, EntitySolution } from "@/types";
 import { PROJECT_STAGES } from "@/types";
 import ProductPicker from "./ProductPicker";
+import AdCoverageEditor from "./AdCoverageEditor";
 import { WAITING_LABEL } from "./OutstandingLine";
 
 interface Props {
@@ -228,10 +229,12 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
   // Products are the source of truth for the dashboard, but the client cards
   // and monthly report still read projects.monthly_fee — so mirror the
   // sold/delivered monthly total back to the project whenever the picker changes.
+  const [productsVersion, setProductsVersion] = useState(0);
   const handleProductsChanged = useCallback(async (esRows: EntitySolution[]) => {
     const sold = esRows.filter((r) => r.status === "sold" || r.status === "delivered");
     const monthly = sold.reduce((s, r) => s + (Number(r.monthly_upcharge) || 0), 0);
     setDetails((prev) => ({ ...prev, monthly_fee: monthly } as typeof prev));
+    setProductsVersion((v) => v + 1);   // an ads product may have been added or removed
     try {
       await fetch(`/api/projects/${project.id}`, {
         method: "PUT", headers: { "Content-Type": "application/json" },
@@ -600,6 +603,8 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
               <p className="text-[11px] -mt-2" style={{ color: "var(--text-dim)" }}>
                 The dashboard totals these products. The fields below are for your own reference — invoicing is done in Stripe.
               </p>
+
+              <AdCoverageEditor projectId={project.id} refreshKey={productsVersion} onChanged={onUpdate} />
 
               {[
                 { key: "domain", label: "Domain", placeholder: "e.g. smithplumbing.co.uk" },

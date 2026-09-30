@@ -27,7 +27,7 @@ const views: { id: ViewId; label: string; icon: IconName }[] = [
   { id: "client_dash", label: "Client Dash", icon: "trending-up" },
   { id: "site_health", label: "Site Health", icon: "shield-check" },
   { id: "dashboard", label: "Dashboard", icon: "chart-bar" },
-  { id: "map", label: "Scrape Map", icon: "map" },
+  { id: "map", label: "Coverage Map", icon: "map" },
   { id: "ai_solutions", label: "AI Solutions", icon: "cpu-chip" },
   { id: "schedule", label: "Schedule", icon: "calendar" },
   { id: "todos", label: "To-Do", icon: "list-bullet" },

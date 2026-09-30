@@ -37,7 +37,7 @@ export function parsePhone(raw: string): Phone | null {
   return { display, tel: `+44${national}`, wa: `44${national}` };
 }
 
-const str = (a: Record<string, unknown>, k: string) => String(a[k] ?? "").trim();
+export const str = (a: Record<string, unknown>, k: string) => String(a[k] ?? "").trim();
 /**
  * Split a "one per line" answer.
  *
@@ -50,7 +50,7 @@ const str = (a: Record<string, unknown>, k: string) => String(a[k] ?? "").trim()
  * Bullets and stray numbering go too, for the same reason: this is typed on a
  * phone by someone who is not thinking about how it will be parsed.
  */
-const lines = (a: Record<string, unknown>, k: string) =>
+export const lines = (a: Record<string, unknown>, k: string) =>
   str(a, k)
     .split(/[\n,]/)
     .map((l) => l.trim().replace(/^[-*•]\s*/, "").replace(/^\d+[.)]\s*/, ""))

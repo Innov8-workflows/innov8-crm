@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -11,6 +11,10 @@ import { PIPELINE_STAGES } from "@/types";
 import LoadingAI from "./LoadingAI";
 import Icon from "./Icon";
 import { useToast } from "./Toast";
+import TabBar from "./TabBar";
+import { useIsDarkTheme, tileLayerFor, UK_CENTER, UK_ZOOM } from "./mapTheme";
+
+const AdCoverage = lazy(() => import("./AdCoverage"));
 
 // Inline map-pin SVG for the Leaflet popup (rendered from an HTML string, so it
 // can't use the React <Icon> component).
@@ -34,9 +38,6 @@ interface MapStats {
   pending: number;
   uniqueLocations: number;
 }
-
-const UK_CENTER: [number, number] = [54.5, -2.5];
-const UK_ZOOM = 6;
 
 type Segment = "all" | "clients" | "prospects";
 const SEGMENTS: { value: Segment; label: string }[] = [
@@ -135,23 +136,7 @@ function escape(s: string): string {
   ));
 }
 
-// Detect whether a dark theme is active (class like theme-midnight, theme-slate...)
-function useIsDarkTheme(): boolean {
-  const [dark, setDark] = useState(true);
-  useEffect(() => {
-    const check = () => {
-      const cls = document.documentElement.className;
-      setDark(!cls.includes("theme-light"));
-    };
-    check();
-    const observer = new MutationObserver(check);
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
-    return () => observer.disconnect();
-  }, []);
-  return dark;
-}
-
-export default function MapView({ ownerFilter = "" }: { ownerFilter?: string }) {
+function LeadsMap({ ownerFilter = "" }: { ownerFilter?: string }) {
   const [markers, setMarkers] = useState<Marker[]>([]);
   const [stats, setStats] = useState<MapStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -233,12 +218,7 @@ export default function MapView({ ownerFilter = "" }: { ownerFilter?: string }) 
 
   if (loading) return <LoadingAI message="Loading map" />;
 
-  const tileUrl = isDark
-    ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-    : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
-  const tileAttribution = isDark
-    ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
-    : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+  const { url: tileUrl, attribution: tileAttribution } = tileLayerFor(isDark);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -375,6 +355,22 @@ export default function MapView({ ownerFilter = "" }: { ownerFilter?: string }) 
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// Coverage Map (was "Scrape Map"): the lead pins, plus where each ADS client's
+// campaigns run so Jay can tell on a call whether a prospect's area is free.
+const TABS = ["Leads", "Ad coverage"];
+
+export default function MapView({ ownerFilter = "", onOpenClient }: { ownerFilter?: string; onOpenClient?: (projectId: number) => void }) {
+  const [tab, setTab] = useState(TABS[0]);
+  return (
+    <div className="flex-1 flex flex-col overflow-hidden">
+      <TabBar tabs={TABS} active={tab} onChange={setTab} />
+      {tab === "Leads"
+        ? <LeadsMap ownerFilter={ownerFilter} />
+        : <Suspense fallback={<LoadingAI message="Loading ad coverage" />}><AdCoverage onOpenClient={onOpenClient} /></Suspense>}
     </div>
   );
 }
