@@ -218,7 +218,7 @@ function LeadsMap({ ownerFilter = "" }: { ownerFilter?: string }) {
 
   if (loading) return <LoadingAI message="Loading map" />;
 
-  const { url: tileUrl, attribution: tileAttribution } = tileLayerFor(isDark);
+  const { url: tileUrl, attribution: tileAttribution, className: tileClass } = tileLayerFor(isDark);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -326,7 +326,8 @@ function LeadsMap({ ownerFilter = "" }: { ownerFilter?: string }) {
           style={{ height: "100%", width: "100%" }}
           scrollWheelZoom
         >
-          <TileLayer url={tileUrl} attribution={tileAttribution} />
+          {/* key: Leaflet reads className only at creation, so remount on a theme change */}
+          <TileLayer key={tileClass || "light"} url={tileUrl} attribution={tileAttribution} className={tileClass} />
           <ClusteredMarkers markers={markers} />
         </MapContainer>
 

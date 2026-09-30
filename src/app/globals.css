@@ -206,3 +206,9 @@ html.cf-on td[data-col="demo_site_url"], html.cf-on td[data-col="domain"] {
 /* Cover images get a heavier blur so client branding / logos in the screenshot
    aren't legible either. */
 html.cf-on .cf-img { filter: blur(16px) !important; }
+
+/* Dark map: the standard OpenStreetMap tiles, darkened in the browser (see
+   src/components/mapTheme.ts — CARTO's keyless dark tiles now serve an
+   "API KEY REQUIRED" image). Filter is on the tile layer only, so pins and
+   coverage circles keep their real colours. */
+.crm-dark-tiles { filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%) saturate(60%); }

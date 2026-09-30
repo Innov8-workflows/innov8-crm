@@ -176,7 +176,8 @@ export default function AdCoverage({ onOpenClient }: { onOpenClient?: (projectId
       {/* ── Map ── */}
       <div className="flex-1 relative min-h-[420px]" style={{ background: "var(--bg)" }}>
         <MapContainer center={UK_CENTER} zoom={UK_ZOOM} style={{ height: "100%", width: "100%" }} scrollWheelZoom>
-          <TileLayer url={tiles.url} attribution={tiles.attribution} />
+          {/* key: Leaflet reads className only at creation, so remount on a theme change */}
+          <TileLayer key={tiles.className || "light"} url={tiles.url} attribution={tiles.attribution} className={tiles.className} />
           {withAreas.map((c) => c.areas.map((a) => {
             const col = colour.get(c.project_id) || "#f97316";
             const dim = focus !== null && focus !== c.project_id;

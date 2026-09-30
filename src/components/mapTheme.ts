@@ -20,16 +20,18 @@ export function useIsDarkTheme(): boolean {
   return dark;
 }
 
+// Both themes use the standard OpenStreetMap tiles. The dark look is a CSS
+// filter on the TILE layer only (.crm-dark-tiles in globals.css), so pins and
+// coverage circles keep their real colours. It used to be CARTO's dark_all
+// basemap, but CARTO started serving an "API KEY REQUIRED" watermark image
+// (HTTP 200, so nothing errors) to keyless use in Sept 2026 — a keyed
+// provider would mean an account and a key in the page for no real gain.
 export function tileLayerFor(isDark: boolean) {
-  return isDark
-    ? {
-        url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-      }
-    : {
-        url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-      };
+  return {
+    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    className: isDark ? "crm-dark-tiles" : "",
+  };
 }
 
 export const UK_CENTER: [number, number] = [54.5, -2.5];
