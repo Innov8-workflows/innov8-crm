@@ -9,11 +9,17 @@ import { sendEmailWithRetry, isEmailConfigured } from "@/lib/email";
 // form only pre-filled a WhatsApp message, so an enquiry the visitor never
 // actually sent was lost, and nothing recorded where they came from.
 //
-// Auth: none can exist — the caller is a public web page, so any secret would
-// sit in its source. Instead: an Origin allowlist (stops other sites' browsers),
-// a honeypot field, a per-IP rate limit and length clamps. curl can still post,
-// which is the same exposure as any contact form; the worst case is a junk
-// prospect, never a read.
+// Auth, browser path: none can exist — the caller is a public web page, so any
+// secret would sit in its source. Instead: an Origin allowlist (stops other
+// sites' browsers), a honeypot field, a per-IP rate limit and length clamps.
+// curl can still post, which is the same exposure as any contact form; the
+// worst case is a junk prospect, never a read.
+//
+// Auth, server path: the GHL "Innov8 Workflows" sub-account's workflow posts
+// website-chat contacts here with the lead_ingest_key of Jay's OWN project
+// (x-innov8-key header or ?key=), so a client's Apps Script key can never
+// write into Jay's prospect pipeline. GHL's webhook body (first_name,
+// contact_id, customData...) is mapped onto the same fields.
 //
 // Unlike /api/webhook/prospects this NEVER skips a known business. A prospect
 // Jay has already scraped or messaged who then fills in the form is the hottest
@@ -22,7 +28,8 @@ import { sendEmailWithRetry, isEmailConfigured } from "@/lib/email";
 
 const ORIGINS = ["https://innov8workflows.co.uk", "https://www.innov8workflows.co.uk"];
 const LOCAL_ORIGIN = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
-const NOTIFY_TO = process.env.ENQUIRY_NOTIFY_TO || process.env.RESEND_REPLY_TO || "jamie@innov8workflows.co.uk";
+const OWN_TRACKING_ID = "proj_f5d3ac1edd12"; // the innov8workflows.co.uk project
+const NOTIFY_TO =process.env.ENQUIRY_NOTIFY_TO || process.env.RESEND_REPLY_TO || "jamie@innov8workflows.co.uk";
 
 const clamp = (v: unknown, n: number) => String(v ?? "").trim().slice(0, n);
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
@@ -72,24 +79,62 @@ export async function OPTIONS(request: NextRequest) {
   return new NextResponse(null, { status: 204, headers: cors(request.headers.get("origin") || "") });
 }
 
+// GHL's standard webhook body -> the form's field names. customData is what
+// the workflow's webhook action adds on top (form label etc).
+function fromGhl(b: Record<string, unknown>): Record<string, unknown> {
+  const cd = (b.customData && typeof b.customData === "object" ? b.customData : {}) as Record<string, unknown>;
+  const attr = (b.attributionSource && typeof b.attributionSource === "object" ? b.attributionSource : {}) as Record<string, unknown>;
+  const loc = (b.location && typeof b.location === "object" ? b.location : {}) as Record<string, unknown>;
+  const fullName = String(b.full_name || [b.first_name, b.last_name].filter(Boolean).join(" ") || "").trim();
+  const link = b.contact_id && loc.id
+    ? `https://app.gohighlevel.com/v2/location/${loc.id}/contacts/detail/${b.contact_id}` : "";
+  return {
+    firstName: b.first_name || fullName.split(" ")[0],
+    lastName: b.last_name,
+    email: b.email,
+    phone: b.phone,
+    company: b.company_name || cd.company || (fullName ? `${fullName} (website chat)` : ""),
+    message: [cd.message, link && `Conversation in GHL: ${link}`].filter(Boolean).join("\n"),
+    form: cd.form || "Website chat",
+    page: attr.url || cd.page,
+    referrer: attr.referrer,
+  };
+}
+
 export async function POST(request: NextRequest) {
   const origin = request.headers.get("origin") || "";
-  const headers = cors(origin);
-  if (!headers["Access-Control-Allow-Origin"]) {
-    return NextResponse.json({ ok: false, error: "origin not allowed" }, { status: 403 });
+  let headers = cors(origin);
+
+  const key = request.headers.get("x-innov8-key") || request.nextUrl.searchParams.get("key") || "";
+  let serverCall = false;
+  if (key) {
+    if (!key.startsWith("lk_")) return NextResponse.json({ ok: false, error: "bad key" }, { status: 401 });
+    await initDb();
+    const own = first(await getClient().execute({
+      sql: "SELECT id FROM projects WHERE lead_ingest_key = ? AND tracking_id = ? LIMIT 1",
+      args: [key, OWN_TRACKING_ID],
+    }));
+    if (!own) return NextResponse.json({ ok: false, error: "bad key" }, { status: 401 });
+    serverCall = true;
+    headers = {};
+  } else {
+    if (!headers["Access-Control-Allow-Origin"]) {
+      return NextResponse.json({ ok: false, error: "origin not allowed" }, { status: 403 });
+    }
+    const limit = rateLimit(`site-enquiry:${clientIp(request)}`, 8, 60 * 60_000);
+    if (!limit.ok) {
+      return NextResponse.json({ ok: false, error: "too many enquiries, try again later" }, { status: 429, headers });
+    }
   }
 
-  const limit = rateLimit(`site-enquiry:${clientIp(request)}`, 8, 60 * 60_000);
-  if (!limit.ok) {
-    return NextResponse.json({ ok: false, error: "too many enquiries, try again later" }, { status: 429, headers });
-  }
-
-  // The page sends text/plain JSON so the browser skips the CORS preflight.
+  // The page sends text/plain JSON so the browser skips the CORS preflight;
+  // GHL sends application/json. Both parse the same way.
   let f: Record<string, unknown>;
   try { f = JSON.parse(await request.text()); } catch {
     return NextResponse.json({ ok: false, error: "bad body" }, { status: 400, headers });
   }
   if (!f || typeof f !== "object") return NextResponse.json({ ok: false, error: "bad body" }, { status: 400, headers });
+  if (serverCall && (f.contact_id || f.first_name || f.full_name)) f = fromGhl(f);
 
   // Honeypot: bots fill the hidden field. Pretend success, save nothing.
   if (f.company_website) return NextResponse.json({ ok: true }, { headers });
