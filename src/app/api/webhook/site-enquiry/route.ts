@@ -147,6 +147,16 @@ export async function POST(request: NextRequest) {
   const company = clamp(f.company, 160);
   const service = clamp(f.service, 120);
   const trade = clamp(f.trade, 120);
+  // Business type comes from the form's dropdown, whose values match the CRM's
+  // existing business_type vocabulary (Roofer, Driveway, Builder...). The ad
+  // landing page sends a free-text "trade" instead.
+  const businessType = clamp(f.businessType, 80) || trade;
+  // Current website: only the main enquiry forms ask, so "asked" separates a
+  // deliberate blank (no website, which ticks the "No Website?" column) from a
+  // form that never had the field.
+  const websiteAsked = typeof f.website === "string";
+  let website = clamp(f.website, 300);
+  if (website && !/^https?:\/\//i.test(website)) website = "https://" + website.replace(/^\/+/, "");
   const message = clamp(f.message, 3000);
   const form = clamp(f.form, 60) || "Website form";
   const page = clamp(f.page, 500);
@@ -161,7 +171,8 @@ export async function POST(request: NextRequest) {
     `Website enquiry (${form}) via ${channel}`,
     `From: ${[contactName, company, email, phone].filter(Boolean).join(", ")}`,
     service && `Service: ${service}`,
-    trade && `Trade: ${trade}`,
+    businessType && `Business type: ${businessType}`,
+    websiteAsked && `Current website: ${website || "none"}`,
     message && `Message: ${message}`,
     page && `Page: ${page}`,
     referrer && `Referrer: ${referrer}`,
@@ -203,9 +214,10 @@ export async function POST(request: NextRequest) {
                   contact_name = CASE WHEN contact_name = '' THEN ? ELSE contact_name END,
                   email = CASE WHEN email = '' THEN ? ELSE email END,
                   phone = CASE WHEN phone = '' THEN ? ELSE phone END,
+                  business_type = CASE WHEN business_type = '' THEN ? ELSE business_type END,
                   follow_up_date = ?, updated_at = ?
                 WHERE id = ?`,
-          args: [contactName, email, phone, today, now, leadId] },
+          args: [contactName, email, phone, businessType, today, now, leadId] },
         { sql: "INSERT INTO lead_notes (lead_id, content, created_at) VALUES (?, ?, ?)", args: [leadId, summary, now] },
         { sql: "INSERT INTO activities (lead_id, type, description, created_at) VALUES (?, 'website_enquiry', ?, ?)",
           args: [leadId, `${form} via ${channel}${service ? ` - ${service}` : ""}`, now] },
@@ -214,16 +226,29 @@ export async function POST(request: NextRequest) {
     } else {
       const order = first(await db.execute("SELECT COALESCE(MIN(sort_order), 0) - 1 AS v FROM leads"));
       const res = await db.execute({
-        sql: `INSERT INTO leads (business_name, contact_name, email, phone, business_type, notes, status,
+        sql: `INSERT INTO leads (business_name, contact_name, email, phone, business_type, website_status, notes, status,
                 follow_up_date, sort_order, created_at, updated_at)
-              VALUES (?, ?, ?, ?, ?, ?, 'new', ?, ?, ?, ?)`,
-        args: [company, contactName, email, phone, trade, leadNote, today, Number(order?.v ?? 0), now, now],
+              VALUES (?, ?, ?, ?, ?, ?, ?, 'new', ?, ?, ?, ?)`,
+        args: [company, contactName, email, phone, businessType, websiteAsked && !website ? 1 : 0, leadNote, today,
+          Number(order?.v ?? 0), now, now],
       });
       leadId = Number(res.lastInsertRowid);
       await db.batch([
         { sql: "INSERT INTO lead_notes (lead_id, content, created_at) VALUES (?, ?, ?)", args: [leadId, leadNote, now] },
         { sql: "INSERT INTO activities (lead_id, type, description, created_at) VALUES (?, 'website_enquiry', ?, ?)",
           args: [leadId, `${form} via ${channel}${service ? ` - ${service}` : ""}`, now] },
+      ], "write");
+    }
+    if (website) {
+      // The URL lives in a custom column ("Current Website" in Prospects),
+      // registered on first use. An existing value is never overwritten.
+      await db.batch([
+        { sql: `INSERT OR IGNORE INTO column_config (id, label, col_type, visible, sort_order)
+                SELECT 'custom_current_website', 'Current Website', 'url', 1, COALESCE(MAX(sort_order), 0) + 1 FROM column_config`,
+          args: [] },
+        { sql: `INSERT INTO custom_field_values (lead_id, field_id, value) VALUES (?, 'custom_current_website', ?)
+                ON CONFLICT(lead_id, field_id) DO UPDATE SET value = CASE WHEN value = '' THEN excluded.value ELSE value END`,
+          args: [leadId, website] },
       ], "write");
     }
   } catch (err) {
@@ -235,7 +260,8 @@ export async function POST(request: NextRequest) {
   if (isEmailConfigured()) {
     const rows: [string, string][] = [
       ["Name", contactName], ["Business", company], ["Email", email], ["Phone", phone],
-      ["Service", service], ["Trade", trade], ["Came from", channel], ["UTM", utm], ["Page", page],
+      ["Service", service], ["Business type", businessType],
+      ["Current website", websiteAsked ? website || "none" : ""], ["Came from", channel], ["UTM", utm], ["Page", page],
     ];
     const known = existing ? `Existing prospect "${String(existing.business_name)}" (stage: ${String(existing.status || "new")})`
       : sameEmail ? `New prospect (this email is already on #${sameEmail.id} "${String(sameEmail.business_name)}")` : "New prospect";
