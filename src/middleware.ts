@@ -7,7 +7,7 @@ const SECRET = new TextEncoder().encode(
 
 // NB: matched with startsWith — keep entries specific enough not to shadow
 // future routes (e.g. "/api/report" would also open "/api/reports/...").
-const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/auth/mfa/verify", "/api/auth/setup", "/api/webhook/gmail", "/api/webhook/prospects", "/api/webhook/client-leads", "/api/health/check", "/api/track", "/track.js",
+const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/auth/mfa/verify", "/api/auth/setup", "/api/webhook/gmail", "/api/webhook/prospects", "/api/webhook/client-leads", "/api/webhook/site-enquiry","/api/health/check", "/api/track", "/track.js",
   // Client onboarding. These are SIBLINGS of the admin tree, never children:
   // "/api/onboarding" would startsWith-match /api/onboarding/r2-check and every
   // other admin endpoint under it, opening them to the world. The public API is

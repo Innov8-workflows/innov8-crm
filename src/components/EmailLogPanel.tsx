@@ -15,6 +15,12 @@ const ACTIVITY_TYPES: { value: string; label: string; icon: IconName }[] = [
   { value: "other", label: "Other", icon: "document" },
 ];
 
+// Logged automatically, so they get a timeline label but no place in the
+// manual "add activity" picker above.
+const AUTO_TYPES: { value: string; label: string; icon: IconName }[] = [
+  { value: "website_enquiry", label: "Website enquiry", icon: "globe" },
+];
+
 export default function EmailLogPanel({ lead, onClose }: EmailLogPanelProps) {
   const [logs, setLogs] = useState<EmailLog[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
@@ -56,7 +62,7 @@ export default function EmailLogPanel({ lead, onClose }: EmailLogPanelProps) {
   const timeline: { id: string; icon: IconName; title: string; detail: string; date: string }[] = [
     ...logs.map((l) => ({ id: `e-${l.id}`, icon: "envelope" as IconName, title: l.subject || "(no subject)", detail: `To: ${l.recipient}`, date: l.sent_at })),
     ...activities.map((a) => {
-      const t = ACTIVITY_TYPES.find((t) => t.value === a.type);
+      const t = [...ACTIVITY_TYPES, ...AUTO_TYPES].find((t) => t.value === a.type);
       return { id: `a-${a.id}`, icon: (t?.icon || "document") as IconName, title: t?.label || a.type, detail: a.description, date: a.created_at };
     }),
   ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
