@@ -19,8 +19,16 @@ export const SETUP_ITEMS = [
   { field: "link_card", label: "Link card", title: "Social link-preview (Open Graph) card set up" },
   { field: "secure_file", label: "Secure File", title: "Secure file / login details stored" },
   { field: "google_sheet", label: "Google Sheet", title: "Lead-logging Google Sheet connected (form/call leads land in the sheet)" },
+  { field: "ghl_setup", label: "GHL", title: "Set up on GoHighLevel (the Business Growth Package CRM, automations and app)" },
 ] as const;
 
 export type SetupField = (typeof SETUP_ITEMS)[number]["field"];
 export const SETUP_FIELDS: readonly string[] = SETUP_ITEMS.map((i) => i.field);
 export const isSetupField = (f: string): f is SetupField => SETUP_FIELDS.includes(f);
+
+/**
+ * Pills that only apply to SOME clients, so an unticked one is not "outstanding".
+ * GHL is for Business Growth Package clients only; counting it as a gap would put
+ * a "GHL not done" line on every website-only client.
+ */
+export const NOT_A_GAP: ReadonlySet<string> = new Set(["ghl_setup"]);

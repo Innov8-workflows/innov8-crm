@@ -25,7 +25,7 @@
 import type { Client } from "@libsql/client";
 import { all, first } from "@/lib/db";
 import { DEFAULT_PROJECT_TASKS } from "@/lib/projectTasks";
-import { SETUP_ITEMS } from "@/lib/setupFields";
+import { SETUP_ITEMS, NOT_A_GAP } from "@/lib/setupFields";
 
 /** '' means it is on Jay. */
 export const WAITING_ON = ["", "client", "google", "other"] as const;
@@ -262,6 +262,7 @@ export async function listSetupGaps(db: Client, projectId?: number): Promise<Set
   const gaps: SetupGap[] = [];
   for (const r of rows) {
     for (const item of SETUP_ITEMS) {
+      if (NOT_A_GAP.has(item.field)) continue;
       if (Number(r[item.field]) !== 1) {
         gaps.push({ project_id: Number(r.id), business_name: String(r.business_name),
                     field: item.field, label: item.label, title: item.title });

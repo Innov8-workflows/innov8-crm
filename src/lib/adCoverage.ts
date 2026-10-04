@@ -12,6 +12,9 @@ import { TransientGeocodeError } from "@/lib/geocode";
 
 /** The catalogue products that make a client an ad client — matched by NAME, the ids aren't fixed. */
 export const AD_PRODUCTS: Record<string, "google" | "meta"> = {
+  "Google Sponsored PPC": "google",
+  "Meta Ads Management": "meta",
+  // The pre-2026 names, in case a database hasn't had applyPricing2026 yet.
   "Google PPC Ad Campaign": "google",
   "Meta Ad Campaign": "meta",
 };

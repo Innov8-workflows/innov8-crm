@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 
 // "Ad coverage" in the client window: the towns this client's ads run in and
 // the radius around each. Feeds the Coverage Map's "can I run ads here?" check.
-// Shown for ad clients (Google PPC / Meta Ad Campaign attached); for anyone
+// Shown for ad clients (Google Sponsored PPC / Meta Ads Management attached); for anyone
 // else it collapses to a one-line note so it doesn't clutter the window.
 
 interface Area { id: number; place: string; place_label: string; radius_miles: number }
@@ -86,7 +86,7 @@ export default function AdCoverageEditor({ projectId, refreshKey = 0, onChanged 
   if (!data.is_ad_client && !data.areas.length) {
     return (
       <p className="text-[11px]" style={{ color: "var(--text-dim)" }}>
-        Ad coverage: add a Google PPC or Meta Ad Campaign product above and this client&apos;s ad towns can be recorded here for the Coverage Map.
+        Ad coverage: add a Google Sponsored PPC or Meta Ads Management product above and this client&apos;s ad towns can be recorded here for the Coverage Map.
       </p>
     );
   }

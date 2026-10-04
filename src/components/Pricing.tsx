@@ -1,377 +1,45 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import type { Solution } from "@/types";
-import { SOLUTION_CATEGORIES } from "@/types";
-import Icon, { type IconName } from "./Icon";
+import Icon from "./Icon";
+
+// The Pricing tab: the official 2026 pricing PDF, exactly as prospects receive it.
+// The product picker on client cards uses the same prices (seeded from this PDF
+// in src/lib/db.ts, CATALOGUE_2026).
+//
+// The file lives in /public/pricing. It is NOT public on the live site: the
+// middleware only lets images through without a login, so a .pdf needs the
+// session cookie, which the same-origin iframe sends.
+//
+// To update for a new price list: replace public/pricing/innov8-pricing-2026.pdf
+// (or add a new file and change PDF below), and update CATALOGUE_2026 to match.
+
+const PDF = "/pricing/innov8-pricing-2026.pdf";
 
 export default function Pricing() {
-  const [solutions, setSolutions] = useState<Solution[]>([]);
-  const [selected, setSelected] = useState<Solution | null>(null);
-
-  useEffect(() => {
-    fetch("/api/solutions").then((r) => r.json()).then((d) => setSolutions(d.solutions || []));
-  }, []);
-
   return (
-    <div className="flex-1 overflow-auto p-5 space-y-4">
-      {/* Header */}
-      <div className="flex flex-col lg:flex-row items-start lg:items-center gap-3 lg:justify-between">
-        <div className="flex items-baseline gap-3 flex-wrap">
-          <h1 className="text-2xl font-bold">Pricing <span style={{ color: "var(--accent)" }}>Structure</span></h1>
-          <p className="text-xs" style={{ color: "var(--text-dim)" }}>Website product — all tiers include hosting &amp; support</p>
-        </div>
-        {/* Trophy callout */}
-        <div className="rounded-lg px-3 py-2 flex items-center gap-2.5" style={{ border: "1px solid var(--accent)", background: "var(--accent-subtle)" }}>
-          <div className="flex-shrink-0" style={{ color: "var(--accent)" }}><Icon name="trophy" className="w-5 h-5" /></div>
-          <div className="text-[11px] leading-snug" style={{ color: "var(--text-secondary)" }}>
-            Most businesses pay <span style={{ color: "var(--accent)", fontWeight: 700 }}>£2,000+ upfront</span> —
-            our model gives you everything for a <span style={{ color: "var(--accent)", fontWeight: 700 }}>fraction of the typical cost</span>
-          </div>
-        </div>
-      </div>
-
-      {/* The offer — a full-width band rather than a 384px card marooned in the
-          middle of the screen. Price rail on the left, the 13 included features
-          tiled across the space that was empty. */}
-      <div className="rounded-xl overflow-hidden" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-        <div className="grid grid-cols-1 xl:grid-cols-[240px_1fr]">
-          {/* Price rail */}
-          <div className="p-4 flex flex-row xl:flex-col items-center xl:items-start gap-4 xl:gap-2.5 flex-wrap"
-            style={{ background: "var(--surface2)" }}>
-            <div className="flex-shrink-0">
-              <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "#22c55e" }}>T1 · Essential</p>
-              <p className="text-[11px]" style={{ color: "var(--text-dim)" }}>Website Foundation</p>
-            </div>
-            <div className="flex items-end gap-4">
-              <div>
-                <div className="text-3xl font-bold leading-none" style={{ color: "#22c55e" }}>£85<span className="text-lg">/pm</span></div>
-                <div className="text-[11px] mt-1" style={{ color: "var(--text-dim)" }}>per month</div>
-              </div>
-              <div>
-                <div className="text-xl font-bold leading-none" style={{ color: "var(--text)" }}>£95</div>
-                <div className="text-[11px] mt-1" style={{ color: "var(--text-dim)" }}>one-time setup</div>
-              </div>
-            </div>
-            <div className="flex items-center gap-1.5 text-xs" style={{ color: "var(--text-secondary)" }}>
-              <Icon name="clock" className="w-4 h-4 flex-shrink-0" />
-              <span>Live within <span style={{ color: "#22c55e", fontWeight: 700 }}>7 days</span></span>
-            </div>
-          </div>
-
-          {/* Everything included */}
-          <div className="p-4">
-            <div className="flex items-baseline gap-2 mb-2.5 flex-wrap">
-              <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--text-dim)" }}>Everything included</p>
-              <p className="text-[11px]" style={{ color: "var(--text-quaternary)" }}>Roofers &middot; Driveways &middot; Builders &middot; Electricians &middot; Plumbers</p>
-            </div>
-            <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-x-5 gap-y-1.5">
-              {ESSENTIAL_FEATURES.map((f) => (
-                <li key={f} className="flex items-start gap-1.5 text-[13px]" style={{ color: "var(--text-secondary)" }}>
-                  <span className="flex-shrink-0" style={{ color: "#22c55e" }}>✓</span>
-                  <span>{f}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-
-        {/* Trust badges — folded into the offer band, was a separate card below */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 px-4 py-3" style={{ borderTop: "1px solid var(--border)" }}>
-          <TrustBadge icon="shield-check" title="No Long-Term Contracts" subtitle="Cancel anytime" />
-          <TrustBadge icon="lock" title="Secure & Reliable" subtitle="Your data is safe with us" />
-          <TrustBadge icon="flag" title="UK Based Support" subtitle="Real people, real support" />
-          <TrustBadge icon="trending-up" title="Built to Grow" subtitle="Scalable as your business grows" />
+    <div className="flex-1 flex flex-col min-h-0">
+      <div className="px-5 py-3 flex items-center gap-3 flex-wrap flex-shrink-0"
+        style={{ background: "var(--stats-bg)", borderBottom: "1px solid var(--border)" }}>
+        <Icon name="currency-pound" className="w-5 h-5" style={{ color: "var(--accent)" }} />
+        <h1 className="text-lg font-bold" style={{ color: "var(--text)" }}>Pricing</h1>
+        <span className="text-xs" style={{ color: "var(--text-dim)" }}>2026 rates · the price list prospects receive</span>
+        <div className="ml-auto flex items-center gap-2">
+          <a href={PDF} target="_blank" rel="noopener noreferrer"
+            className="text-sm font-semibold px-3 py-1.5 rounded-lg"
+            style={{ background: "var(--surface2)", border: "1px solid var(--border-light)", color: "var(--text-secondary)" }}>
+            Open in new tab
+          </a>
+          <a href={PDF} download="Innov8-Workflows-Pricing-2026.pdf"
+            className="text-sm font-semibold px-3 py-1.5 rounded-lg"
+            style={{ background: "var(--accent)", color: "#fff" }}>
+            Download PDF
+          </a>
         </div>
       </div>
-
-      {/* Add-ons — pulled live from the product catalogue (base plan excluded) */}
-      {solutions.some((s) => s.category !== "website") && (
-        <div className="rounded-xl p-4" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-          <div className="flex items-baseline gap-2 mb-2.5 flex-wrap">
-            <h2 className="text-sm font-bold uppercase tracking-wider flex items-center gap-1.5" style={{ color: "var(--text-dim)" }}><Icon name="cpu-chip" className="w-4 h-4" style={{ color: "var(--accent)" }} /> Add-ons</h2>
-            <p className="text-xs" style={{ color: "var(--text-quaternary)" }}>Bolt-ons that grow results. Tap any card to see the pitch angle.</p>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 2xl:grid-cols-7 gap-2">
-            {solutions.filter((s) => s.category !== "website").map((s) => {
-              const cat = SOLUTION_CATEGORIES.find((c) => c.value === s.category);
-              return (
-                <button key={s.id} onClick={() => setSelected(s)}
-                  className="text-left rounded-lg p-2.5 transition-colors relative overflow-hidden"
-                  style={{ background: "var(--surface2)", border: "1px solid var(--border)" }}
-                  onMouseEnter={(e) => e.currentTarget.style.borderColor = "var(--accent)"}
-                  onMouseLeave={(e) => e.currentTarget.style.borderColor = "var(--border)"}>
-                  {cat && <span className="absolute inset-x-0 top-0 h-0.5" title={cat.label} style={{ background: cat.color }} />}
-                  <p className="text-[13px] font-semibold leading-snug line-clamp-2 mb-1" style={{ color: "var(--text)" }} title={s.name}>{s.name}</p>
-                  <div className="flex items-baseline gap-1.5 text-[11px]">
-                    <span style={{ color: "#22c55e", fontWeight: 700 }}>£{s.monthly_price}/mo</span>
-                    <span style={{ color: "var(--text-quaternary)" }}>+£{s.upfront_price}</span>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Drawer for selected solution */}
-          {selected && (
-            <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.6)" }} onClick={() => setSelected(null)}>
-              <div className="w-full max-w-lg rounded-xl p-6" style={{ background: "var(--surface)", border: "1px solid var(--border)" }} onClick={(e) => e.stopPropagation()}>
-                <div className="flex items-start justify-between mb-3">
-                  <h3 className="text-xl font-bold" style={{ color: "var(--text)" }}>{selected.name}</h3>
-                  <button onClick={() => setSelected(null)} className="p-1 rounded" style={{ color: "var(--text-muted)" }}><Icon name="x-mark" className="w-5 h-5" /></button>
-                </div>
-                <p className="text-sm mb-4" style={{ color: "var(--text-secondary)" }}>{selected.description}</p>
-                <div className="grid grid-cols-3 gap-2 mb-4">
-                  <div className="rounded-lg p-2 text-center" style={{ background: "var(--surface2)" }}>
-                    <div className="text-[10px] uppercase tracking-wider" style={{ color: "var(--text-dim)" }}>Upfront</div>
-                    <div className="text-base font-bold" style={{ color: "var(--text)" }}>£{selected.upfront_price}</div>
-                  </div>
-                  <div className="rounded-lg p-2 text-center" style={{ background: "var(--surface2)" }}>
-                    <div className="text-[10px] uppercase tracking-wider" style={{ color: "var(--text-dim)" }}>Monthly</div>
-                    <div className="text-base font-bold" style={{ color: "#22c55e" }}>£{selected.monthly_price}</div>
-                  </div>
-                  <div className="rounded-lg p-2 text-center" style={{ background: "var(--surface2)" }}>
-                    <div className="text-[10px] uppercase tracking-wider" style={{ color: "var(--text-dim)" }}>Install</div>
-                    <div className="text-base font-bold" style={{ color: "var(--text)" }}>{selected.install_days}d</div>
-                  </div>
-                </div>
-                {selected.pitch_angle && (
-                  <div className="p-3 rounded-lg mb-3" style={{ background: "var(--accent-subtle)", border: "1px solid var(--accent)" }}>
-                    <p className="text-[10px] font-bold uppercase tracking-wider mb-1 flex items-center gap-1.5" style={{ color: "var(--accent)" }}><Icon name="chat" className="w-3.5 h-3.5" /> Pitch Angle</p>
-                    <p className="text-sm" style={{ color: "var(--text)" }}>{selected.pitch_angle}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Sales Script */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="rounded-xl p-4" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-          <h3 className="text-sm font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--text-dim)" }}>Sales Script</h3>
-          <div className="space-y-2 text-sm" style={{ color: "var(--text-secondary)" }}>
-            <ScriptLine speaker="You" text={`"Hey is that XXX?"`} />
-            <ScriptLine speaker="Them" text={`"Yes it is"`} dim />
-            <ScriptLine speaker="You" text={`"Brilliant, how are you today?"`} />
-            <ScriptLine speaker="Them" text={`"Not bad, yourself?"`} dim />
-            <ScriptLine speaker="You" text={`"Yes, not bad at all..."`} />
-            <div className="pl-4" style={{ borderLeft: "2px solid var(--accent)", color: "var(--text)" }}>
-              <p>I noticed you didn&apos;t have a website on Facebook, so I went ahead and built you a demo one using your reviews and pictures, and sent this across on messenger, did you manage to have a look at it?</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-xl p-4" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-          <h3 className="text-sm font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--text-dim)" }}>Value / Benefits</h3>
-          <p className="text-sm mb-2" style={{ color: "var(--text-secondary)" }}>
-            More enquiries — this helps out when quiet during summer:
-          </p>
-          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
-            <BenefitItem text="Branding & personalisation — logo, brand colours, real pictures" />
-            <BenefitItem text="Click-to-call button" />
-            <BenefitItem text="Before & after gallery" />
-            <BenefitItem text="Google Reviews integration" />
-            <BenefitItem text="Mobile-first responsive design" />
-            <BenefitItem text="SEO optimised for local searches" />
-            <BenefitItem text="Fast loading — no WordPress bloat" />
-            <BenefitItem text="Free hosting included" />
-          </ul>
-        </div>
+      <div className="flex-1 min-h-0" style={{ background: "var(--bg)" }}>
+        <iframe src={`${PDF}#view=FitH&toolbar=1`} title="Innov8 Workflows pricing 2026"
+          className="w-full h-full block" style={{ border: 0, minHeight: 600 }} />
       </div>
-
-      {/* Best Times to Call */}
-      <div className="rounded-xl p-4" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-        <div className="flex items-baseline gap-2 mb-3 flex-wrap">
-          <h3 className="text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--text-dim)" }}>Best Times to Call — UK Local Trades</h3>
-          <p className="text-xs" style={{ color: "var(--text-quaternary)" }}>Tradespeople are on-site most of the day. Target quiet windows when they can actually talk.</p>
-        </div>
-
-        {/* Daily windows and the ones to avoid sit side by side — they're read as
-            a pair, and stacking them was two thirds of this card's height. */}
-        <div className="grid grid-cols-1 xl:grid-cols-[4fr_3fr] gap-4 mb-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--text-muted)" }}>Daily Windows</p>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <TimeSlot time="7:00 – 8:00 AM" rating="good" label="Early Brew" note="Before they leave for site. Caught in the van getting ready." />
-            <TimeSlot time="12:00 – 1:30 PM" rating="best" label="Lunch Break" note="Sat in the van eating a sandwich — prime window for a chat." />
-            <TimeSlot time="4:30 – 6:00 PM" rating="best" label="Wrapping Up" note="Job&apos;s winding down, driving home, admin mode on." />
-            <TimeSlot time="6:00 – 7:30 PM" rating="good" label="Home Hours" note="Done for the day, relaxed, more likely to listen properly." />
-          </div>
-        </div>
-
-        {/* Avoid times */}
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--text-muted)" }}>Avoid These Windows</p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            <TimeSlot time="8:00 – 11:30 AM" rating="avoid" label="On Site" note="Deep in the job, tools out, won&apos;t answer or will be annoyed." />
-            <TimeSlot time="1:30 – 4:30 PM" rating="avoid" label="Afternoon Push" note="Racing to finish the day&apos;s work. Not the time." />
-            <TimeSlot time="After 8:00 PM" rating="avoid" label="Family Time" note="Disrespects their evening. Unprofessional — and they&apos;ll remember." />
-          </div>
-        </div>
-        </div>
-
-        {/* Days of the week */}
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--text-muted)" }}>Best Days of the Week</p>
-          <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
-            <DayCard day="Mon" rating="poor" note="Mondays are chaos — enquiries pile up from weekend. Avoid before noon." />
-            <DayCard day="Tue" rating="good" note="Settled into the week. Lunch & evening calls land well." />
-            <DayCard day="Wed" rating="best" note="Midweek sweet spot. Most open to a chat, less rushed." />
-            <DayCard day="Thu" rating="best" note="Thinking about wrapping up the week. Receptive to new ideas." />
-            <DayCard day="Fri" rating="good" note="Good morning to lunch. Afternoons they bolt early — avoid." />
-            <DayCard day="Sat" rating="ok" note="Only 'til lunchtime. Family time after. Some trades work all day." />
-            <DayCard day="Sun" rating="avoid" note="Never. Only exception: pre-booked appointment." />
-          </div>
-        </div>
-
-        {/* Pro tips */}
-        <div className="mt-4 p-3 rounded-lg" style={{ background: "var(--accent-subtle)", border: "1px solid var(--accent)" }}>
-          <p className="text-xs font-semibold uppercase tracking-wider mb-2 flex items-center gap-1.5" style={{ color: "var(--accent)" }}><Icon name="light-bulb" className="w-4 h-4" /> Pro Tips</p>
-          <ul className="text-[13px] grid grid-cols-1 xl:grid-cols-2 gap-x-6 gap-y-1" style={{ color: "var(--text-secondary)" }}>
-            <li>• <span style={{ color: "var(--text)" }}>Rainy days</span> are golden — jobs get cancelled, they&apos;re stuck indoors, more chatty</li>
-            <li>• <span style={{ color: "var(--text)" }}>End of month</span> trades are chasing invoices. They understand &quot;I&apos;m helping you get more jobs&quot; instantly</li>
-            <li>• <span style={{ color: "var(--text)" }}>January &amp; post-summer lull</span> are prime — they want to know where next month&apos;s work is coming from</li>
-            <li>• <span style={{ color: "var(--text)" }}>Bank holidays</span> Tuesday after is worst day of the year. Skip it.</li>
-            <li>• If they say &quot;I&apos;m on a job&quot;, ask <span style={{ color: "var(--text)" }}>&quot;what time tonight works?&quot;</span> — 80% will give you a window</li>
-          </ul>
-        </div>
-      </div>
-
-      {/* Discovery Questions */}
-      <div className="rounded-xl p-4" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-        <div className="flex items-baseline gap-2 mb-3 flex-wrap">
-          <h3 className="text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--text-dim)" }}>Discovery Questions</h3>
-          <p className="text-xs" style={{ color: "var(--text-quaternary)" }}>Weave them in to keep the conversation natural — don&apos;t fire them off like a checklist.</p>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5 gap-2">
-          <QuestionCard icon="question" question="Have you just not got round to getting a website?" note="Opens the door — most say yes, which means they already want one" />
-          <QuestionCard icon="currency-pound" question="Has price been a big factor in why you haven't got one?" note="If yes, perfect lead-in to T1 at £0 upfront" />
-          <QuestionCard icon="camera" question="Have you had a chance to look at the before & afters section?" note="Draws attention to the gallery — visual proof of quality" />
-          <QuestionCard icon="device-mobile" question="How do most of your customers find you at the moment?" note="Reveals their reliance on Facebook/word of mouth — your angle" />
-          <QuestionCard icon="star" question="I saw you've got some cracking reviews — do you get many enquiries from them?" note="Compliment + shows you've done your homework" />
-          <QuestionCard icon="search" question="Have you ever Googled your trade in your area and seen who comes up?" note="Plants the SEO seed — they'll check after the call" />
-          <QuestionCard icon="phone" question="Do you get much work over the quieter months?" note="If yes, great. If no — that's exactly what a website helps with" />
-          <QuestionCard icon="trophy" question="What would set you apart from the competition if someone was comparing?" note="Gets them talking about their USP — use it to show how the site highlights that" />
-          <QuestionCard icon="globe" question="If someone searched for a [plumber/groomer/etc] near you right now, would they find you?" note="Rhetorical usually — makes them realise the gap" />
-        </div>
-      </div>
-
-      {/* Quick Reference */}
-      <div className="rounded-xl p-4" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-        <h3 className="text-sm font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--text-dim)" }}>Quick Reference — Objection Handling</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">
-          <ObjectionCard objection="I already have a website" response="That's fair enough — I had a quick look at it actually. I just thought with the one I've built, it might be worth comparing the two side by side and seeing which one you prefer. No pressure at all." />
-          <ObjectionCard objection="I get enough work from Facebook" response="That's great to hear, honestly. Facebook's brilliant for that. I just think having your own site as well means you're not fully relying on one platform — if the algorithm changes or your page gets restricted, you've always got your own space online." />
-          <ObjectionCard objection="I can't afford it" response="Totally understand — that's exactly why we do the first option at £0 upfront. It's just a small monthly, and realistically one extra job from it would cover that many times over. But no pressure, it's completely up to you." />
-          <ObjectionCard objection="I'll think about it" response="Of course, take your time — the demo site's there for you to look at whenever you're ready. I'll leave it live so you can show anyone. Just bear in mind I only work with one business per trade per area, so if someone else in your patch reaches out first, I'd have to prioritise them." />
-          <ObjectionCard objection="Sorry, I'm not interested" response="No worries at all, I completely respect that. I'll leave the demo site live for you anyway — it's already built so it's no hassle. If you ever change your mind or want to have another look down the line, just drop me a message. All the best with the business either way." />
-          <ObjectionCard objection="I don't really understand websites" response="Honestly you don't need to — that's what I'm here for. I handle absolutely everything: the design, the hosting, keeping it updated. You just carry on doing what you do best and the site works away in the background bringing in enquiries." />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Pricing constants — single source of truth for both markets ───
-const ESSENTIAL_FEATURES = [
-  "Professional Branded Website",
-  "Hosting & Support",
-  "Organic SEO/GEO",
-  "Regular SEO/GEO Enhancements",
-  "Click-to-Call",
-  "Contact Forms (WhatsApp/Email)",
-  "Mobile Optimised",
-  "Google/Facebook Reviews",
-  "Before & After Slider",
-  "Hero Video Included",
-  "Visual Transformation Videos Included",
-  "WhatsApp/Messenger Widget",
-  "Socials Linked",
-];
-
-function TrustBadge({ icon, title, subtitle }: { icon: IconName; title: string; subtitle: string }) {
-  return (
-    <div className="flex items-center gap-2.5">
-      <div className="flex-shrink-0" style={{ color: "var(--accent)" }}><Icon name={icon} className="w-5 h-5" /></div>
-      <div className="min-w-0">
-        <p className="text-[13px] font-bold leading-snug" style={{ color: "var(--text)" }}>{title}</p>
-        <p className="text-[11px] leading-snug" style={{ color: "var(--text-dim)" }}>{subtitle}</p>
-      </div>
-    </div>
-  );
-}
-
-function ScriptLine({ speaker, text, dim }: { speaker: string; text: string; dim?: boolean }) {
-  return (
-    <div className="flex gap-2">
-      <span className="text-xs font-bold flex-shrink-0 w-10" style={{ color: dim ? "var(--text-quaternary)" : "var(--accent)" }}>{speaker}</span>
-      <span style={{ color: dim ? "var(--text-dim)" : "var(--text-secondary)" }}>{text}</span>
-    </div>
-  );
-}
-
-function BenefitItem({ text }: { text: string }) {
-  return (
-    <li className="flex items-start gap-2 text-sm" style={{ color: "var(--text-secondary)" }}>
-      <span className="mt-0.5 flex-shrink-0" style={{ color: "var(--accent)" }}>&#10003;</span>
-      {text}
-    </li>
-  );
-}
-
-function TimeSlot({ time, rating, label, note }: { time: string; rating: "best" | "good" | "avoid"; label: string; note: string }) {
-  const colors = {
-    best: { bg: "#22c55e20", border: "#22c55e", text: "#22c55e", badge: "BEST" },
-    good: { bg: "var(--accent-subtle)", border: "var(--accent)", text: "var(--accent)", badge: "GOOD" },
-    avoid: { bg: "#ef444420", border: "#ef4444", text: "#ef4444", badge: "AVOID" },
-  }[rating];
-  return (
-    <div className="rounded-lg p-2.5" style={{ background: colors.bg, border: `1px solid ${colors.border}` }}>
-      <div className="flex items-center justify-between gap-1 mb-1">
-        <span className="text-[10px] font-bold" style={{ color: colors.text }}>{colors.badge}</span>
-        <span className="text-[10px] font-mono whitespace-nowrap" style={{ color: "var(--text-dim)" }}>{time}</span>
-      </div>
-      <p className="text-[13px] font-semibold leading-snug" style={{ color: "var(--text)" }}>{label}</p>
-      <p className="text-[11px] leading-snug mt-0.5" style={{ color: "var(--text-dim)" }}>{note}</p>
-    </div>
-  );
-}
-
-function DayCard({ day, rating, note }: { day: string; rating: "best" | "good" | "ok" | "poor" | "avoid"; note: string }) {
-  const colors = {
-    best: { bg: "#22c55e25", text: "#22c55e", label: "Best" },
-    good: { bg: "var(--accent-subtle)", text: "var(--accent)", label: "Good" },
-    ok: { bg: "var(--surface2)", text: "var(--text-muted)", label: "OK" },
-    poor: { bg: "#f59e0b20", text: "#f59e0b", label: "Poor" },
-    avoid: { bg: "#ef444420", text: "#ef4444", label: "Avoid" },
-  }[rating];
-  return (
-    <div className="rounded-lg py-1.5 px-2 flex items-center justify-center gap-2" style={{ background: colors.bg, border: `1px solid ${colors.text}40` }} title={note}>
-      <span className="text-[13px] font-bold" style={{ color: "var(--text)" }}>{day}</span>
-      <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: colors.text }}>{colors.label}</span>
-    </div>
-  );
-}
-
-function QuestionCard({ icon, question, note }: { icon: IconName; question: string; note: string }) {
-  return (
-    <div className="rounded-lg p-2.5" style={{ background: "var(--surface2)", border: "1px solid var(--border)" }}>
-      <div className="flex items-start gap-1.5 mb-1">
-        <span className="flex-shrink-0 mt-0.5" style={{ color: "var(--accent)" }}><Icon name={icon} className="w-3.5 h-3.5" /></span>
-        <p className="text-[13px] font-medium leading-snug" style={{ color: "var(--text)" }}>&ldquo;{question}&rdquo;</p>
-      </div>
-      <p className="text-[11px] leading-snug pl-5" style={{ color: "var(--text-dim)" }}>{note}</p>
-    </div>
-  );
-}
-
-function ObjectionCard({ objection, response }: { objection: string; response: string }) {
-  return (
-    <div className="rounded-lg p-3" style={{ background: "var(--surface2)", border: "1px solid var(--border)", borderLeft: "3px solid #ef4444" }}>
-      <p className="text-[13px] font-semibold mb-1" style={{ color: "#ef4444" }}>&ldquo;{objection}&rdquo;</p>
-      <p className="text-[13px] leading-snug" style={{ color: "var(--text-secondary)" }}>{response}</p>
     </div>
   );
 }

@@ -61,7 +61,7 @@ async function doInitDb() {
   // ~100-300ms, so this is the single biggest "slow first load" win. Bump
   // SCHEMA_VERSION whenever a migration/index/seed below changes → the heavy block
   // re-runs exactly once on the next deploy, then cold starts go fast again.
-  const SCHEMA_VERSION = "2026-09-30-ad-coverage";
+  const SCHEMA_VERSION = "2026-10-04-pricing-ghl";
   await db.execute("CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT DEFAULT '')");
   const schemaMarker = first(await db.execute("SELECT value FROM app_meta WHERE key = 'schema_version'"));
   if (schemaMarker?.value === SCHEMA_VERSION) return;
@@ -249,6 +249,7 @@ async function doInitDb() {
       bing_console INTEGER DEFAULT 0,
       secure_file INTEGER DEFAULT 0,
       google_sheet INTEGER DEFAULT 0,
+      ghl_setup INTEGER DEFAULT 0,
       google_rating REAL DEFAULT 0,
       google_review_count INTEGER DEFAULT 0,
       facebook_rating REAL DEFAULT 0,
@@ -677,6 +678,7 @@ async function doInitDb() {
     "ALTER TABLE projects ADD COLUMN bing_console INTEGER DEFAULT 0",
     "ALTER TABLE projects ADD COLUMN secure_file INTEGER DEFAULT 0",
     "ALTER TABLE projects ADD COLUMN google_sheet INTEGER DEFAULT 0",
+    "ALTER TABLE projects ADD COLUMN ghl_setup INTEGER DEFAULT 0",
     // Site-health monitoring. Current state is denormalised onto the project so
     // the Live Clients cards get it free from the existing `SELECT p.*`.
     "ALTER TABLE projects ADD COLUMN health_status TEXT DEFAULT ''",
@@ -849,6 +851,10 @@ async function doInitDb() {
     console.error("Failed to create unique index on solutions_catalogue.name:", e);
   }
 
+  // The 2026 pricing PDF: renames and reprices existing products once (before the
+  // seed, so a renamed product isn't re-added under its old name).
+  await applyPricing2026(db);
+
   // Seed the solutions catalogue (idempotent — adds missing names, leaves existing untouched)
   await seedSolutionsCatalogue(db);
 
@@ -878,6 +884,11 @@ async function doInitDb() {
   const taskCols = all(await db.execute("PRAGMA table_info(project_tasks)"));
   if (!taskCols.some((c) => c.name === "updated_at")) {
     console.error("[db] project_tasks.updated_at missing after migration — not stamping schema_version");
+    return;
+  }
+  const projectCols = all(await db.execute("PRAGMA table_info(projects)"));
+  if (!projectCols.some((c) => c.name === "ghl_setup")) {
+    console.error("[db] projects.ghl_setup missing after migration — not stamping schema_version");
     return;
   }
   const coverageCols = all(await db.execute("PRAGMA table_info(ad_coverage)"));
@@ -979,27 +990,88 @@ async function dedupSolutionsCatalogue(db: Client) {
 }
 
 // Module-level flag — seed runs once per lambda lifetime, not per request
+// ── 2026 product catalogue (the official pricing PDF) ────────────────────────
+const CATALOGUE_2026 = [
+  { name: "Professional Website", description: "Package 1, Get Found. A premium branded website: hosting and support, organic SEO / GEO with regular enhancements, Google and Facebook reviews, before and after slider, hero video animations, visual transformation videos, click-to-call, contact forms (WhatsApp / email), WhatsApp / Messenger widget, socials linked, mobile optimised. Setup includes the domain; live in 7 to 14 business days. No long-term contract.", category: "website", target_trades: "Roofer,Driveway,Builder,Electrician,Plumbing", upfront: 149, monthly: 85, days: 14, pitch: "Most businesses pay £2,000+ upfront. Same result for £149 setup and £85 a month, cancel any time." },
+  { name: "Business Growth Package", description: "Package 2, Win More Work. Everything in the Professional Website plan, plus: CRM dashboard, website forms connected to the CRM, instant acknowledgements and notifications, missed-call text-back, automated enquiry and quote follow-ups, booking calendar with reminders, review page, QR code and review requests, branded login and mobile app (LeadConnector), onboarding, training and monthly checks. Runs on GoHighLevel. Phone numbers, calls, SMS and email usage charged separately at cost.", category: "website", target_trades: "", upfront: 495, monthly: 295, days: 14, pitch: "Every enquiry answered, every quote chased and every finished job turned into a review, without doing it from the van at 9pm." },
+  { name: "Google Business Profile Management", description: "Get found in the local map pack. Full profile setup and optimisation, then fresh content, photo posts and replies to every review, handled monthly.", category: "marketing", target_trades: "", upfront: 95, monthly: 55, days: 5, pitch: "The map pack is where local jobs are won. We keep their profile active every month." },
+  { name: "Visual Content Package", description: "New transformation videos, project showcases, before-and-after animations and social-ready assets.", category: "marketing", target_trades: "", upfront: 0, monthly: 55, days: 3, pitch: "Their site and socials never go stale." },
+  { name: "Drone Photography", description: "Aerial photography that shows their work from a new perspective. Half day £249, full day £395: set the one-off when attaching.", category: "marketing", target_trades: "Roofer,Driveway,Builder", upfront: 249, monthly: 0, days: 2, pitch: "Aerial shots make a roof or driveway job look twice the size, and nobody else locally has them." },
+  { name: "Review Funnel", description: "Branded review funnel with landing page, QR code and direct links to grow 5-star reviews.", category: "automation", target_trades: "", upfront: 0, monthly: 15, days: 2, pitch: "Most trades have a handful of reviews. This gets them dozens on autopilot." },
+  { name: "Quote Funnel", description: "Custom quote-request funnels that qualify leads and convert more enquiries into customers.", category: "automation", target_trades: "", upfront: 0, monthly: 35, days: 3, pitch: "Filters out tyre-kickers and captures the real jobs." },
+  { name: "Missed Call Text Back", description: "Instantly texts back missed calls so the lead isn't lost to the next trade.", category: "automation", target_trades: "", upfront: 0, monthly: 35, days: 2, pitch: "Trades miss a third of calls on the tools. Every missed call gets an instant text." },
+  { name: "AI Chatbot", description: "Engages visitors 24/7, answers questions and captures more leads automatically.", category: "ai", target_trades: "", upfront: 0, monthly: 60, days: 4, pitch: "Visitors at 11pm are leads. The chatbot captures them." },
+  { name: "Live Google Review Slider", description: "Live Google review integration that builds trust and automatically hides negative reviews.", category: "automation", target_trades: "", upfront: 0, monthly: 15, days: 1, pitch: "Fresh 5-star Google reviews on the site, updating on their own." },
+  { name: "Email Hosting", description: "Professional email addresses on their own domain. £95 setup, then £5 per inbox monthly: set the monthly to £5 × inboxes when attaching.", category: "integration", target_trades: "", upfront: 95, monthly: 5, days: 2, pitch: "name@theirbusiness.co.uk instead of a Gmail address." },
+  { name: "Out-of-Hours AI Receptionist", description: "AI phone receptionist for agreed out-of-hours periods: answers common questions from approved info, captures name, contact details, location and job, logs enquiries in the CRM with a call summary, books survey appointments via a connected calendar. Setup, testing, monitoring and minor updates included. One business, one standard call flow. AI usage, phone number and call charges billed separately at cost. Not an emergency service.", category: "ai", target_trades: "", upfront: 250, monthly: 150, days: 7, pitch: "Keeps capturing enquiries after they've clocked off." },
+  { name: "Meta Ads Management", description: "Fully managed Facebook and Instagram campaigns: creative, audience targeting, testing and weekly optimisation. GUARANTEE: 15 leads every month or the management fee is refunded. Ad spend paid direct to Meta (recommended £25 to £50+ a day). Exclusivity: one business per area, per trade. All leads must be contacted within 24 hours.", category: "marketing", target_trades: "", upfront: 0, monthly: 600, days: 14, pitch: "15 leads a month guaranteed, and we won't take on a competitor in their patch." },
+  { name: "Google Sponsored PPC", description: "Search campaigns at the top of Google for their trade in their area: keyword research, ad copy, negatives and ongoing bid management. Ad spend paid direct to Google (recommended £40 to £65+ a day). Exclusivity: one business per area, per trade.", category: "marketing", target_trades: "", upfront: 250, monthly: 475, days: 14, pitch: "Top of Google the moment someone searches for their trade locally." },
+  { name: "High-Converting Ad Landing Page", description: "A dedicated page built purely to convert ad traffic, with the offer, proof and one clear call to action.", category: "marketing", target_trades: "", upfront: 0, monthly: 95, days: 5, pitch: "Ad traffic sent to a homepage leaks. This page is built to convert it." },
+  { name: "Facebook Business Page Setup", description: "Full setup and optimisation of the Facebook business page, branded, complete and ready to run ads from.", category: "marketing", target_trades: "", upfront: 149, monthly: 0, days: 3, pitch: "A proper, branded page that's ready for ads." },
+  { name: "Meta Social Media Management", description: "Statics: branded graphic posts across Facebook and Instagram to keep the business visible between jobs.", category: "marketing", target_trades: "", upfront: 0, monthly: 95, days: 3, pitch: "Stays visible between jobs without lifting a finger." },
+];
+
+/** Products renamed for the 2026 PDF (old name → new). Attached clients keep their rows. */
+const CATALOGUE_RENAMES: [string, string][] = [
+  ["Website — Essential (T1)", "Professional Website"],
+  ["Meta Ad Campaign", "Meta Ads Management"],
+  ["Google PPC Ad Campaign", "Google Sponsored PPC"],
+];
+/** In the old catalogue but not the 2026 PDF: hidden from the picker, kept for history. */
+const CATALOGUE_RETIRED = ["Calendly Integration"];
+
+/**
+ * One-time: bring the catalogue to the 2026 PDF — rename, reprice, re-describe
+ * and order every product, retire the ones no longer sold. Marked in app_meta so
+ * it never runs again and later edits made in the CRM aren't overwritten.
+ * Only the CATALOGUE changes: what each client already pays lives on their own
+ * entity_solutions rows and is untouched.
+ */
+async function applyPricing2026(db: Client) {
+  const done = first(await db.execute("SELECT value FROM app_meta WHERE key = 'catalogue_pricing'"));
+  if (done?.value === "2026") return;
+  for (const [from, to] of CATALOGUE_RENAMES) {
+    await db.execute({
+      sql: `UPDATE solutions_catalogue SET name = ? WHERE name = ?
+              AND NOT EXISTS (SELECT 1 FROM solutions_catalogue WHERE name = ?)`,
+      args: [to, from, to],
+    });
+  }
+  for (let i = 0; i < CATALOGUE_2026.length; i++) {
+    const s = CATALOGUE_2026[i];
+    const res = await db.execute({
+      sql: `UPDATE solutions_catalogue SET description = ?, category = ?, target_trades = ?, upfront_price = ?,
+              monthly_price = ?, install_days = ?, pitch_angle = ?, active = 1, sort_order = ?, updated_at = datetime('now')
+            WHERE name = ?`,
+      args: [s.description, s.category, s.target_trades, s.upfront, s.monthly, s.days, s.pitch, i, s.name],
+    });
+    if (!res.rowsAffected) {
+      await db.execute({
+        sql: `INSERT INTO solutions_catalogue (name, description, category, target_trades, upfront_price, monthly_price, install_days, pitch_angle, active, sort_order)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
+        args: [s.name, s.description, s.category, s.target_trades, s.upfront, s.monthly, s.days, s.pitch, i],
+      });
+    }
+  }
+  for (const name of CATALOGUE_RETIRED) {
+    await db.execute({ sql: "UPDATE solutions_catalogue SET active = 0 WHERE name = ?", args: [name] });
+  }
+  await db.execute("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('catalogue_pricing', '2026')");
+}
+
 let seedsChecked = false;
 
 async function seedSolutionsCatalogue(db: Client) {
   if (seedsChecked) return;
   try {
-    // Jay's real product line (from the pricing sheet): one website plan + 7 add-ons.
-    // `upfront` = one-off / setup, `monthly` = recurring. The base plan is category
-    // "website" so the dashboard can split it from add-ons. Per-attach amount
-    // overrides (entity_solutions) cover the Drone half/full-day and Email per-inbox variants.
-    const seeds = [
-      { name: "Website — Essential (T1)", description: "The core branded website — hosting & support, organic SEO/GEO + regular enhancements, Google/Facebook reviews, before/after slider, hero + visual transformation videos, click-to-call, contact forms (WhatsApp/Email), WhatsApp/Messenger widget, mobile optimised, socials linked. Live in 7 days.", category: "website", target_trades: "Plumbing,Electrician,Driveway,Builder,Roofer", upfront: 95, monthly: 85, days: 7, pitch: "Everything they need to look professional, build trust and generate more leads — most agencies charge £2,000+ upfront." },
-      { name: "Visual Content Package", description: "Keeps the website + socials fresh: ongoing visual updates, new hero video creation, new project showcases, additional transformation videos, social media content assets, ongoing content requests.", category: "marketing", target_trades: "", upfront: 0, monthly: 55, days: 3, pitch: "Their site never goes stale — fresh before/afters and reels keep them top of mind." },
-      { name: "Drone Photography", description: "Stunning aerial photos that set them apart and showcase their work from a new perspective. Half day £249 / Full day £395 — set the one-off when attaching.", category: "marketing", target_trades: "Roofer,Driveway,Builder", upfront: 249, monthly: 0, days: 2, pitch: "Aerial shots make a roof or driveway job look £100k bigger — nobody else in their area has them." },
-      { name: "Review Funnel", description: "Branded review system: a landing page, QR code and direct links that funnel happy customers straight to a 5-star Google review.", category: "automation", target_trades: "", upfront: 0, monthly: 10, days: 2, pitch: "Most trades have 5-10 reviews. This gets them to 100+ in a year on autopilot." },
-      { name: "Quote Funnel", description: "Smart quote-request funnel that qualifies leads and converts more enquiries into customers.", category: "automation", target_trades: "", upfront: 0, monthly: 20, days: 3, pitch: "Stops tyre-kickers, captures the real jobs, and books them in while the iron's hot." },
-      { name: "Missed Call Text Back", description: "Never miss a lead — instantly texts back missed calls to keep conversions high.", category: "automation", target_trades: "", upfront: 0, monthly: 25, days: 2, pitch: "Tradies miss 30%+ of calls on the tools. Every missed call gets an instant text — no lead lost." },
-      { name: "AI Chatbot", description: "Engages visitors 24/7, answers questions and captures leads automatically.", category: "ai", target_trades: "", upfront: 0, monthly: 45, days: 4, pitch: "Visitors at 11pm are leads — the chatbot captures them while they sleep." },
-      { name: "Email Hosting", description: "Professional email addresses that build trust and credibility. £95 setup + £5/pm per inbox — set the monthly to £5 × number of inboxes when attaching.", category: "integration", target_trades: "", upfront: 95, monthly: 5, days: 2, pitch: "name@theirbusiness.co.uk instead of a gmail — instant credibility for a few quid a month." },
-      { name: "Google PPC Ad Campaign", description: "Managed Google Ads (PPC) campaign — keyword research, ad copy and a conversion-focused landing page, with ongoing optimisation to drive high-intent leads. Setup covers the account build + launch; monthly covers management (ad spend billed separately by Google).", category: "marketing", target_trades: "", upfront: 250, monthly: 200, days: 5, pitch: "Puts them at the top of Google for their money terms from day one — instant lead flow while the organic SEO builds." },
-      { name: "Meta Ad Campaign", description: "Managed Facebook & Instagram (Meta) ad campaign — audience targeting, creative and ongoing optimisation to generate leads and build local awareness. Setup covers the pixel + campaign build; monthly covers management (ad spend billed separately by Meta).", category: "marketing", target_trades: "", upfront: 200, monthly: 150, days: 5, pitch: "Gets their before/after work in front of thousands of local homeowners scrolling Facebook & Instagram — high-volume lead gen on tap." },
-    ];
+    // Jay's product line, from the official 2026 pricing PDF
+    // (Innov8 Business Files/Pricing/Innov8-Workflows-Pricing-26-Official.pdf, also
+    // shown on the Pricing tab). `upfront` = one-off / setup, `monthly` = recurring.
+    // Base plans are category "website" so the dashboard can split them from add-ons.
+    // Per-attach amount overrides (entity_solutions) cover variants such as Drone
+    // half/full day and Email per inbox. Prices here only seed NEW rows; existing
+    // rows were brought to these prices once by applyPricing2026 below.
+    const seeds = CATALOGUE_2026;
 
     // Idempotent seed: insert only solutions whose name doesn't already exist.
     // Use the `all()` helper because libsql returns rows as positional arrays —
