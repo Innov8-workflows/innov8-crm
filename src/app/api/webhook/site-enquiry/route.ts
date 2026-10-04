@@ -159,6 +159,7 @@ export async function POST(request: NextRequest) {
   const { channel, utm } = attribute(page, referrer);
   const summary = [
     `Website enquiry (${form}) via ${channel}`,
+    `From: ${[contactName, company, email, phone].filter(Boolean).join(", ")}`,
     service && `Service: ${service}`,
     trade && `Trade: ${trade}`,
     message && `Message: ${message}`,
