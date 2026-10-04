@@ -172,13 +172,25 @@ export async function POST(request: NextRequest) {
   const now = new Date().toISOString();
   const today = now.slice(0, 10);
 
-  const existing = first(await db.execute({
-    sql: `SELECT id, business_name, status FROM leads
-          WHERE (? != '' AND lower(email) = lower(?)) OR lower(business_name) = lower(?)
-          ORDER BY (CASE WHEN ? != '' AND lower(email) = lower(?) THEN 0 ELSE 1 END), id
-          LIMIT 1`,
-    args: [email, email, company, email, email],
+  // A business-name match is the same prospect. An email match on its own is
+  // not: people enquire about a new business from an address already on file
+  // (Jay's own Gmail sits on lead 18), and attaching that to the old record
+  // hides a new prospect. So an email match only counts when the names agree,
+  // or when a chat lead arrived without a real business name.
+  const byName = first(await db.execute({
+    sql: "SELECT id, business_name, status FROM leads WHERE lower(business_name) = lower(?) ORDER BY id LIMIT 1",
+    args: [company],
   }));
+  const byEmail = email ? first(await db.execute({
+    sql: "SELECT id, business_name, status FROM leads WHERE lower(email) = lower(?) ORDER BY id LIMIT 1",
+    args: [email],
+  })) : null;
+  const noRealName = / \(website chat\)$/.test(company);
+  const existing = byName || (byEmail && noRealName ? byEmail : null);
+  const sameEmail = !existing && byEmail ? byEmail : null;
+  const leadNote = sameEmail
+    ? `${summary}\nSame email as existing prospect #${sameEmail.id} (${String(sameEmail.business_name)})`
+    : summary;
 
   let leadId: number;
   try {
@@ -204,11 +216,11 @@ export async function POST(request: NextRequest) {
         sql: `INSERT INTO leads (business_name, contact_name, email, phone, business_type, notes, status,
                 follow_up_date, sort_order, created_at, updated_at)
               VALUES (?, ?, ?, ?, ?, ?, 'new', ?, ?, ?, ?)`,
-        args: [company, contactName, email, phone, trade, summary, today, Number(order?.v ?? 0), now, now],
+        args: [company, contactName, email, phone, trade, leadNote, today, Number(order?.v ?? 0), now, now],
       });
       leadId = Number(res.lastInsertRowid);
       await db.batch([
-        { sql: "INSERT INTO lead_notes (lead_id, content, created_at) VALUES (?, ?, ?)", args: [leadId, summary, now] },
+        { sql: "INSERT INTO lead_notes (lead_id, content, created_at) VALUES (?, ?, ?)", args: [leadId, leadNote, now] },
         { sql: "INSERT INTO activities (lead_id, type, description, created_at) VALUES (?, 'website_enquiry', ?, ?)",
           args: [leadId, `${form} via ${channel}${service ? ` - ${service}` : ""}`, now] },
       ], "write");
@@ -224,7 +236,8 @@ export async function POST(request: NextRequest) {
       ["Name", contactName], ["Business", company], ["Email", email], ["Phone", phone],
       ["Service", service], ["Trade", trade], ["Came from", channel], ["UTM", utm], ["Page", page],
     ];
-    const known = existing ? `Existing prospect "${String(existing.business_name)}" (stage: ${String(existing.status || "new")})` : "New prospect";
+    const known = existing ? `Existing prospect "${String(existing.business_name)}" (stage: ${String(existing.status || "new")})`
+      : sameEmail ? `New prospect (this email is already on #${sameEmail.id} "${String(sameEmail.business_name)}")` : "New prospect";
     try {
       await sendEmailWithRetry({
         to: NOTIFY_TO,
