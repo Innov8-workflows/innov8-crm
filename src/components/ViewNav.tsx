@@ -5,7 +5,7 @@ import { fetchBootstrap } from "@/lib/bootstrap";
 import Icon, { type IconName } from "./Icon";
 import SecurityModal from "./SecurityModal";
 
-type ViewId = "today" | "prospects" | "projects" | "onboarding" | "clients" | "client_dash" | "dashboard" | "map" | "ai_solutions" | "schedule" | "todos" | "pricing" | "referrals" | "site_health";
+type ViewId = "today" | "info" | "prospects" | "projects" | "onboarding" | "clients" | "client_dash" | "dashboard" | "map" | "ai_solutions" | "schedule" | "todos" | "pricing" | "referrals" | "site_health";
 
 interface ViewNavProps {
   active: ViewId;
@@ -33,6 +33,7 @@ const views: { id: ViewId; label: string; icon: IconName }[] = [
   { id: "todos", label: "To-Do", icon: "list-bullet" },
   { id: "pricing", label: "Pricing", icon: "currency-pound" },
   { id: "referrals", label: "Referrals", icon: "user-plus" },
+  { id: "info", label: "Info", icon: "book" },
 ];
 
 export default function ViewNav({ active, onChange, projectCount = 0, clientCount = 0, todoCount = 0, onboardingCount = 0, ownerFilter, onOwnerChange }: ViewNavProps) {

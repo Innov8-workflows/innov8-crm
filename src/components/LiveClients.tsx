@@ -19,6 +19,8 @@ const shortProductName = (name: string) => name.replace(/^Website — /, "").rep
 type ProductRollup = Record<string, { count: number; monthly: number; upfront: number; items: { name: string; category: string }[] }>;
 /** Keyed by project id; present only for clients paying for Google or Meta ads. */
 type AdCoverageMap = Record<number, { towns: string[]; radius: number; platforms: string[] }>;
+/** Keyed by project id: the next website-pipeline step (Info view), absent when all done. */
+type NextStepMap = Record<number, { label: string; command: string }>;
 
 interface ClientStats {
   mrr: number;
@@ -41,6 +43,7 @@ export default function LiveClients({ ownerFilter = "", onCountsChanged, onOpenD
   const [clients, setClients] = useState<Project[]>([]);
   // Ad clients only: where their ads run, for the card's "Ads:" pill.
   const [adCoverage, setAdCoverage] = useState<AdCoverageMap>({});
+  const [nextSteps, setNextSteps] = useState<NextStepMap>({});
   // Seeded from the shared bootstrap payload so the chips paint with the rest of
   // the card instead of after a second round-trip; fetchRollup refreshes it.
   const [leadRollup, setLeadRollup] = useState<Record<string, { month: number; prev: number; unseen: number; last_at: string }>>(
@@ -91,10 +94,11 @@ export default function LiveClients({ ownerFilter = "", onCountsChanged, onOpenD
   // plus the website-enquiry counts. Both are single bounded aggregates and run
   // together, so the card row costs one extra query and zero extra round-trips.
   const fetchRollup = useCallback(async () => {
-    const [products, leads, ads] = await Promise.all([
+    const [products, leads, ads, pipe] = await Promise.all([
       fetch("/api/leads/product-rollup").then((r) => r.json()).catch(() => ({})),
       fetch("/api/client-leads/rollup").then((r) => r.json()).catch(() => ({})),
       fetch("/api/ad-coverage").then((r) => r.json()).catch(() => ({})),
+      fetch("/api/pipeline").then((r) => r.json()).catch(() => ({})),
     ]);
     setProductRollup(products.rollup || {});
     setLeadRollup(leads.rollup || {});
@@ -107,6 +111,13 @@ export default function LiveClients({ ownerFilter = "", onCountsChanged, onOpenD
       };
     }
     setAdCoverage(map);
+    const steps = new Map(((pipe.steps || []) as { id: string; label: string; command: string }[]).map((st) => [st.id, st]));
+    const next: NextStepMap = {};
+    for (const c of (pipe.clients || []) as { project_id: number; next: string | null }[]) {
+      const st = c.next ? steps.get(c.next) : undefined;
+      if (st) next[c.project_id] = { label: st.label, command: st.command };
+    }
+    setNextSteps(next);
   }, []);
 
   // Opened from elsewhere (the Coverage Map): show that client's window once
@@ -390,6 +401,7 @@ export default function LiveClients({ ownerFilter = "", onCountsChanged, onOpenD
             leadRollup={leadRollup}
             onOpenDashboard={onOpenDashboard}
             adCoverage={adCoverage}
+            nextSteps={nextSteps}
           />
         )}
       </div>
@@ -688,9 +700,10 @@ interface CardProps {
   onToggleSetup: (id: number, field: string, value: number) => void;
   onSaveReviews: (id: number, fields: ReviewValues) => void;
   adCoverage?: AdCoverageMap;
+  nextSteps?: NextStepMap;
 }
 
-function CardView({ clients, productRollup, formatDate, isOverdue, onOpenProject, isLostView, onMarkLost, onReactivate, onDelete, onCycleStatus, onToggleInvoiceStatus, onShowAnalytics, onShowSeo, onToggleSetup, onSaveReviews, leadRollup, onOpenDashboard, adCoverage = {} }: CardProps) {
+function CardView({ clients, productRollup, formatDate, isOverdue, onOpenProject, isLostView, onMarkLost, onReactivate, onDelete, onCycleStatus, onToggleInvoiceStatus, onShowAnalytics, onShowSeo, onToggleSetup, onSaveReviews, leadRollup, onOpenDashboard, adCoverage = {}, nextSteps = {} }: CardProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4">
       {clients.map((client) => {
@@ -893,6 +906,18 @@ function CardView({ clients, productRollup, formatDate, isOverdue, onOpenProject
                   way — replaces a done/total bar over the generic build template,
                   which read 0/31 on a site that had been live for weeks. */}
               <OutstandingLine project={client} />
+
+              {/* The next website-pipeline step (Info view). Hidden once every step is done. */}
+              {nextSteps[client.id] && (
+                <div className="mt-1 text-[11px] flex items-center gap-1.5" style={{ color: "var(--text-dim)" }}
+                  title="Next step in the website pipeline (Info tab)">
+                  <span>Next:</span>
+                  {nextSteps[client.id].command
+                    ? <span className="font-mono font-semibold" style={{ color: "var(--accent)" }}>{nextSteps[client.id].command}</span>
+                    : null}
+                  <span className="truncate">{nextSteps[client.id].command ? "— " : ""}{nextSteps[client.id].label}{nextSteps[client.id].command ? "" : " (manual)"}</span>
+                </div>
+              )}
 
               <ReviewsBadge values={client} onSave={(f) => onSaveReviews(client.id, f)} />
               <SetupPills values={client} onToggle={(field, next) => onToggleSetup(client.id, field, next)} />

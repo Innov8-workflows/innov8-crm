@@ -23,7 +23,11 @@ const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/auth/mfa/verify", "/api
   "/api/tasks-agent",
   // The morning brief from Claude's 8am task. Same key check, fails closed.
   // A SIBLING of the session-only /api/brief.
-  "/api/brief-agent"];
+  "/api/brief-agent",
+  // The Info view's feed from Jay's PC (skills, scheduled tasks, Claude's tools)
+  // and Claude marking website-pipeline steps. Same key check, fails closed.
+  // A SIBLING of the session-only /api/info and /api/pipeline.
+  "/api/info-agent"];
 
 // In-memory cache for verified JWTs. Cold-start safe (cache resets on new lambda).
 // 60s TTL — short enough that revocation via logout still takes effect quickly.

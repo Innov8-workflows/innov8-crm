@@ -61,7 +61,7 @@ async function doInitDb() {
   // ~100-300ms, so this is the single biggest "slow first load" win. Bump
   // SCHEMA_VERSION whenever a migration/index/seed below changes → the heavy block
   // re-runs exactly once on the next deploy, then cold starts go fast again.
-  const SCHEMA_VERSION = "2026-10-04-pricing-ghl";
+  const SCHEMA_VERSION = "2026-10-07-info";
   await db.execute("CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT DEFAULT '')");
   const schemaMarker = first(await db.execute("SELECT value FROM app_meta WHERE key = 'schema_version'"));
   if (schemaMarker?.value === SCHEMA_VERSION) return;
@@ -649,6 +649,43 @@ async function doInitDb() {
       UNIQUE (project_id, place),
       FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
     );
+
+    -- The Info view: Jay's Claude skills, scheduled tasks and Claude's ERP tools.
+    -- They live on his PC (~/.claude), which Vercel can't see, so
+    -- ~/.claude/mcp/onboarding/sync-skills.mjs sends them here through
+    -- /api/info-agent. A sync replaces every row of each kind it sends, so a
+    -- deleted skill disappears.
+    CREATE TABLE IF NOT EXISTS info_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      kind TEXT NOT NULL,                       -- skill | scheduled | tool
+      item_key TEXT NOT NULL,                   -- skill folder / task id / tool name
+      title TEXT NOT NULL DEFAULT '',
+      category TEXT NOT NULL DEFAULT '',
+      sort INTEGER NOT NULL DEFAULT 0,
+      description TEXT NOT NULL DEFAULT '',
+      use_when TEXT NOT NULL DEFAULT '',
+      next_key TEXT NOT NULL DEFAULT '',
+      replaced_by TEXT NOT NULL DEFAULT '',
+      extra_json TEXT NOT NULL DEFAULT '{}',
+      updated_at TEXT NOT NULL DEFAULT '',
+      UNIQUE (kind, item_key)
+    );
+
+    -- Website pipeline steps marked done (or not applicable) per client, by Jay
+    -- in the Info view or by Claude when it finishes a skill. Steps the CRM can
+    -- already prove (a ticked pill, a built submission) need no row here — see
+    -- src/lib/pipeline.ts.
+    CREATE TABLE IF NOT EXISTS pipeline_marks (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      project_id INTEGER NOT NULL,
+      step TEXT NOT NULL,
+      status TEXT NOT NULL,                     -- done | na
+      marked_by TEXT NOT NULL DEFAULT '',       -- jay | claude
+      note TEXT NOT NULL DEFAULT '',
+      at TEXT NOT NULL DEFAULT '',
+      UNIQUE (project_id, step),
+      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+    );
   `);
 
   const migrations = [
@@ -889,6 +926,12 @@ async function doInitDb() {
   const projectCols = all(await db.execute("PRAGMA table_info(projects)"));
   if (!projectCols.some((c) => c.name === "ghl_setup")) {
     console.error("[db] projects.ghl_setup missing after migration — not stamping schema_version");
+    return;
+  }
+  const marksCols = all(await db.execute("PRAGMA table_info(pipeline_marks)"));
+  const infoCols = all(await db.execute("PRAGMA table_info(info_items)"));
+  if (!marksCols.some((c) => c.name === "status") || !infoCols.some((c) => c.name === "extra_json")) {
+    console.error("[db] info_items / pipeline_marks missing after migration — not stamping schema_version");
     return;
   }
   const coverageCols = all(await db.execute("PRAGMA table_info(ad_coverage)"));
