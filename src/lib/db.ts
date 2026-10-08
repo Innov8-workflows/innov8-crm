@@ -61,7 +61,7 @@ async function doInitDb() {
   // ~100-300ms, so this is the single biggest "slow first load" win. Bump
   // SCHEMA_VERSION whenever a migration/index/seed below changes → the heavy block
   // re-runs exactly once on the next deploy, then cold starts go fast again.
-  const SCHEMA_VERSION = "2026-10-08-security";
+  const SCHEMA_VERSION = "2026-10-08-security-status";
   await db.execute("CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT DEFAULT '')");
   const schemaMarker = first(await db.execute("SELECT value FROM app_meta WHERE key = 'schema_version'"));
   if (schemaMarker?.value === SCHEMA_VERSION) return;
@@ -256,6 +256,7 @@ async function doInitDb() {
       facebook_review_count INTEGER DEFAULT 0,
       cover_file_id INTEGER,
       seo_cache TEXT DEFAULT '',
+      security_cache TEXT DEFAULT '',
       lead_ingest_key TEXT DEFAULT '',
       health_status TEXT DEFAULT '',
       health_checked_at TEXT DEFAULT '',
@@ -712,6 +713,29 @@ async function doInitDb() {
       FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
     );
     CREATE INDEX IF NOT EXISTS idx_security_certificates_project ON security_certificates(project_id, scanned_at);
+
+    -- Live scans that did NOT pass (S1 > 0, or S2 left unaccepted), posted by the
+    -- site-security skill's scan.js. findings is the redacted list (severity, kind,
+    -- what, where, fix; secret values are only ever a 4-char prefix + length) so a
+    -- CSM can hand it to Claude and fix the site. The card's SECURITY PASS / FAIL
+    -- label is the newest result per host across this table and security_certificates,
+    -- cached on projects.security_cache (src/lib/securityStatus.ts).
+    CREATE TABLE IF NOT EXISTS security_failures (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      project_id INTEGER NOT NULL,
+      host TEXT NOT NULL,
+      scanned_at TEXT NOT NULL,
+      s1 INTEGER NOT NULL DEFAULT 0,
+      s2 INTEGER NOT NULL DEFAULT 0,
+      s3 INTEGER NOT NULL DEFAULT 0,
+      pages INTEGER NOT NULL DEFAULT 0,
+      probes INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      findings TEXT NOT NULL DEFAULT '[]',
+      UNIQUE (project_id, host, scanned_at),
+      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_security_failures_project ON security_failures(project_id, scanned_at);
   `);
 
   const migrations = [
@@ -778,6 +802,8 @@ async function doInitDb() {
     // per-project (bounded) and persisted; write sites keep them fresh.
     "ALTER TABLE projects ADD COLUMN cover_file_id INTEGER",
     "ALTER TABLE projects ADD COLUMN seo_cache TEXT DEFAULT ''",
+    // SECURITY PASS / FAIL card label: '' = unknown (compute), '{}' = never scanned.
+    "ALTER TABLE projects ADD COLUMN security_cache TEXT DEFAULT ''",
     // Retire the 20 generic placeholder solutions in favour of Jay's real product line.
     // Soft-delete (active=0) keeps any historical entity_solutions intact (no FK cascade).
     `UPDATE solutions_catalogue SET active = 0 WHERE name IN (
@@ -957,6 +983,11 @@ async function doInitDb() {
   const certCols = all(await db.execute("PRAGMA table_info(security_certificates)"));
   if (!certCols.some((c) => c.name === "pdf")) {
     console.error("[db] security_certificates missing after migration — not stamping schema_version");
+    return;
+  }
+  const failCols = all(await db.execute("PRAGMA table_info(security_failures)"));
+  if (!failCols.some((c) => c.name === "findings") || !projectCols.some((c) => c.name === "security_cache")) {
+    console.error("[db] security_failures / projects.security_cache missing after migration — not stamping schema_version");
     return;
   }
   const marksCols = all(await db.execute("PRAGMA table_info(pipeline_marks)"));

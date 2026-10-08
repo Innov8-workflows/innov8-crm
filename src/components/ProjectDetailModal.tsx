@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import type { Project, ProjectTask, ProjectFile, EntitySolution, SecurityCertificate } from "@/types";
+import type { Project, ProjectTask, ProjectFile, EntitySolution, SecurityCertificate, SecurityFailure } from "@/types";
 import { PROJECT_STAGES } from "@/types";
 import ProductPicker from "./ProductPicker";
 import AdCoverageEditor from "./AdCoverageEditor";
@@ -22,6 +22,8 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
   const [files, setFiles] = useState<ProjectFile[]>([]);
   const [details, setDetails] = useState(project);
   const [certs, setCerts] = useState<SecurityCertificate[]>([]);
+  const [fails, setFails] = useState<SecurityFailure[]>([]);
+  const [copiedFail, setCopiedFail] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<"tasks" | "files" | "details" | "security">("tasks");
   const [newTask, setNewTask] = useState("");
   const [newTaskStage, setNewTaskStage] = useState("");
@@ -57,13 +59,43 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
       const res = await fetch(`/api/security-certificates?project_id=${project.id}`);
       const data = await res.json();
       setCerts(data.certificates || []);
-    } catch { setCerts([]); }
+      setFails(data.failures || []);
+    } catch { setCerts([]); setFails([]); }
   }, [project.id]);
 
   const deleteCert = async (id: number) => {
     if (!window.confirm("Remove this security certificate from the card? The PDF in the client folder is not touched.")) return;
     setCerts((prev) => prev.filter((c) => c.id !== id));
     await fetch(`/api/security-certificates?id=${id}`, { method: "DELETE" });
+  };
+
+  const deleteFail = async (id: number) => {
+    if (!window.confirm("Dismiss this failed-scan report? Only do this if it was scanned in error. The card's SECURITY label is worked out again from what is left.")) return;
+    setFails((prev) => prev.filter((f) => f.id !== id));
+    await fetch(`/api/security-certificates?fail_id=${id}`, { method: "DELETE" });
+  };
+
+  /* A ready-to-paste brief for Claude, so whoever picks the card up can fix the site
+     without reading the scanner's output. Findings carry no secret values. */
+  const fixPrompt = (f: SecurityFailure) => {
+    const when = new Date(f.scanned_at).toLocaleString("en-GB", { timeZone: "Europe/London", day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+    const lines = f.findings.filter((x) => x.sev !== "S3").map((x) =>
+      `- ${x.sev} ${x.kind}: ${x.what} [${x.where}]${x.hint ? " " + x.hint : ""}${x.count ? " x" + x.count : ""}${x.fix ? " - fix: " + x.fix : ""}${x.sample ? "\n    > " + x.sample : ""}`);
+    return [
+      `/site-security https://${f.host}/`,
+      "",
+      `${project.business_name} (CRM project ${project.id}). The live security scan on ${when} FAILED: S1 ${f.s1}, S2 ${f.s2}.`,
+      "Open this client's site source, fix every finding below (references/fixes.md in the skill has the remedy for each), rebuild and redeploy the way this site is normally deployed, then rerun the live scan.",
+      `When it passes, issue the pass certificate with --project ${project.id} so the card turns SECURITY PASS. If an S2 should be accepted rather than fixed, ask Jay first.`,
+      "Never paste a secret value into chat. If a real key or password was exposed, tell Jay to revoke and reissue it.",
+      "",
+      "Findings:",
+      ...lines,
+    ].join("\n");
+  };
+  const copyFix = async (f: SecurityFailure) => {
+    try { await navigator.clipboard.writeText(fixPrompt(f)); setCopiedFail(f.id); setTimeout(() => setCopiedFail(null), 2000); }
+    catch { window.prompt("Copy the fix prompt:", fixPrompt(f)); }
   };
 
   useEffect(() => { fetchTasks(); fetchFiles(); fetchCerts(); }, [fetchTasks, fetchFiles, fetchCerts]);
@@ -357,7 +389,7 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
                 color: activeTab === tab ? "var(--accent)" : "var(--text-dim)",
                 borderBottom: activeTab === tab ? "2px solid var(--accent)" : "2px solid transparent",
               }}>
-              {tab} {tab === "tasks" ? `(${completedCount}/${totalTasks})` : tab === "files" ? `(${files.length})` : tab === "security" ? `(${certs.length})` : ""}
+              {tab} {tab === "tasks" ? `(${completedCount}/${totalTasks})` : tab === "files" ? `(${files.length})` : tab === "security" ? `(${certs.length + fails.length})` : ""}
             </button>
           ))}
         </div>
@@ -465,11 +497,57 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
 
           {activeTab === "security" && (
             <div className="space-y-3">
-              {certs.length === 0 && (
+              {certs.length === 0 && fails.length === 0 && (
                 <div className="text-sm rounded-lg p-4" style={{ background: "var(--surface2)", border: "1px dashed var(--border)", color: "var(--text-dim)" }}>
-                  No security certificate yet. The site-security check attaches one here when the live website passes.
+                  Not scanned yet. The site-security check attaches a pass certificate here when the live website passes, or a failed-scan report with what to fix.
                 </div>
               )}
+              {fails.map((f) => {
+                const when = new Date(f.scanned_at).toLocaleString("en-GB", { timeZone: "Europe/London", day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+                const passedSince = certs.some((c) => c.host === f.host && c.scanned_at > f.scanned_at);
+                const shown = f.findings.filter((x) => x.sev !== "S3");
+                return (
+                  <div key={`f${f.id}`} className="rounded-lg p-4" style={{ background: "var(--surface2)", border: `1px solid ${passedSince ? "var(--border)" : "rgba(239,68,68,.45)"}`, opacity: passedSince ? 0.6 : 1 }}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(239,68,68,.15)", color: "#EF4444" }}>Failed</span>
+                          <span className="text-sm font-medium truncate" style={{ color: "var(--text)" }}>{f.host}</span>
+                          {passedSince && <span className="text-xs" style={{ color: "var(--text-dim)" }}>fixed since: passed later</span>}
+                        </div>
+                        <div className="text-xs mt-1" style={{ color: "var(--text-dim)" }}>
+                          Checked {when} · {f.pages} pages · {f.probes} addresses probed · S1 {f.s1} · S2 {f.s2}
+                        </div>
+                      </div>
+                      <div className="flex gap-2 shrink-0">
+                        {!passedSince && (
+                          <button onClick={() => copyFix(f)} className="px-3 py-1.5 text-xs font-medium rounded-md" style={{ background: "var(--accent)", color: "#fff" }}
+                            title="Copy a prompt for Claude that lists every finding and how to fix it">
+                            {copiedFail === f.id ? "Copied" : "Copy fix prompt"}
+                          </button>
+                        )}
+                        <button onClick={() => deleteFail(f.id)} className="px-2 py-1.5 text-xs rounded-md"
+                          style={{ border: "1px solid var(--border)", color: "var(--text-dim)" }} title="Remove this report (scanned in error)">
+                          Dismiss
+                        </button>
+                      </div>
+                    </div>
+                    {shown.length > 0 && (
+                      <ul className="text-xs mt-3 space-y-1.5">
+                        {shown.map((x, j) => (
+                          <li key={j} style={{ color: "var(--text-muted)" }}>
+                            <span className="font-semibold" style={{ color: x.sev === "S1" ? "#EF4444" : "#F59E0B" }}>{x.sev}</span>{" "}
+                            <span style={{ color: "var(--text)" }}>{x.what}</span>
+                            <span style={{ color: "var(--text-dim)" }}> · {x.where}{x.hint ? ` · ${x.hint}` : ""}{x.count ? ` ×${x.count}` : ""}</span>
+                            {x.fix && <div style={{ color: "var(--text-dim)" }}>fix: {x.fix}</div>}
+                            {x.sample && <div className="truncate" style={{ color: "var(--text-dim)", fontStyle: "italic" }}>“{x.sample}”</div>}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                );
+              })}
               {certs.map((c, i) => {
                 const withEx = c.s2 > 0;
                 const when = new Date(c.scanned_at).toLocaleString("en-GB", { timeZone: "Europe/London", day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });

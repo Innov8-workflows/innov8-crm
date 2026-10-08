@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getClient, initDb, all, first } from "@/lib/db";
 import { authoriseAgent as authorise } from "@/lib/agentAuth";
 import { allClients, findClient } from "@/lib/clientMatch";
+import { computeAndStoreSecurity, maskKeys } from "@/lib/securityStatus";
 
 // Website security pass certificates, posted by the site-security skill's
 // certificate.js once a LIVE scan has passed. Key-authenticated (x-innov8-key =
@@ -15,6 +16,11 @@ import { allClients, findClient } from "@/lib/clientMatch";
 //   - the file name must be the certificate's own pattern for that host
 //   - the client is a project id, or a name/domain matching exactly ONE client
 //   - re-posting the same scan (project, host, scanned_at) replaces it, never duplicates
+//
+// result: "fail" (scan.js, after a live scan that did not pass) stores the redacted
+// findings in security_failures instead: no PDF, s1 + s2 must be > 0, every string
+// is clipped and key-masked again here. Both paths refresh projects.security_cache,
+// which drives the SECURITY PASS / FAIL label on the cards.
 
 const NO_STORE = { "Cache-Control": "private, no-store" };
 const MAX_BYTES = 3 * 1024 * 1024;
@@ -29,7 +35,12 @@ interface Body {
   s1?: number; s2?: number; s3?: number; pages?: number; probes?: number;
   accepted?: { kind?: string; reason?: string }[];
   file_name?: string; pdf_base64?: string;
+  result?: "pass" | "fail";
+  findings?: { sev?: string; kind?: string; what?: string; where?: string; hint?: string; fix?: string; sample?: string; count?: number }[];
 }
+
+const MAX_FINDINGS = 80;
+const clip = (v: unknown, n: number) => maskKeys(String(v ?? "")).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "").slice(0, n);
 
 async function resolveProject(db: ReturnType<typeof getClient>, pid: number, q: string) {
   const clients = await allClients(db);
@@ -62,7 +73,12 @@ export async function GET(request: NextRequest) {
             FROM security_certificates WHERE project_id = ? ORDER BY scanned_at DESC`,
     args: [r.client.id],
   }));
-  return NextResponse.json({ client: r.client, certificates: rows.map((x) => ({ ...x, accepted: JSON.parse(String(x.accepted || "[]")) })) }, { headers: NO_STORE });
+  const fails = all(await db.execute({
+    sql: "SELECT id, host, scanned_at, s1, s2, s3, pages, probes, created_at FROM security_failures WHERE project_id = ? ORDER BY scanned_at DESC",
+    args: [r.client.id],
+  }));
+  const status = await computeAndStoreSecurity(db, r.client.id);
+  return NextResponse.json({ client: r.client, status, failures: fails, certificates: rows.map((x) => ({ ...x, accepted: JSON.parse(String(x.accepted || "[]")) })) }, { headers: NO_STORE });
 }
 
 export async function POST(request: NextRequest) {
@@ -78,6 +94,34 @@ export async function POST(request: NextRequest) {
   if (isNaN(Date.parse(scannedAt))) return bad("scanned_at must be an ISO date-time");
   const n = (v: unknown) => Math.max(0, Math.floor(Number(v) || 0));
   const s1 = n(b.s1), s2 = n(b.s2), s3 = n(b.s3), pages = n(b.pages), probes = n(b.probes);
+
+  if (b.result === "fail") {
+    if (s1 + s2 === 0) return bad("a fail needs s1 or s2 > 0 (a clean scan is a pass: post its certificate)");
+    if (b.pdf_base64) return bad("a fail carries findings, not a PDF");
+    const raw = Array.isArray(b.findings) ? b.findings : [];
+    if (!raw.length) return bad("a fail needs its findings (findings: [{sev, kind, what, where}])");
+    const findings = raw.filter((x) => x && (x.sev === "S1" || x.sev === "S2" || x.sev === "S3")).slice(0, MAX_FINDINGS).map((x) => ({
+      sev: x.sev, kind: clip(x.kind, 30), what: clip(x.what, 240), where: clip(x.where, 200),
+      ...(x.hint ? { hint: clip(x.hint, 60) } : {}), ...(x.fix ? { fix: clip(x.fix, 200) } : {}),
+      ...(x.sample ? { sample: clip(x.sample, 200) } : {}), ...(x.count ? { count: n(x.count) } : {}),
+    }));
+    await initDb();
+    const db = getClient();
+    const r = await resolveProject(db, Number(b.project_id || 0), String(b.client || ""));
+    if (r.error) return r.error;
+    await db.execute({
+      sql: `INSERT INTO security_failures (project_id, host, scanned_at, s1, s2, s3, pages, probes, created_at, findings)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(project_id, host, scanned_at) DO UPDATE SET
+              s1 = excluded.s1, s2 = excluded.s2, s3 = excluded.s3, pages = excluded.pages, probes = excluded.probes,
+              created_at = excluded.created_at, findings = excluded.findings`,
+      args: [r.client.id, host, scannedAt, s1, s2, s3, pages, probes, new Date().toISOString(), JSON.stringify(findings)],
+    });
+    const row = first(await db.execute({ sql: "SELECT id FROM security_failures WHERE project_id = ? AND host = ? AND scanned_at = ?", args: [r.client.id, host, scannedAt] }));
+    const status = await computeAndStoreSecurity(db, r.client.id);
+    return NextResponse.json({ ok: true, result: "fail", id: Number(row?.id || 0), client: { id: r.client.id, name: r.client.name }, host, status }, { headers: NO_STORE });
+  }
+
   if (s1 !== 0) return bad("only a passing scan can be stored: s1 must be 0");
   const accepted = (Array.isArray(b.accepted) ? b.accepted : [])
     .map((a) => ({ kind: String(a.kind || "").slice(0, 40), reason: String(a.reason || "").trim().slice(0, 300) }))
@@ -112,7 +156,8 @@ export async function POST(request: NextRequest) {
     sql: "SELECT id FROM security_certificates WHERE project_id = ? AND host = ? AND scanned_at = ?",
     args: [client.id, host, scannedAt],
   }));
+  const status = await computeAndStoreSecurity(db, client.id);
   const domainNote = client.domain && String(client.domain).toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "") !== host
     ? `note: the card's domain is ${client.domain}, the certificate is for ${host}` : "";
-  return NextResponse.json({ ok: true, id: Number(row?.id || 0), client: { id: client.id, name: client.name }, host, note: domainNote }, { headers: NO_STORE });
+  return NextResponse.json({ ok: true, result: "pass", id: Number(row?.id || 0), client: { id: client.id, name: client.name }, host, status, note: domainNote }, { headers: NO_STORE });
 }

@@ -1,4 +1,4 @@
-// The nine setup milestones tracked per client — the green pills on the Projects
+// The setup milestones tracked per client — the green pills on the Projects
 // and Live Clients cards. Shared by the pills themselves, the Outstanding view
 // (which lists every unticked one) and the Claude task route (which can tick
 // them), so the three can never disagree about what the milestones are.
@@ -8,6 +8,11 @@
 //
 // "Business Profile" rather than "GBP" so the label doesn't clash with the £
 // figures on the cards.
+//
+// "Secure File" was retired 2026-10-08: hand-ticked, it was not accurate on every
+// card. Website security is now the SECURITY PASS / FAIL label, set only by the
+// site-security skill's live scans (src/lib/securityStatus.ts). The secure_file
+// column stays in the DB, unused.
 
 export const SETUP_ITEMS = [
   { field: "ga4_embedded", label: "GA4", title: "Google Analytics 4 embedded" },
@@ -17,7 +22,6 @@ export const SETUP_ITEMS = [
   { field: "gbp_setup", label: "Business Profile", title: "Google Business Profile set up" },
   { field: "mobile_optimised", label: "Mobile", title: "Site is mobile-optimised" },
   { field: "link_card", label: "Link card", title: "Social link-preview (Open Graph) card set up" },
-  { field: "secure_file", label: "Secure File", title: "Secure file / login details stored" },
   { field: "google_sheet", label: "Google Sheet", title: "Lead-logging Google Sheet connected (form/call leads land in the sheet)" },
   { field: "ghl_setup", label: "GHL", title: "Set up on GoHighLevel (the Business Growth Package CRM, automations and app)" },
 ] as const;

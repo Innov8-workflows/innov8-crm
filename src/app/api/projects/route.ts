@@ -3,6 +3,7 @@ import { getClient, initDb, all, first } from "@/lib/db";
 import { outstandingByProject } from "@/lib/tasks";
 import { DEFAULT_PROJECT_TASKS } from "@/lib/projectTasks";
 import { computeAndStoreCover, computeAndStoreSeo, parseSeoCache } from "@/lib/projectCache";
+import { computeAndStoreSecurity, parseSecurityCache } from "@/lib/securityStatus";
 
 // Headroom for the one-off lazy backfill of cover/SEO caches on projects that
 // predate those columns (each backfilled project persists individually, so even
@@ -108,6 +109,14 @@ export async function GET(request: NextRequest) {
       }
       if (seo.p !== undefined) (p as Record<string, unknown>).seo_score_prev = seo.p;
       delete (p as Record<string, unknown>).seo_cache;
+
+      // SECURITY PASS / FAIL card label (src/lib/securityStatus.ts)
+      let sec = parseSecurityCache(p.security_cache);
+      if (sec === null) {
+        try { sec = await computeAndStoreSecurity(db, pid); } catch { sec = {}; }
+      }
+      if (sec.r) (p as Record<string, unknown>).security_status = sec;
+      delete (p as Record<string, unknown>).security_cache;
       // The Apps Script write key must never reach the browser — this response is
       // persisted into sessionStorage by LiveClients. Fetch it deliberately via
       // /api/projects/[id]/lead-key when the snippet is actually being shown.

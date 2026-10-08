@@ -1,6 +1,6 @@
 "use client";
 
-// The setup milestones per project/client (nine, plus GHL for Business Growth
+// The setup milestones per project/client (plus GHL for Business Growth
 // clients), as click-to-toggle pills on the Kanban + Live Clients cards.
 // Green = done. The list itself lives in
 // src/lib/setupFields.ts so the Outstanding view and the Claude route share it.
@@ -8,7 +8,7 @@ import { SETUP_ITEMS, type SetupField } from "@/lib/setupFields";
 export type { SetupField };
 
 export default function SetupPills({ values, onToggle }: {
-  values: { ga4_embedded?: number; ga4_conversions?: number; search_console_verified?: number; bing_console?: number; gbp_setup?: number; mobile_optimised?: number; link_card?: number; secure_file?: number; google_sheet?: number; ghl_setup?: number };
+  values: { ga4_embedded?: number; ga4_conversions?: number; search_console_verified?: number; bing_console?: number; gbp_setup?: number; mobile_optimised?: number; link_card?: number; google_sheet?: number; ghl_setup?: number };
   onToggle: (field: SetupField, next: number) => void;
 }) {
   return (

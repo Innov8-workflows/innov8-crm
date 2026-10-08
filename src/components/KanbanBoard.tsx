@@ -5,6 +5,7 @@ import type { Project } from "@/types";
 import { PROJECT_STAGES } from "@/types";
 import ProjectDetailModal from "./ProjectDetailModal";
 import SetupPills, { type SetupField } from "./SetupPills";
+import SecurityBadge from "./SecurityBadge";
 import ReviewsBadge, { type ReviewValues } from "./ReviewsBadge";
 import LoadingAI from "./LoadingAI";
 import TabBar from "./TabBar";
@@ -272,6 +273,9 @@ export default function KanbanBoard({ ownerFilter = "", onCountsChanged }: { own
                             onError={(e) => { (e.currentTarget.parentElement as HTMLElement).style.display = "none"; }}
                           />
                         </div>
+                      )}
+                      {project.security_status?.r && (
+                        <div className="mb-1"><SecurityBadge status={project.security_status} /></div>
                       )}
                       <h3 className="text-sm font-medium truncate cf-name" style={{ color: "var(--text)" }}>
                         {project.business_name}

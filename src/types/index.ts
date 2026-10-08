@@ -100,6 +100,8 @@ export interface Project {
   seo_score?: number;
   seo_score_prev?: number;
   seo_report_date?: string;
+  // SECURITY PASS / FAIL label: newest live site-security result per host (src/lib/securityStatus.ts)
+  security_status?: { r?: "pass" | "fail"; d?: string; h?: string; s1?: number; s2?: number; hosts?: number };
 }
 
 // An uploaded/linked SEO report with a score, tracked over time per client
@@ -149,6 +151,23 @@ export interface SecurityCertificate {
   file_name: string;
   size: number;
   created_at: string;
+}
+
+/* A live site-security scan that did NOT pass. findings are already redacted by the
+   skill and re-masked by the agent route: a secret is only ever "lk_d…(35)". */
+export interface SecurityFinding { sev: "S1" | "S2" | "S3"; kind: string; what: string; where: string; hint?: string; fix?: string; sample?: string; count?: number }
+export interface SecurityFailure {
+  id: number;
+  project_id: number;
+  host: string;
+  scanned_at: string;
+  s1: number;
+  s2: number;
+  s3: number;
+  pages: number;
+  probes: number;
+  created_at: string;
+  findings: SecurityFinding[];
 }
 
 export interface ProjectFile {

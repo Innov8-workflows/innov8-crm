@@ -5,6 +5,7 @@ import type { Project } from "@/types";
 import { SOLUTION_CATEGORIES } from "@/types";
 import ProjectDetailModal from "./ProjectDetailModal";
 import SetupPills from "./SetupPills";
+import SecurityBadge from "./SecurityBadge";
 import OutstandingLine from "./OutstandingLine";
 import ReviewsBadge, { type ReviewValues } from "./ReviewsBadge";
 import HealthBadge from "./HealthBadge";
@@ -798,13 +799,15 @@ function CardView({ clients, productRollup, formatDate, isOverdue, onOpenProject
                 </svg>
               </div>
             )}
+            {/* Top-left stack: SEO score, then the SECURITY PASS / FAIL label */}
+            <div className="absolute top-2 left-2 z-10 flex flex-col items-start gap-1">
             {client.seo_score != null && (() => {
               const s = client.seo_score as number;
               const p = client.seo_score_prev;
               const band = s >= 7 ? "#4ade80" : s >= 4 ? "#fbbf24" : "#f87171";
               const trend = (p != null) ? (s > p ? "up" : s < p ? "down" : "same") : null;
               return (
-                <span className="absolute top-2 left-2 z-10 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold"
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold"
                   style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", border: "1px solid rgba(255,255,255,0.12)" }}
                   title="Latest SEO/GEO score">
                   <span style={{ color: "#cbd5e1", fontWeight: 600 }}>SEO</span>
@@ -815,6 +818,8 @@ function CardView({ clients, productRollup, formatDate, isOverdue, onOpenProject
                 </span>
               );
             })()}
+            <SecurityBadge status={client.security_status} overlay />
+            </div>
             </div>
 
             {/* Card Body */}
