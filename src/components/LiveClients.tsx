@@ -799,8 +799,8 @@ function CardView({ clients, productRollup, formatDate, isOverdue, onOpenProject
                 </svg>
               </div>
             )}
-            {/* Top-left stack: SEO score, then the SECURITY PASS / FAIL label */}
-            <div className="absolute top-2 left-2 z-10 flex flex-col items-start gap-1">
+            {/* Top-left: SEO score. The SECURITY PASS / FAIL label sits bottom-left, clear of it. */}
+            <div className="absolute top-2 left-2 z-10">
             {client.seo_score != null && (() => {
               const s = client.seo_score as number;
               const p = client.seo_score_prev;
@@ -818,8 +818,12 @@ function CardView({ clients, productRollup, formatDate, isOverdue, onOpenProject
                 </span>
               );
             })()}
-            <SecurityBadge status={client.security_status} overlay />
             </div>
+            {client.security_status?.r && (
+              <div className="absolute bottom-2 left-2 z-10">
+                <SecurityBadge status={client.security_status} overlay />
+              </div>
+            )}
             </div>
 
             {/* Card Body */}
