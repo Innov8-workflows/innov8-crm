@@ -17,6 +17,9 @@ import { dayBefore, isValidDate, isWholeMonth, monthEnd, presetRange, rangeLabel
 // @libsql/client and would drag the database driver into the browser bundle.
 
 const PRESETS: { id: RangePreset; label: string; title: string }[] = [
+  { id: "last_1w", label: "1W", title: "Last week (the last 7 days, today included)" },
+  { id: "last_2w", label: "2W", title: "Last 2 weeks (14 days)" },
+  { id: "last_3w", label: "3W", title: "Last 3 weeks (21 days)" },
   { id: "this_month", label: "This month", title: "This calendar month" },
   { id: "last_month", label: "Last month", title: "Last calendar month" },
   { id: "last_3m", label: "3M", title: "Last 3 months, including this one" },

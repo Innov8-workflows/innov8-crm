@@ -251,12 +251,39 @@ export function monthlySeries(
   });
 }
 
+export interface DailyPoint { date: string; mrr: number; clients: number; capex: number }
+
+/** Longest range that also gets a day-by-day series (for the week and month views). */
+export const DAILY_MAX_DAYS = 124;
+
+/**
+ * Day by day, for short ranges: MRR and live clients as they stood at the end of
+ * each day, and the one-off fees on lines that started that day. Stops at today -
+ * a "This month" view must not draw a flat line into the future.
+ */
+export function dailySeries(lines: RevenueLine[], cal: ClientCal[], r: DayRange, today: string): DailyPoint[] {
+  const out: DailyPoint[] = [];
+  const last = r.end <= today ? dayBefore(r.end) : today;
+  for (let d = r.start; d <= last && out.length < DAILY_MAX_DAYS; d = isoNext(d)) {
+    out.push({
+      date: d,
+      mrr: mrrAsAt(lines, d),
+      clients: clientsAsAt(cal, d),
+      capex: lines.reduce((n, l) => (l.effective_start === d ? n + l.upfront : n), 0),
+    });
+  }
+  return out;
+}
+const isoNext = (d: string) => new Date(Date.parse(d) + 86400000).toISOString().slice(0, 10);
+
 export interface RevenuePeriodResponse {
   range: DayRange;
   snapshot: { mrr: number; clients: number; at: string };
   opening: { mrr: number; clients: number; at: string };
   movement: Movement;
   series: SeriesPoint[];
+  /** Only for ranges up to DAILY_MAX_DAYS; [] otherwise. */
+  daily: DailyPoint[];
   coverage: { historyFrom: string; churnTracked: boolean; contractionTracked: boolean };
 }
 
@@ -293,6 +320,8 @@ export async function buildRevenuePeriod(
     opening: { mrr: mrrAsAt(lines, preOpen), clients: clientsAsAt(cal, preOpen), at: preOpen },
     movement: movement(lines, cal, range),
     series: monthlySeries(lines, cal, range, historyFrom),
+    daily: (Date.parse(range.end) - Date.parse(range.start)) / 86400000 <= DAILY_MAX_DAYS
+      ? dailySeries(lines, cal, range, new Date().toISOString().slice(0, 10)) : [],
     coverage: {
       historyFrom,
       // Both false before the cutover: churn was never recorded, and contraction

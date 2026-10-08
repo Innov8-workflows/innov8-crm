@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import DateRangePicker from "./DateRangePicker";
 import { dayLabel, periodLabel, rangeLabel, type DayRange, type RangePreset } from "@/lib/dateRange";
 
@@ -20,6 +21,8 @@ export interface RevenuePeriod {
     newClients: number; churnedClients: number; capex: number; reconciles: boolean;
   };
   series: SeriesPoint[];
+  /** Day by day for ranges up to ~4 months, else []. */
+  daily?: { date: string; mrr: number; clients: number; capex: number }[];
   coverage: { historyFrom: string; churnTracked: boolean; contractionTracked: boolean };
 }
 
@@ -31,6 +34,8 @@ export function gbp(n: number): string {
 /** £4.2k for chart axes. */
 const gbpShort = (n: number) => (n >= 1000 ? `£${(n / 1000).toFixed(n >= 10000 ? 0 : 1).replace(/\.0$/, "")}k` : `£${Math.round(n)}`);
 const signed = (n: number) => `${n > 0 ? "+" : n < 0 ? "−" : ""}${gbp(Math.abs(n))}`;
+const dayShort = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+const monthYearShort = (p: string) => new Date(`${p}-01T00:00:00Z`).toLocaleDateString("en-GB", { month: "short", year: "2-digit", timeZone: "UTC" });
 const monthShort = (p: string) => new Date(`${p}-01T00:00:00Z`).toLocaleDateString("en-GB", { month: "short", timeZone: "UTC" });
 
 const C = { mrr: "#22c55e", arr: "#facc15", capex: "#3b82f6", churn: "#ef4444", exp: "#a855f7" };
@@ -49,6 +54,10 @@ export default function RevenueOverview({ revenue, context, range, preset, onRan
   const mrrDelta = snapshot.mrr - opening.mrr;
   const avg = snapshot.clients ? snapshot.mrr / snapshot.clients : 0;
   const periodWords = rangeLabel(revenue.range, preset);
+  const byDay = (revenue.daily || []).length >= 2;
+  const pts: ChartPoint[] = byDay
+    ? revenue.daily!.map((d) => ({ tick: dayShort(d.date), label: dayLabel(d.date), mrr: d.mrr, capex: d.capex, est: false }))
+    : revenue.series.map((q) => ({ tick: monthYearShort(q.period), label: periodLabel(q.period), mrr: q.mrr, capex: q.capex || 0, est: q.estimated }));
 
   return (
     <section className="space-y-3">
@@ -67,22 +76,19 @@ export default function RevenueOverview({ revenue, context, range, preset, onRan
         </button>
       </div>
 
-      {/* The three that matter */}
-      <div className="grid gap-3 md:grid-cols-3">
+      {/* The three that matter, each charted over the chosen period */}
+      <div className="grid gap-3 lg:grid-cols-3">
         <HeroTile label="MRR" color={C.mrr} value={gbp(snapshot.mrr)}
           delta={mrrDelta} deltaNote={`since ${dayLabel(opening.at)}`}
           sub={`as at ${dayLabel(snapshot.at)} · ${snapshot.clients} clients · ${gbp(Math.round(avg))} avg`}
-          spark={context.map((p) => ({ v: p.mrr, on: inRange(p.period), est: p.estimated, label: `${periodLabel(p.period)}: ${gbp(p.mrr)}` }))}
-          kind="line" />
+          chart={<Chart points={pts.map((q) => ({ ...q, v: q.mrr }))} color={C.mrr} kind="line" />} />
         <HeroTile label="ARR" color={C.arr} value={gbp(snapshot.mrr * 12)}
           delta={mrrDelta * 12} deltaNote={`since ${dayLabel(opening.at)}`}
-          sub="MRR × 12 — the yearly run rate"
-          spark={context.map((p) => ({ v: p.mrr * 12, on: inRange(p.period), est: p.estimated, label: `${periodLabel(p.period)}: ${gbp(p.mrr * 12)}` }))}
-          kind="line" />
+          sub="MRR × 12, the yearly run rate"
+          chart={<Chart points={pts.map((q) => ({ ...q, v: q.mrr * 12 }))} color={C.arr} kind="line" />} />
         <HeroTile label="CAPEX won" color={C.capex} value={gbp(mv.capex)}
           sub={`one-off fees in ${periodWords} · ${mv.newClients} new client${mv.newClients === 1 ? "" : "s"}`}
-          spark={context.map((p) => ({ v: p.capex || 0, on: inRange(p.period), est: p.estimated, label: `${periodLabel(p.period)}: ${gbp(p.capex || 0)}` }))}
-          kind="bars" />
+          chart={<Chart points={pts.map((q) => ({ ...q, v: q.capex }))} color={C.capex} kind="bars" />} />
       </div>
 
       {/* Movement inside the period */}
@@ -108,15 +114,14 @@ export default function RevenueOverview({ revenue, context, range, preset, onRan
 
 // ── Tiles ──────────────────────────────────────────────────────────────────────
 
-interface SparkPoint { v: number; on: boolean; est: boolean; label: string }
+interface ChartPoint { tick: string; label: string; mrr: number; capex: number; est: boolean }
 
-function HeroTile({ label, value, color, delta, deltaNote, sub, spark, kind }: {
-  label: string; value: string; color: string; delta?: number; deltaNote?: string; sub: string;
-  spark: SparkPoint[]; kind: "line" | "bars";
+function HeroTile({ label, value, color, delta, deltaNote, sub, chart }: {
+  label: string; value: string; color: string; delta?: number; deltaNote?: string; sub: string; chart: React.ReactNode;
 }) {
   const showDelta = delta !== undefined && Math.abs(delta) >= 0.005;
   return (
-    <div className="rounded-xl p-4 flex flex-col gap-2" style={{ background: "var(--surface)", border: "1px solid var(--border)", borderTop: `3px solid ${color}` }}>
+    <div className="rounded-xl p-4 flex flex-col gap-1.5" style={{ background: "var(--surface)", border: "1px solid var(--border)", borderTop: `3px solid ${color}` }}>
       <div className="flex items-center gap-2">
         <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--text-dim)" }}>{label}</span>
         {showDelta && (
@@ -129,36 +134,101 @@ function HeroTile({ label, value, color, delta, deltaNote, sub, spark, kind }: {
       </div>
       <div className="text-3xl font-bold leading-none" style={{ color }}>{value}</div>
       <div className="text-[11px] truncate" style={{ color: "var(--text-dim)" }} title={sub}>{sub}</div>
-      <Spark points={spark} color={color} kind={kind} />
+      <div className="mt-1">{chart}</div>
     </div>
   );
 }
 
-function Spark({ points, color, kind }: { points: SparkPoint[]; color: string; kind: "line" | "bars" }) {
-  if (points.length < 2) return <div className="h-10" />;
-  const W = 300, H = 40, max = Math.max(...points.map((p) => p.v), 1);
-  const x = (i: number) => (i / (points.length - 1)) * W;
-  const y = (v: number) => H - 3 - (v / max) * (H - 6);
-  if (kind === "bars") {
-    const bw = W / points.length;
-    return (
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-10" preserveAspectRatio="none">
-        {points.map((p, i) => (
-          <rect key={i} x={i * bw + bw * 0.15} width={bw * 0.7} y={y(p.v)} height={Math.max(H - 3 - y(p.v), p.v > 0 ? 2 : 0.5)}
-            fill={color} opacity={p.on ? 0.9 : 0.25} rx={1.5}><title>{p.label}</title></rect>
-        ))}
-      </svg>
-    );
+/**
+ * Stripe-style chart for a hero tile: area + line (or bars), three gridlines with
+ * their values, first and last date along the bottom, and a hover line that reads
+ * out the exact figure for the day or month under the cursor.
+ *
+ * The scale does NOT start at zero for lines: a £710 rise on £3,710 would be a
+ * flat line otherwise. The gridline labels keep it honest. Bars start at zero.
+ */
+function Chart({ points, color, kind }: { points: (ChartPoint & { v: number })[]; color: string; kind: "line" | "bars" }) {
+  const [hover, setHover] = useState<number | null>(null);
+  // Drawn at its real pixel width (not stretched), so text and the hover dot keep their shape.
+  const box = useRef<HTMLDivElement>(null);
+  const [W, setW] = useState(400);
+  useEffect(() => {
+    const el = box.current; if (!el) return;
+    const ro = new ResizeObserver(() => setW(Math.max(200, el.clientWidth)));
+    ro.observe(el); setW(Math.max(200, el.clientWidth));
+    return () => ro.disconnect();
+  }, [points.length >= 2]);
+  const H = 150, PR = 40, PT = 8, PB = 18;
+  if (points.length < 2) {
+    return <div ref={box} className="h-[150px] flex items-center justify-center text-[11px]" style={{ color: "var(--text-quaternary)" }}>Not enough data for this period</div>;
   }
-  const line = points.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(p.v).toFixed(1)}`).join(" ");
+  const vals = points.map((q) => q.v);
+  let lo = kind === "bars" ? 0 : Math.min(...vals), hi = Math.max(...vals);
+  if (kind === "line") {
+    const span = hi - lo || Math.max(hi * 0.05, 1);
+    lo = Math.max(0, lo - span * 0.25); hi = hi + span * 0.15;
+  } else hi = Math.max(hi, 1);
+  const iw = W - PR, ih = H - PT - PB;
+  const x = (i: number) => kind === "bars" ? ((i + 0.5) / points.length) * iw : (i / (points.length - 1)) * iw;
+  const y = (v: number) => PT + ih * (1 - (v - lo) / (hi - lo || 1));
+  const grid = [lo, lo + (hi - lo) / 2, hi];
+  const line = points.map((q, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(q.v).toFixed(1)}`).join(" ");
+  const gid = `g${color.slice(1)}`;
+  const h = hover !== null ? points[hover] : null;
+
+  const onMove = (e: React.MouseEvent<SVGRectElement>) => {
+    const box = e.currentTarget.getBoundingClientRect();
+    const fx = ((e.clientX - box.left) / box.width) * iw;
+    const i = kind === "bars" ? Math.floor((fx / iw) * points.length) : Math.round((fx / iw) * (points.length - 1));
+    setHover(Math.max(0, Math.min(points.length - 1, i)));
+  };
+
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-10" preserveAspectRatio="none">
-      <path d={`${line} L${W},${H} L0,${H} Z`} fill={color} opacity={0.08} />
-      <path d={line} fill="none" stroke={color} strokeWidth={2} vectorEffect="non-scaling-stroke" />
-      {points.map((p, i) => p.on && (
-        <circle key={i} cx={x(i)} cy={y(p.v)} r={2.5} fill={color} vectorEffect="non-scaling-stroke"><title>{p.label}</title></circle>
-      ))}
-    </svg>
+    <div ref={box} className="relative">
+      <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} className="block">
+        <defs>
+          <linearGradient id={gid} x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stopColor={color} stopOpacity={0.28} />
+            <stop offset="100%" stopColor={color} stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        {grid.map((g, i) => (
+          <g key={i}>
+            <line x1={0} x2={iw} y1={y(g)} y2={y(g)} stroke="var(--border)" strokeDasharray={i === 0 ? "" : "3 4"} vectorEffect="non-scaling-stroke" />
+            <text x={W - 2} y={y(g) + 3} textAnchor="end" fontSize={10} fill="var(--text-quaternary)">{gbpShort(g)}</text>
+          </g>
+        ))}
+        {kind === "line" ? (
+          <>
+            <path d={`${line} L${iw},${PT + ih} L0,${PT + ih} Z`} fill={`url(#${gid})`} />
+            <path d={line} fill="none" stroke={color} strokeWidth={2} vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
+          </>
+        ) : points.map((q, i) => {
+          const bw = (iw / points.length) * 0.62;
+          return <rect key={i} x={x(i) - bw / 2} y={y(q.v)} width={bw} height={Math.max(PT + ih - y(q.v), q.v > 0 ? 2 : 0)}
+            rx={1.5} fill={color} opacity={hover === null || hover === i ? (q.est ? 0.5 : 0.9) : 0.35} />;
+        })}
+        {h && hover !== null && (
+          <g>
+            <line x1={x(hover)} x2={x(hover)} y1={PT} y2={PT + ih} stroke="var(--text-dim)" strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
+            {kind === "line" && <circle cx={x(hover)} cy={y(h.v)} r={3.5} fill={color} stroke="var(--surface)" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />}
+          </g>
+        )}
+        <text x={0} y={H - 4} fontSize={10} fill="var(--text-quaternary)">{points[0].tick}</text>
+        <text x={iw} y={H - 4} fontSize={10} textAnchor="end" fill="var(--text-quaternary)">{points[points.length - 1].tick}</text>
+        <rect x={0} y={0} width={iw} height={H} fill="transparent" onMouseMove={onMove} onMouseLeave={() => setHover(null)} />
+      </svg>
+      {h && hover !== null && (
+        <div className="absolute top-0 pointer-events-none rounded-md px-2 py-1 text-[11px] whitespace-nowrap shadow-lg"
+          style={{
+            left: `${(x(hover) / W) * 100}%`, transform: `translateX(${x(hover) / iw > 0.6 ? "-105%" : "5%"})`,
+            background: "var(--surface2)", border: "1px solid var(--border-light)", color: "var(--text)",
+          }}>
+          <div style={{ color: "var(--text-dim)" }}>{h.label}{h.est ? " (rebuilt)" : ""}</div>
+          <div className="font-bold" style={{ color }}>{gbp(h.v)}</div>
+        </div>
+      )}
+    </div>
   );
 }
 

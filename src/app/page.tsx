@@ -69,7 +69,7 @@ export default function Home() {
       // A preset ("This month", "12 months"...) is relative to TODAY, so recompute it.
       // Restoring the stored dates showed "This month" = September on 8 October.
       // Only a custom range keeps its saved dates.
-      const PRESETS = ["this_month", "last_month", "last_3m", "last_6m", "last_12m", "ytd", "all"];
+      const PRESETS = ["last_1w", "last_2w", "last_3w", "this_month", "last_month", "last_3m", "last_6m", "last_12m", "ytd", "all"];
       if (PRESETS.includes(p?.preset)) return { range: presetRange(p.preset), preset: p.preset as RangePreset };
       // Never trust the stored blob: corrupt localStorage must not send garbage dates
       // to the API, which would 400 and leave the Dashboard permanently blank.

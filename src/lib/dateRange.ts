@@ -14,6 +14,7 @@
 export interface DayRange { start: string; end: string }
 
 export type RangePreset =
+  | "last_1w" | "last_2w" | "last_3w"
   | "this_month" | "last_month" | "last_3m" | "last_6m" | "last_12m" | "ytd" | "all" | "custom";
 
 export const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
@@ -48,7 +49,14 @@ export function presetRange(preset: RangePreset, now = new Date()): DayRange {
   const m = now.getUTCMonth();
   const thisMonth = new Date(Date.UTC(y, m, 1));
   const nextMonth = new Date(Date.UTC(y, m + 1, 1));
+  const today = Date.UTC(y, m, now.getUTCDate());
+  const tomorrow = isoDay(new Date(today + 86400000));
+  // Rolling weeks, today included: "Last week" = the last 7 days.
+  const weeks = (n: number) => ({ start: isoDay(new Date(today - (7 * n - 1) * 86400000)), end: tomorrow });
   switch (preset) {
+    case "last_1w": return weeks(1);
+    case "last_2w": return weeks(2);
+    case "last_3w": return weeks(3);
     case "this_month": return { start: isoDay(thisMonth), end: isoDay(nextMonth) };
     case "last_month": return { start: isoDay(new Date(Date.UTC(y, m - 1, 1))), end: isoDay(thisMonth) };
     case "last_3m":    return { start: isoDay(new Date(Date.UTC(y, m - 2, 1))),  end: isoDay(nextMonth) };
