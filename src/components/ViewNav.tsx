@@ -20,13 +20,13 @@ interface ViewNavProps {
 
 const views: { id: ViewId; label: string; icon: IconName }[] = [
   { id: "today", label: "Today", icon: "clock" },
+  { id: "dashboard", label: "Dashboard", icon: "chart-bar" },
   { id: "prospects", label: "Prospects", icon: "clipboard" },
   { id: "projects", label: "Projects", icon: "kanban" },
   { id: "onboarding", label: "Onboarding", icon: "document" },
   { id: "clients", label: "Live Clients", icon: "badge-check" },
   { id: "client_dash", label: "Client Dash", icon: "trending-up" },
   { id: "site_health", label: "Site Health", icon: "shield-check" },
-  { id: "dashboard", label: "Dashboard", icon: "chart-bar" },
   { id: "map", label: "Coverage Map", icon: "map" },
   { id: "ai_solutions", label: "AI Solutions", icon: "cpu-chip" },
   { id: "schedule", label: "Schedule", icon: "calendar" },
