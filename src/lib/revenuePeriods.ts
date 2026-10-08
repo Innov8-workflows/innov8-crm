@@ -214,6 +214,8 @@ export function movement(lines: RevenueLine[], cal: ClientCal[], r: DayRange): M
 export interface SeriesPoint {
   period: string; mrr: number; newMrr: number; expansionMrr: number;
   churnedMrr: number; clients: number; estimated: boolean;
+  /** One-off fees (setup / upfront) on lines that started this month. */
+  capex: number;
 }
 
 /**
@@ -241,6 +243,7 @@ export function monthlySeries(
       newMrr: m.newMrr,
       expansionMrr: m.expansionMrr,
       churnedMrr: m.churnedMrr,
+      capex: m.capex,
       clients: clientsAsAt(cal, close),
       // Reconstructed from won dates rather than recorded as it happened.
       estimated: historyFrom !== "" && period < historyFrom.slice(0, 7),

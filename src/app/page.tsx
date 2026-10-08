@@ -66,6 +66,11 @@ export default function Home() {
       const raw = localStorage.getItem("crm_revenueRange");
       if (!raw) return fallback;
       const p = JSON.parse(raw);
+      // A preset ("This month", "12 months"...) is relative to TODAY, so recompute it.
+      // Restoring the stored dates showed "This month" = September on 8 October.
+      // Only a custom range keeps its saved dates.
+      const PRESETS = ["this_month", "last_month", "last_3m", "last_6m", "last_12m", "ytd", "all"];
+      if (PRESETS.includes(p?.preset)) return { range: presetRange(p.preset), preset: p.preset as RangePreset };
       // Never trust the stored blob: corrupt localStorage must not send garbage dates
       // to the API, which would 400 and leave the Dashboard permanently blank.
       if (isValidDate(p?.range?.start) && isValidDate(p?.range?.end) && p.range.end > p.range.start) {
