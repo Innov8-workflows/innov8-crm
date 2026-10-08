@@ -133,6 +133,24 @@ export interface ProjectTask {
   updated_at?: string;
 }
 
+/* A website security pass certificate (site-security skill). The PDF itself is
+   served by /api/security-certificates?file=<id>, never inlined in the list. */
+export interface SecurityCertificate {
+  id: number;
+  project_id: number;
+  host: string;
+  scanned_at: string;   // ISO, when the live scan ran
+  s1: number;           // always 0 - the agent route refuses a failing scan
+  s2: number;           // > 0 only with accepted exceptions
+  s3: number;
+  pages: number;
+  probes: number;
+  accepted: { kind: string; reason: string }[];
+  file_name: string;
+  size: number;
+  created_at: string;
+}
+
 export interface ProjectFile {
   id: number;
   project_id: number;

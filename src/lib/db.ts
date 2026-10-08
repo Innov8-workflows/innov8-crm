@@ -61,7 +61,7 @@ async function doInitDb() {
   // ~100-300ms, so this is the single biggest "slow first load" win. Bump
   // SCHEMA_VERSION whenever a migration/index/seed below changes → the heavy block
   // re-runs exactly once on the next deploy, then cold starts go fast again.
-  const SCHEMA_VERSION = "2026-10-07-info";
+  const SCHEMA_VERSION = "2026-10-08-security";
   await db.execute("CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT DEFAULT '')");
   const schemaMarker = first(await db.execute("SELECT value FROM app_meta WHERE key = 'schema_version'"));
   if (schemaMarker?.value === SCHEMA_VERSION) return;
@@ -686,6 +686,32 @@ async function doInitDb() {
       UNIQUE (project_id, step),
       FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
     );
+
+    -- Website security pass certificates (the site-security skill's certificate.js,
+    -- through /api/security-agent). One row per live scan that passed: S1 is always 0
+    -- (the route refuses anything else), s2 > 0 only with accepted exceptions, whose
+    -- reasons sit in accepted (JSON [{kind, reason}]). pdf is the LAST column on
+    -- purpose: the list query selects only the columns before it, so listing never
+    -- walks a ~250 KB blob's overflow pages.
+    CREATE TABLE IF NOT EXISTS security_certificates (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      project_id INTEGER NOT NULL,
+      host TEXT NOT NULL,
+      scanned_at TEXT NOT NULL,
+      s1 INTEGER NOT NULL DEFAULT 0,
+      s2 INTEGER NOT NULL DEFAULT 0,
+      s3 INTEGER NOT NULL DEFAULT 0,
+      pages INTEGER NOT NULL DEFAULT 0,
+      probes INTEGER NOT NULL DEFAULT 0,
+      accepted TEXT NOT NULL DEFAULT '[]',
+      file_name TEXT NOT NULL,
+      size INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      pdf TEXT NOT NULL CHECK (pdf LIKE 'data:application/pdf;base64,%'),
+      UNIQUE (project_id, host, scanned_at),
+      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_security_certificates_project ON security_certificates(project_id, scanned_at);
   `);
 
   const migrations = [
@@ -926,6 +952,11 @@ async function doInitDb() {
   const projectCols = all(await db.execute("PRAGMA table_info(projects)"));
   if (!projectCols.some((c) => c.name === "ghl_setup")) {
     console.error("[db] projects.ghl_setup missing after migration — not stamping schema_version");
+    return;
+  }
+  const certCols = all(await db.execute("PRAGMA table_info(security_certificates)"));
+  if (!certCols.some((c) => c.name === "pdf")) {
+    console.error("[db] security_certificates missing after migration — not stamping schema_version");
     return;
   }
   const marksCols = all(await db.execute("PRAGMA table_info(pipeline_marks)"));

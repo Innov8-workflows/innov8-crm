@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import type { Project, ProjectTask, ProjectFile, EntitySolution } from "@/types";
+import type { Project, ProjectTask, ProjectFile, EntitySolution, SecurityCertificate } from "@/types";
 import { PROJECT_STAGES } from "@/types";
 import ProductPicker from "./ProductPicker";
 import AdCoverageEditor from "./AdCoverageEditor";
@@ -21,7 +21,8 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
   const [tasks, setTasks] = useState<ProjectTask[]>([]);
   const [files, setFiles] = useState<ProjectFile[]>([]);
   const [details, setDetails] = useState(project);
-  const [activeTab, setActiveTab] = useState<"tasks" | "files" | "details">("tasks");
+  const [certs, setCerts] = useState<SecurityCertificate[]>([]);
+  const [activeTab, setActiveTab] = useState<"tasks" | "files" | "details" | "security">("tasks");
   const [newTask, setNewTask] = useState("");
   const [newTaskStage, setNewTaskStage] = useState("");
   const [newFileUrl, setNewFileUrl] = useState("");
@@ -49,7 +50,23 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
     setFiles(data.files || []);
   }, [project.id]);
 
-  useEffect(() => { fetchTasks(); fetchFiles(); }, [fetchTasks, fetchFiles]);
+  /* Website security pass certificates, attached by the site-security skill
+     (certificate.js -> /api/security-agent) after a live scan passes. */
+  const fetchCerts = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/security-certificates?project_id=${project.id}`);
+      const data = await res.json();
+      setCerts(data.certificates || []);
+    } catch { setCerts([]); }
+  }, [project.id]);
+
+  const deleteCert = async (id: number) => {
+    if (!window.confirm("Remove this security certificate from the card? The PDF in the client folder is not touched.")) return;
+    setCerts((prev) => prev.filter((c) => c.id !== id));
+    await fetch(`/api/security-certificates?id=${id}`, { method: "DELETE" });
+  };
+
+  useEffect(() => { fetchTasks(); fetchFiles(); fetchCerts(); }, [fetchTasks, fetchFiles, fetchCerts]);
 
   const stageOrder: string[] = PROJECT_STAGES.map((s) => s.value).filter((s) => s !== "completed");
 
@@ -333,14 +350,14 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
 
         {/* Tabs */}
         <div className="flex px-5" style={{ borderBottom: "1px solid var(--border)" }}>
-          {(["tasks", "files", "details"] as const).map((tab) => (
+          {(["tasks", "files", "details", "security"] as const).map((tab) => (
             <button key={tab} onClick={() => setActiveTab(tab)}
               className="px-4 py-2.5 text-sm font-medium capitalize"
               style={{
                 color: activeTab === tab ? "var(--accent)" : "var(--text-dim)",
                 borderBottom: activeTab === tab ? "2px solid var(--accent)" : "2px solid transparent",
               }}>
-              {tab} {tab === "tasks" ? `(${completedCount}/${totalTasks})` : tab === "files" ? `(${files.length})` : ""}
+              {tab} {tab === "tasks" ? `(${completedCount}/${totalTasks})` : tab === "files" ? `(${files.length})` : tab === "security" ? `(${certs.length})` : ""}
             </button>
           ))}
         </div>
@@ -443,6 +460,54 @@ export default function ProjectDetailModal({ project, onClose, onUpdate, onCompl
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {activeTab === "security" && (
+            <div className="space-y-3">
+              {certs.length === 0 && (
+                <div className="text-sm rounded-lg p-4" style={{ background: "var(--surface2)", border: "1px dashed var(--border)", color: "var(--text-dim)" }}>
+                  No security certificate yet. The site-security check attaches one here when the live website passes.
+                </div>
+              )}
+              {certs.map((c, i) => {
+                const withEx = c.s2 > 0;
+                const when = new Date(c.scanned_at).toLocaleString("en-GB", { timeZone: "Europe/London", day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+                return (
+                  <div key={c.id} className="rounded-lg p-4" style={{ background: "var(--surface2)", border: "1px solid var(--border)" }}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-semibold px-2 py-0.5 rounded-full"
+                            style={withEx ? { background: "rgba(245,158,11,.15)", color: "#F59E0B" } : { background: "rgba(34,197,94,.15)", color: "#22C55E" }}>
+                            {withEx ? `Passed · ${c.accepted.length} accepted` : "Passed"}
+                          </span>
+                          <span className="text-sm font-medium truncate" style={{ color: "var(--text)" }}>{c.host}</span>
+                          {i === 0 && certs.length > 1 && <span className="text-xs" style={{ color: "var(--text-dim)" }}>latest</span>}
+                        </div>
+                        <div className="text-xs mt-1" style={{ color: "var(--text-dim)" }}>
+                          Checked {when} · {c.pages} pages · {c.probes} addresses probed · S1 {c.s1} · S2 {c.s2}
+                        </div>
+                        {withEx && c.accepted.length > 0 && (
+                          <ul className="text-xs mt-2 space-y-0.5" style={{ color: "var(--text-muted)" }}>
+                            {c.accepted.map((a, j) => <li key={j}><span style={{ color: "#F59E0B" }}>{a.kind}:</span> {a.reason}</li>)}
+                          </ul>
+                        )}
+                      </div>
+                      <div className="flex gap-2 shrink-0">
+                        <a href={`/api/security-certificates?file=${c.id}`} target="_blank" rel="noopener noreferrer"
+                          className="px-3 py-1.5 text-xs font-medium rounded-md" style={{ background: "var(--accent)", color: "#fff" }}>
+                          Open PDF
+                        </a>
+                        <button onClick={() => deleteCert(c.id)} className="px-2 py-1.5 text-xs rounded-md"
+                          style={{ border: "1px solid var(--border)", color: "var(--text-dim)" }} title="Remove from the card">
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
 
