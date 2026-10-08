@@ -52,6 +52,7 @@ import PipelineBadge from "./PipelineBadge";
 import FollowUpDate from "./FollowUpDate";
 import LoadingAI from "./LoadingAI";
 import { useToast } from "./Toast";
+import { gbp } from "@/lib/money";
 
 function DraggableColumnHeader({ header, onColumnDrop }: { header: Header<Lead, unknown>; onColumnDrop: (fromId: string, toId: string) => void }) {
   const [dragOver, setDragOver] = useState(false);
@@ -765,8 +766,8 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
         style={{ color: has ? "var(--text)" : "var(--text-quaternary)", background: "transparent" }}
         onMouseEnter={(e) => (e.currentTarget.style.background = "var(--surface2)")}
         onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-        title={has ? `${r.count} product${r.count > 1 ? "s" : ""} · £${r.monthly}/mo · £${r.upfront} one-off` : "Add products"}>
-        {has ? `£${r.monthly}/mo${r.count > 1 ? ` · ${r.count}` : ""}` : "+ Add"}
+        title={has ? `${r.count} product${r.count > 1 ? "s" : ""} · ${gbp(r.monthly)}/mo · ${gbp(r.upfront)} one-off` : "Add products"}>
+        {has ? `${gbp(r.monthly)}/mo${r.count > 1 ? ` · ${r.count}` : ""}` : "+ Add"}
       </button>
     );
   }, []);
@@ -1069,7 +1070,7 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
         const val = row.original[id as keyof typeof row.original] ?? "";
         let display = String(val);
         if (checkFields.includes(id)) display = val ? "Yes" : "No";
-        if (id === "capex" && val) display = `£${Number(val).toFixed(2)}`;
+        if (id === "capex" && val) display = gbp(val);
         if (id === "status") {
           const stage = PIPELINE_STAGES.find((s) => s.value === val);
           display = stage?.label || display;

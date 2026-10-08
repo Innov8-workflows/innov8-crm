@@ -11,6 +11,7 @@ import LoadingAI from "./LoadingAI";
 import TabBar from "./TabBar";
 import Outstanding from "./Outstanding";
 import OutstandingLine from "./OutstandingLine";
+import { gbp } from "@/lib/money";
 
 // Board = the stage columns. Outstanding = everything still left to do across
 // every client, in one list (see Outstanding.tsx).
@@ -305,7 +306,7 @@ export default function KanbanBoard({ ownerFilter = "", onCountsChanged }: { own
                         </span>
                         {project.monthly_fee > 0 && (
                           <span className="text-xs font-medium" style={{ color: "#22c55e" }}>
-                            £{project.monthly_fee}/mo
+                            {gbp(project.monthly_fee)}/mo
                           </span>
                         )}
                       </div>

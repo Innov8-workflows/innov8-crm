@@ -5,6 +5,7 @@ import type { Solution, EntitySolution } from "@/types";
 import { SOLUTION_STATUSES, SOLUTION_CATEGORIES } from "@/types";
 import Icon from "./Icon";
 import { useToast } from "./Toast";
+import { gbp } from "@/lib/money";
 
 const catColor = (cat: string) => SOLUTION_CATEGORIES.find((c) => c.value === cat)?.color || "var(--text-dim)";
 
@@ -140,7 +141,7 @@ export default function ProductPicker({ leadId, businessName, onClose, onChanged
                 <span className="text-sm font-medium flex-1 min-w-0 truncate" style={{ color: on ? "var(--text)" : "var(--text-secondary)" }}>{sol.name}</span>
                 {!on && (
                   <span className="text-[11px] flex-shrink-0" style={{ color: "var(--text-dim)" }}>
-                    {sol.monthly_price > 0 && `£${sol.monthly_price}/mo`}{sol.monthly_price > 0 && sol.upfront_price > 0 && " · "}{sol.upfront_price > 0 && `£${sol.upfront_price}`}
+                    {sol.monthly_price > 0 && `${gbp(sol.monthly_price)}/mo`}{sol.monthly_price > 0 && sol.upfront_price > 0 && " · "}{sol.upfront_price > 0 && gbp(sol.upfront_price)}
                   </span>
                 )}
               </div>
@@ -177,8 +178,8 @@ export default function ProductPicker({ leadId, businessName, onClose, onChanged
       {/* Footer totals */}
       <div className="flex items-center justify-between px-4 py-3" style={{ borderTop: "1px solid var(--border)", background: "var(--stats-bg)" }}>
         <div className="flex items-center gap-4 text-sm">
-          <span style={{ color: "var(--text-dim)" }}>Monthly <span className="font-bold" style={{ color: "#22c55e" }}>£{totalMonthly}</span></span>
-          <span style={{ color: "var(--text-dim)" }}>One-off <span className="font-bold" style={{ color: "var(--accent)" }}>£{totalUpfront}</span></span>
+          <span style={{ color: "var(--text-dim)" }}>Monthly <span className="font-bold" style={{ color: "#22c55e" }}>{gbp(totalMonthly)}</span></span>
+          <span style={{ color: "var(--text-dim)" }}>One-off <span className="font-bold" style={{ color: "var(--accent)" }}>{gbp(totalUpfront)}</span></span>
         </div>
         {onClose && (
           <button onClick={onClose} className="text-xs font-semibold px-3 py-1.5 rounded-lg" style={{ background: "var(--accent)", color: "#fff" }}>Done</button>

@@ -13,6 +13,7 @@ import { getCachedBootstrap } from "@/lib/bootstrap";
 import LoadingAI from "./LoadingAI";
 import SiteAnalyticsModal from "./SiteAnalyticsModal";
 import SeoGeoModal from "./SeoGeoModal";
+import { gbp } from "@/lib/money";
 
 const catColor = (cat: string) => SOLUTION_CATEGORIES.find((c) => c.value === cat)?.color || "var(--text-dim)";
 const shortProductName = (name: string) => name.replace(/^Website — /, "").replace(/\s*\(T1\)$/, "");
@@ -260,9 +261,9 @@ export default function LiveClients({ ownerFilter = "", onCountsChanged, onOpenD
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 px-4 py-3">
           {[
             { label: "Live Clients", value: stats?.clientCount ?? clients.length, color: "#f0f0f0", icon: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" },
-            { label: "Monthly Revenue", value: `£${(stats?.mrr ?? 0).toFixed(2)}`, color: "#22c55e", icon: "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" },
-            { label: "Annual Revenue", value: `£${((stats?.mrr ?? 0) * 12).toFixed(2)}`, color: "#facc15", icon: "M2.25 18L9 11.25l4.306 4.306a11.95 11.95 0 015.814-5.518l2.74-1.22m0 0l-5.94-2.281m5.94 2.28l-2.28 5.941" },
-            { label: "Total CAPEX", value: `£${(stats?.capex ?? 0).toFixed(2)}`, color: "#ea580c", icon: "M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" },
+            { label: "Monthly Revenue", value: gbp(stats?.mrr ?? 0), color: "#22c55e", icon: "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" },
+            { label: "Annual Revenue", value: gbp((stats?.mrr ?? 0) * 12), color: "#facc15", icon: "M2.25 18L9 11.25l4.306 4.306a11.95 11.95 0 015.814-5.518l2.74-1.22m0 0l-5.94-2.281m5.94 2.28l-2.28 5.941" },
+            { label: "Total CAPEX", value: gbp(stats?.capex ?? 0), color: "#ea580c", icon: "M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" },
             { label: "Overdue Renewals", value: stats?.overdueRenewals ?? 0, color: stats?.overdueRenewals ? "#ef4444" : "var(--text-dim)", icon: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" },
             { label: "Lost Clients", value: stats?.lostClients ?? 0, color: stats?.lostClients ? "#ef4444" : "var(--text-dim)", icon: "M22 10.5h-6m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM4 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 0110.374 21c-2.331 0-4.512-.645-6.374-1.766z" },
           ].map((card) => (
@@ -606,7 +607,7 @@ function GridView({ clients, sortKey, sortDir, onSort, editingCell, editValue, o
                 <span key={col.key} className="text-xs font-semibold px-2 cursor-pointer rounded py-0.5"
                   style={{ color: Number(rawValue) > 0 ? "#22c55e" : "var(--text-quaternary)" }}
                   onClick={() => col.editable && onStartEdit(client.id, col.key, rawValue as string | number)}>
-                  {Number(rawValue) > 0 ? `£${Number(rawValue).toFixed(2)}` : "—"}
+                  {Number(rawValue) > 0 ? gbp(Number(rawValue)) : "—"}
                 </span>
               );
             }
@@ -848,13 +849,13 @@ function CardView({ clients, productRollup, formatDate, isOverdue, onOpenProject
                         {upfront > 0 && (
                           <span className="text-xs font-bold px-2 py-0.5 rounded-full"
                             style={{ background: "#ea580c20", color: "var(--accent)" }}>
-                            £{upfront}
+                            {gbp(upfront)}
                           </span>
                         )}
                         {monthly > 0 && (
                           <span className="text-xs font-bold px-2 py-0.5 rounded-full"
                             style={{ background: isLostView ? "#ef444420" : "#22c55e20", color: isLostView ? "#ef4444" : "#22c55e" }}>
-                            {isLostView ? "-" : ""}£{monthly}/mo
+                            {isLostView ? "-" : ""}{gbp(monthly)}/mo
                           </span>
                         )}
                       </>

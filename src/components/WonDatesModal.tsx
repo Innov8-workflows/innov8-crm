@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { isValidDate } from "@/lib/dateRange";
+import { gbp } from "@/lib/money";
 
 // The one-sitting chore: correct the won dates that were backfilled from
 // date(created_at). That guess is right for most clients and wrong for any created
@@ -158,7 +159,7 @@ export default function WonDatesModal({ onClose, onSaved }: {
                       )}
                     </td>
                     <td className="py-2 text-right tabular-nums" style={{ color: "var(--text-secondary)" }}>
-                      {r.monthly ? `£${r.monthly.toFixed(0)}` : "—"}
+                      {r.monthly ? gbp(Math.round(r.monthly)) : "—"}
                     </td>
                   </tr>
                 ))}

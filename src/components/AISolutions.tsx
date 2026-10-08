@@ -6,6 +6,7 @@ import { SOLUTION_STATUSES, SOLUTION_CATEGORIES } from "@/types";
 import LoadingAI from "./LoadingAI";
 import Icon, { type IconName } from "./Icon";
 import { useToast } from "./Toast";
+import { gbp } from "@/lib/money";
 
 type SubView = "catalogue" | "matrix" | "stats";
 
@@ -157,11 +158,11 @@ function CatalogueView({ solutions, onEdit, onRefresh }: { solutions: Solution[]
             <div className="grid grid-cols-2 gap-2 mb-3">
               <div className="rounded-lg p-2 text-center" style={{ background: "var(--surface2)" }}>
                 <div className="text-xs uppercase tracking-wider" style={{ color: "var(--text-dim)" }}>Upfront</div>
-                <div className="text-lg font-bold" style={{ color: "var(--text)" }}>£{s.upfront_price}</div>
+                <div className="text-lg font-bold" style={{ color: "var(--text)" }}>{gbp(s.upfront_price)}</div>
               </div>
               <div className="rounded-lg p-2 text-center" style={{ background: "var(--surface2)" }}>
                 <div className="text-xs uppercase tracking-wider" style={{ color: "var(--text-dim)" }}>Monthly</div>
-                <div className="text-lg font-bold" style={{ color: "#22c55e" }}>£{s.monthly_price}</div>
+                <div className="text-lg font-bold" style={{ color: "#22c55e" }}>{gbp(s.monthly_price)}</div>
               </div>
             </div>
 
@@ -740,8 +741,8 @@ function StatsView({ solutions: _solutions }: { solutions: Solution[] }) {
         <StatCard label="Proposed" value={stats.proposed} color="#f59e0b" />
         <StatCard label="Sold" value={stats.sold} color="#22c55e" />
         <StatCard label="Delivered" value={stats.delivered} color="#059669" />
-        <StatCard label="Upsell MRR" value={`£${stats.mrr.toLocaleString()}`} color="#22c55e" />
-        <StatCard label="One-Off Revenue" value={`£${stats.one_off_revenue.toLocaleString()}`} color="var(--accent)" />
+        <StatCard label="Upsell MRR" value={gbp(stats.mrr)} color="#22c55e" />
+        <StatCard label="One-Off Revenue" value={gbp(stats.one_off_revenue)} color="var(--accent)" />
       </div>
 
       {/* Per-solution bar chart */}
