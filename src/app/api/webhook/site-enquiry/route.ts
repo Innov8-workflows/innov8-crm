@@ -224,7 +224,9 @@ export async function POST(request: NextRequest) {
       ];
       await db.batch(stmts, "write");
     } else {
-      const order = first(await db.execute("SELECT COALESCE(MIN(sort_order), 0) - 1 AS v FROM leads"));
+      // New prospects go to the bottom of the grid, like every other way a lead
+      // is added (Jay's choice, 2026-10-12).
+      const order = first(await db.execute("SELECT COALESCE(MAX(sort_order), 0) + 1 AS v FROM leads"));
       const res = await db.execute({
         sql: `INSERT INTO leads (business_name, contact_name, email, phone, business_type, website_status, notes, status,
                 follow_up_date, sort_order, created_at, updated_at)
