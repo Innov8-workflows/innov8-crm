@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { formFor, missingFor, parseMoney, gbp, monthlyFromDaily,
          type Field, type Section } from "@/lib/onboardingSchema";
 import { B, display, Eyebrow, Wordmark, Frame, Card } from "./OnboardingBrand";
+import { parentLines } from "@/lib/forms/lines";
 
 // The client-facing onboarding form.
 //
@@ -400,7 +401,8 @@ function FieldView({ field, answers, assets, progress, onChange, onPick, onRemov
   // A question asked once per line of another answer — nearby villages per town,
   // detail per service. This is what was hand-researched for every build.
   if (field.repeatOf) {
-    const lines = String(answers[field.repeatOf] ?? "").split("\n").map((l) => l.trim()).filter(Boolean);
+    // Same split as the export (lib/forms/lines.ts) - the saved index must match.
+    const lines = parentLines(answers[field.repeatOf]);
     if (!lines.length) return null;
     return (
       <>
@@ -466,7 +468,7 @@ function FieldView({ field, answers, assets, progress, onChange, onPick, onRemov
                   </div>
                   {field.upload!.captions && (
                     <input
-                      defaultValue={a.caption} placeholder="What's in this photo?"
+                      defaultValue={a.caption} placeholder={field.upload!.captionPlaceholder || "What's in this photo?"}
                       className="ob-field"
                       onBlur={(e) => onCaption(a.id, e.target.value)}
                       style={{ padding: "7px 9px", fontSize: 13, marginTop: 6 }}

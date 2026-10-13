@@ -13,6 +13,7 @@
 // declared, and two live clients are on record as NOT insured. A client typing
 // "yes" into a form is not evidence.
 import { formFor, missingFor, missingLabel, parseMoney, monthlyFromDaily } from "@/lib/onboardingSchema";
+import { parentLines, splitItems } from "@/lib/forms/lines";
 
 export interface Phone { display: string; tel: string; wa: string }
 
@@ -77,17 +78,37 @@ export function buildExport(
   const primaryAreas = lines(answers, "primary_areas");
   const primaryServices = lines(answers, "primary_services");
 
-  // Nearby villages, asked once per primary area. Hand-researched for every
-  // build before this existed — it's what makes an area page read as local.
+  // Per-area and per-service answers are saved by the index of the parent
+  // line as the FORM counted it (newlines only) - see lib/forms/lines.ts. Index
+  // by that, then expand the line on commas, so "Belper, Alfreton" on one line
+  // gives both towns the same villages instead of shifting every later answer
+  // onto the wrong town.
+  //
+  // areaEvidence / serviceEvidence are what the seo-pages skill qualifies area
+  // pages from: a town only gets its own page with real jobs, photos or reviews
+  // behind it. Kept as the raw line plus its items so nothing is lost.
   const nearby: Record<string, string[]> = {};
-  primaryAreas.forEach((area, i) => {
-    const v = lines(answers, `area_nearby__${i}`);
-    if (v.length) nearby[area] = v;
+  const areaEvidence = parentLines(answers.primary_areas).map((line, i) => {
+    const towns = splitItems(line);
+    const near = lines(answers, `area_nearby__${i}`);
+    if (near.length) for (const t of towns) nearby[t] = near;
+    return {
+      line, towns, nearby: near,
+      jobs: str(answers, `area_jobs__${i}`),
+      notes: str(answers, `area_notes__${i}`),
+    };
   });
   const serviceDetail: Record<string, string> = {};
-  primaryServices.forEach((svc, i) => {
-    const v = str(answers, `service_detail__${i}`);
-    if (v) serviceDetail[svc] = v;
+  const serviceEvidence = parentLines(answers.primary_services).map((line, i) => {
+    const names = splitItems(line);
+    const detail = str(answers, `service_detail__${i}`);
+    if (detail) for (const n of names) serviceDetail[n] = detail;
+    return {
+      line, names, detail,
+      method: str(answers, `service_method__${i}`),
+      job: str(answers, `service_job__${i}`),
+      wrong: str(answers, `service_wrong__${i}`),
+    };
   });
 
   const reviews: Record<string, string> = {};
@@ -157,6 +178,9 @@ export function buildExport(
     schemeNumber: str(answers, "scheme_number"),
     nearby,
     serviceDetail,
+    areaEvidence,
+    serviceEvidence,
+    reviewQuotes: str(answers, "review_quotes"),
     topServices: str(answers, "top_services"),
     customerQuestions: str(answers, "customer_questions"),
     usp: str(answers, "usp"),

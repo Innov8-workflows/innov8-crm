@@ -28,6 +28,8 @@ export interface UploadSpec {
   max: number;
   /** Ask the client for a one-line description of each file. */
   captions?: boolean;
+  /** Placeholder for the per-photo caption box, when the default prompt is not enough. */
+  captionPlaceholder?: string;
   /** Before/after pairs are uploaded two at a time and stay linked. */
   paired?: boolean;
   accept: "image" | "video" | "document";
