@@ -225,9 +225,9 @@ export default function Onboarding({ active, onSeen }: { active: boolean; onSeen
       const profit = parseMoney(a("avg_profit"));
       const spend = monthlyFromDaily(parseMoney(a("meta_daily_budget")) + parseMoney(a("google_daily_budget")));
       if (!profit || !spend) return "Break-even: needs both the profit figure and a budget.";
-      const total = spend + 600;   // + the management fee
+      const total = spend + 695;   // + the Meta Ads management fee (2026 price list)
       return "Break-even: " + Math.ceil(total / profit) + " job(s)/mo to cover " +
-             gbp(spend) + " spend + " + gbp(600) + " fee.";
+             gbp(spend) + " spend + " + gbp(695) + " fee.";
     };
 
     const grade = (prefix: string) => Object.entries(counts)

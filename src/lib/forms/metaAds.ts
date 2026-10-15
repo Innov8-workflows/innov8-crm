@@ -1,6 +1,6 @@
 // The Meta ad creatives questionnaire, as data.
 //
-// Jay sells Meta Ads Management at £600/month with 15 leads guaranteed or the
+// Jay sells Meta Ads Management at £695/month with 15 leads guaranteed or the
 // fee is refunded. Every campaign stalls in the same place: getting usable
 // creative out of the client. It arrives over WhatsApp, one clip at a time, and
 // WhatsApp's compression ruins half of it before it lands.
