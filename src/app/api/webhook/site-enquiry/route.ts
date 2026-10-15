@@ -56,10 +56,16 @@ function attribute(pageUrl: string, referrer: string) {
   const paid = PAID_MEDIUM.test(medium);
   const refHost = ref && (!url || ref.hostname !== url.hostname) ? ref.hostname.replace(/^www\./, "") : "";
 
+  // innov8workflows.co.uk/lp/ is the landing page for Jay's own Meta ads and
+  // nothing else links to it, so everything posted from it is a Meta lead.
+  const metaLp = !!url && (url.hostname === "innov8workflows.co.uk" || url.hostname === "www.innov8workflows.co.uk")
+    && (url.pathname === "/lp" || url.pathname.startsWith("/lp/"));
+
   let channel: string;
-  if (p.get("gclid") || p.get("gbraid") || p.get("wbraid") || (paid && /google/.test(src))) channel = "Google Ads";
+  if (metaLp) channel = "Meta Ads";
+  else if (p.get("gclid") || p.get("gbraid") || p.get("wbraid") || (paid && /google/.test(src))) channel = "Google Ads";
   else if (p.get("msclkid") || (paid && /bing|microsoft/.test(src))) channel = "Bing Ads";
-  else if (paid && /facebook|fb|instagram|meta|ig/.test(src)) channel = "Facebook Ads";
+  else if (paid && /facebook|fb|instagram|meta|ig/.test(src)) channel = "Meta Ads";
   else if (paid && /linkedin/.test(src)) channel = "LinkedIn Ads";
   else if (paid && src) channel = src + " ads";
   else if (/^(gbp|gmb|google[_-]?business|googlemybusiness|business[_-]?profile)$/.test(src)) channel = "Google Business Profile";
@@ -72,7 +78,9 @@ function attribute(pageUrl: string, referrer: string) {
   else channel = "Direct";
 
   const utm = [src, medium, campaign].filter(Boolean).join(" / ");
-  return { channel, utm };
+  // utm_content carries the ad name in Meta's URL parameters.
+  const ad = p.get("utm_content") || "";
+  return { channel, utm, ad };
 }
 
 export async function OPTIONS(request: NextRequest) {
@@ -158,6 +166,7 @@ export async function POST(request: NextRequest) {
   let website = clamp(f.website, 300);
   if (website && !/^https?:\/\//i.test(website)) website = "https://" + website.replace(/^\/+/, "");
   const message = clamp(f.message, 3000);
+  const town = clamp(f.town, 120);
   const form = clamp(f.form, 60) || "Website form";
   const page = clamp(f.page, 500);
   const referrer = clamp(f.referrer, 500);
@@ -166,17 +175,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, error: "name, business and a way to reply are required" }, { status: 422, headers });
   }
 
-  const { channel, utm } = attribute(page, referrer);
+  const { channel, utm, ad } = attribute(page, referrer);
+  const meta = channel === "Meta Ads";
   const summary = [
-    `Website enquiry (${form}) via ${channel}`,
+    meta ? `Came in from Meta Ads (${form})` : `Website enquiry (${form}) via ${channel}`,
     `From: ${[contactName, company, email, phone].filter(Boolean).join(", ")}`,
     service && `Service: ${service}`,
     businessType && `Business type: ${businessType}`,
+    town && `Town: ${town}`,
     websiteAsked && `Current website: ${website || "none"}`,
     message && `Message: ${message}`,
     page && `Page: ${page}`,
     referrer && `Referrer: ${referrer}`,
     utm && `UTM: ${utm}`,
+    ad && `Ad: ${ad}`,
   ].filter(Boolean).join("\n");
 
   await initDb();
@@ -215,9 +227,10 @@ export async function POST(request: NextRequest) {
                   email = CASE WHEN email = '' THEN ? ELSE email END,
                   phone = CASE WHEN phone = '' THEN ? ELSE phone END,
                   business_type = CASE WHEN business_type = '' THEN ? ELSE business_type END,
+                  location = CASE WHEN COALESCE(location, '') = '' THEN ? ELSE location END,
                   follow_up_date = ?, updated_at = ?
                 WHERE id = ?`,
-          args: [contactName, email, phone, businessType, today, now, leadId] },
+          args: [contactName, email, phone, businessType, town, today, now, leadId] },
         { sql: "INSERT INTO lead_notes (lead_id, content, created_at) VALUES (?, ?, ?)", args: [leadId, summary, now] },
         { sql: "INSERT INTO activities (lead_id, type, description, created_at) VALUES (?, 'website_enquiry', ?, ?)",
           args: [leadId, `${form} via ${channel}${service ? ` - ${service}` : ""}`, now] },
@@ -228,10 +241,10 @@ export async function POST(request: NextRequest) {
       // is added (Jay's choice, 2026-10-12).
       const order = first(await db.execute("SELECT COALESCE(MAX(sort_order), 0) + 1 AS v FROM leads"));
       const res = await db.execute({
-        sql: `INSERT INTO leads (business_name, contact_name, email, phone, business_type, website_status, notes, status,
+        sql: `INSERT INTO leads (business_name, contact_name, email, phone, business_type, location, website_status, notes, status,
                 follow_up_date, sort_order, created_at, updated_at)
-              VALUES (?, ?, ?, ?, ?, ?, ?, 'new', ?, ?, ?, ?)`,
-        args: [company, contactName, email, phone, businessType, websiteAsked && !website ? 1 : 0, leadNote, today,
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'new', ?, ?, ?, ?)`,
+        args: [company, contactName, email, phone, businessType, town, websiteAsked && !website ? 1 : 0, leadNote, today,
           Number(order?.v ?? 0), now, now],
       });
       leadId = Number(res.lastInsertRowid);
@@ -262,8 +275,8 @@ export async function POST(request: NextRequest) {
   if (isEmailConfigured()) {
     const rows: [string, string][] = [
       ["Name", contactName], ["Business", company], ["Email", email], ["Phone", phone],
-      ["Service", service], ["Business type", businessType],
-      ["Current website", websiteAsked ? website || "none" : ""], ["Came from", channel], ["UTM", utm], ["Page", page],
+      ["Service", service], ["Business type", businessType], ["Town", town],
+      ["Current website", websiteAsked ? website || "none" : ""], ["Came from", channel], ["UTM", utm], ["Ad", ad], ["Page", page],
     ];
     const known = existing ? `Existing prospect "${String(existing.business_name)}" (stage: ${String(existing.status || "new")})`
       : sameEmail ? `New prospect (this email is already on #${sameEmail.id} "${String(sameEmail.business_name)}")` : "New prospect";
@@ -271,7 +284,7 @@ export async function POST(request: NextRequest) {
       await sendEmailWithRetry({
         to: NOTIFY_TO,
         replyTo: email || undefined,
-        subject: `${existing ? "Repeat" : "New"} website enquiry: ${company}${service ? ` - ${service}` : ""} (${channel})`,
+        subject: `${existing ? "Repeat" : "New"} ${meta ? "Meta Ads lead" : "website enquiry"}: ${company}${service ? ` - ${service}` : ""} (${channel})`,
         text: `${known}\n\n${rows.filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`).join("\n")}\n\n${message}\n\nhttps://crm.innov8workflows.co.uk/`,
         html: `<p><strong>${esc(known)}</strong></p><table cellpadding="4">${rows.filter(([, v]) => v)
           .map(([k, v]) => `<tr><td style="color:#666">${esc(k)}</td><td>${esc(v)}</td></tr>`).join("")}</table>`
