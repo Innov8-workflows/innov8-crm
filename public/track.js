@@ -1,7 +1,5 @@
-/* Innov8 Workflows site tracker — privacy-friendly, no cookies, no PII.
-   Usage: <script defer src="https://crm.innov8workflows.co.uk/track.js" data-id="proj_xxxxxxxx"></script>
-   Tracks: page views, click-to-call, WhatsApp, email, Maps, social, form submits.
-*/
+
+
 (function(){
   var script = document.currentScript || (function(){
     var scripts = document.getElementsByTagName('script');
@@ -16,7 +14,7 @@
 
   function send(eventType, metadata) {
     var key = eventType + (metadata ? ':' + (metadata.href || metadata.target || '') : '');
-    // Throttle duplicate events from same key within 1s
+
     if (sent[key] && Date.now() - sent[key] < 1000) return;
     sent[key] = Date.now();
 
@@ -28,22 +26,22 @@
       metadata: metadata || null,
     });
 
-    // Deliver with fetch, NEVER navigator.sendBeacon.
-    //
-    // sendBeacon cannot complete a request that needs a CORS preflight. A Blob
-    // typed 'application/json' is not a CORS-safelisted content type, so Chrome
-    // issues the OPTIONS, receives a valid 204, and then silently drops the POST
-    // -- with or without a navigation, and while sendBeacon() still returns true.
-    // Measured in real Chrome 151 (headless AND headful) against an endpoint
-    // serving the same CORS headers as /api/track: the preflight arrived every
-    // time, the POST never did. That is why call/WhatsApp/form events read zero
-    // on every client site while page views trickled in from other engines.
-    //
-    // A text/plain body IS safelisted, so there is no preflight at all, and
-    // keepalive lets the request survive the tab being carried off to the
-    // dialler, WhatsApp, or a form POST. /api/track parses the JSON body
-    // regardless of the declared Content-Type (verified against live).
-    // Do not "simplify" this back to sendBeacon.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     try {
       fetch(ENDPOINT, {
         method: 'POST',
@@ -51,14 +49,14 @@
         keepalive: true,
         headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
         body: body
-      })['catch'](function () { /* never break the page */ });
-    } catch (e) { /* swallow */ }
+      })['catch'](function () {   });
+    } catch (e) {   }
   }
 
-  // Page view on load
+
   send('page_view');
 
-  // Track interesting clicks via event delegation
+
   document.addEventListener('click', function(e) {
     var el = e.target;
     while (el && el !== document.body) {
@@ -78,7 +76,7 @@
     }
   }, true);
 
-  // Form submissions
+
   document.addEventListener('submit', function(e) {
     var form = e.target;
     if (!form || form.tagName !== 'FORM') return;
