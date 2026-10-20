@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getClient, initDb } from "@/lib/db";
+import { deleteLeads, blockedMessage } from "@/lib/deleteLeads";
 
 export async function POST(request: NextRequest) {
   await initDb();
@@ -18,7 +19,12 @@ export async function POST(request: NextRequest) {
     if (!allowed.includes(field)) return NextResponse.json({ error: "field not allowed" }, { status: 400 });
     await db.execute({ sql: `UPDATE leads SET ${field} = ?, updated_at = ? WHERE id IN (${placeholders})`, args: [value, now, ...ids] });
   } else if (action === "delete") {
-    await db.execute({ sql: `DELETE FROM leads WHERE id IN (${placeholders})`, args: ids });
+    const { deleted, blocked } = await deleteLeads(db, ids);
+    return NextResponse.json({
+      ok: true, affected: deleted.length, deleted,
+      blocked: blocked.map((b) => b.id),
+      warning: blocked.length ? blockedMessage(blocked) : undefined,
+    });
   } else {
     return NextResponse.json({ error: "Invalid action" }, { status: 400 });
   }

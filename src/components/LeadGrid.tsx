@@ -621,13 +621,31 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
     toast("Lead added");
   }, [newLead, activeTab, toast]);
 
+  // The instant-paint cache would otherwise show a deleted lead again on reload
+  // until the network list arrives.
+  const dropFromLeadsCache = useCallback((ids: number[]) => {
+    try {
+      const key = `crm_leads_cache_${ownerFilter || "all"}`;
+      const raw = sessionStorage.getItem(key);
+      if (raw) sessionStorage.setItem(key, JSON.stringify((JSON.parse(raw) as Lead[]).filter((l) => !ids.includes(l.id))));
+    } catch {}
+  }, [ownerFilter]);
+
   const deleteLead = useCallback(async (id: number) => {
     if (!window.confirm("Are you sure you want to delete this lead? This cannot be undone.")) return;
+    const removed = leadsRef.current.find((l) => l.id === id);
     setLeads((prev) => prev.filter((l) => l.id !== id));
-    skipNextFetch.current = true;
-    await fetch(`/api/leads/${id}`, { method: "DELETE" });
-    toast("Lead deleted", "info");
-  }, [toast]);
+    // Only say it's gone once the server says so; otherwise put the row back.
+    const res = await fetch(`/api/leads/${id}`, { method: "DELETE" }).catch(() => null);
+    const data = res ? await res.json().catch(() => ({})) : {};
+    if (res?.ok) {
+      dropFromLeadsCache([id]);
+      toast("Lead deleted", "info");
+    } else {
+      if (removed) setLeads((prev) => (prev.some((l) => l.id === id) ? prev : [...prev, removed]));
+      toast(data.error || "Couldn't delete the lead, try again", "error");
+    }
+  }, [toast, dropFromLeadsCache]);
 
   // Bulk actions
   const selectedIds = useMemo(() => {
@@ -639,14 +657,23 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
 
   const bulkAction = useCallback(async (action: string, field?: string, value?: string | number) => {
     if (selectedIds.length === 0) return;
-    await fetch("/api/leads/bulk", {
+    const res = await fetch("/api/leads/bulk", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action, ids: selectedIds, field, value }),
-    });
+    }).catch(() => null);
+    const data = res ? await res.json().catch(() => ({})) : {};
     setRowSelection({});
     setShowBulkMenu(false);
+    if (action === "delete") {
+      if (!res?.ok) toast(data.error || "Couldn't delete the leads, try again", "error");
+      else {
+        const n = (data.deleted || []).length;
+        if (n) { dropFromLeadsCache(data.deleted); toast(`${n} lead${n === 1 ? "" : "s"} deleted`, "info"); }
+        if (data.warning) toast(data.warning, "error");
+      }
+    }
     fetchLeads();
-  }, [selectedIds, fetchLeads]);
+  }, [selectedIds, fetchLeads, toast, dropFromLeadsCache]);
 
   const handleImport = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getClient, initDb, first } from "@/lib/db";
+import { deleteLeads, blockedMessage } from "@/lib/deleteLeads";
 
 export async function GET(
   _request: NextRequest,
@@ -60,6 +61,8 @@ export async function DELETE(
   await initDb();
   const { id } = await params;
   const db = getClient();
-  await db.execute({ sql: "DELETE FROM leads WHERE id = ?", args: [Number(id)] });
+  const { deleted, blocked } = await deleteLeads(db, [id]);
+  if (blocked.length) return NextResponse.json({ error: blockedMessage(blocked) }, { status: 409 });
+  if (!deleted.length) return NextResponse.json({ error: "Invalid lead id" }, { status: 400 });
   return NextResponse.json({ ok: true });
 }
