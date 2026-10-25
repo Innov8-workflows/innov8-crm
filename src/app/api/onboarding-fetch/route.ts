@@ -16,6 +16,37 @@ import { sendEmail, isEmailConfigured } from "@/lib/email";
 const MAX_BUILD_ATTEMPTS = 3;
 const ALERT_TO = "jamie@innov8workflows.co.uk";
 import { buildExport, buildMetaExport, type ExportAsset } from "@/lib/onboardingExport";
+import { formFor, missingFor, missingLabel } from "@/lib/onboardingSchema";
+
+const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
+
+/** Mail Jay about a build. A mail failure must never cost the status update that preceded it. */
+async function alertJay(subject: string, lines: string[], link?: string) {
+  if (!isEmailConfigured()) return;
+  try {
+    await sendEmail({
+      to: ALERT_TO,
+      subject,
+      text: lines.join("\n\n") + (link ? `\n\n${link}` : ""),
+      html: lines.map((l) => `<p>${esc(l)}</p>`).join("")
+          + (link ? `<p><a href="${esc(link)}">${esc(link)}</a></p>` : ""),
+    });
+  } catch (e) {
+    console.error("build alert failed —", (e as Error).message);
+  }
+}
+
+async function nameOf(id: number): Promise<string> {
+  const row = first(await getClient().execute({
+    sql: `SELECT COALESCE(l.business_name, s.label, '') AS business_name
+            FROM onboarding_submissions s
+            LEFT JOIN projects p ON p.id = s.project_id
+            LEFT JOIN leads l    ON l.id = p.lead_id
+           WHERE s.id = ? LIMIT 1`,
+    args: [id],
+  }));
+  return String(row?.business_name || `submission ${id}`);
+}
 
 // The agent API. This is what a Claude Code session (or a cron job, or curl)
 // talks to in order to pull a submission and its media down and start building.
@@ -80,6 +111,46 @@ export async function GET(request: NextRequest) {
              ORDER BY s.queued_at ASC LIMIT 10`,
     }));
     return NextResponse.json({ queued: rows }, { headers: NO_STORE });
+  }
+
+  // ---- auto-queue candidates ------------------------------------------------
+  // Website submissions the client has sent that nobody has queued, held or
+  // built yet. The runner matches each to its demo folder on Jay's disk (the
+  // CRM cannot see the disk) and then queues it or holds it for Jay. Any
+  // build_result at all takes a row out of here: held, prepared and failed rows
+  // wait for Jay, and a manual queue from the CRM clears it.
+  //
+  // `since` keeps the auto-queue away from the older submissions, which were
+  // built by hand and would otherwise come back as "never queued".
+  if (!id && request.nextUrl.searchParams.get("candidates") === "1") {
+    if (auth.scopedTo) return NextResponse.json({ error: "not found" }, { status: 404, headers: NO_STORE });
+    const since = String(request.nextUrl.searchParams.get("since") || "9999");
+    const rows = all(await db.execute({
+      sql: `SELECT s.id, s.status, s.submitted_at, s.project_id,
+                   COALESCE(l.business_name, s.label, '') AS business_name
+              FROM onboarding_submissions s
+              LEFT JOIN projects p ON p.id = s.project_id
+              LEFT JOIN leads l    ON l.id = p.lead_id
+             WHERE s.kind = 'website' AND s.archived = 0
+               AND s.status IN ('submitted', 'accepted')
+               AND s.queued_at = '' AND s.build_started_at = '' AND s.build_result = ''
+               AND s.submitted_at >= ?
+             ORDER BY s.submitted_at ASC LIMIT 10`,
+      args: [since],
+    }));
+    const form = formFor("website");
+    const candidates = [];
+    for (const r of rows) {
+      const ans = first(await db.execute({
+        sql: "SELECT answers_json FROM onboarding_answers WHERE submission_id = ?", args: [Number(r.id)],
+      }));
+      const roles = all(await db.execute({
+        sql: "SELECT role FROM onboarding_assets WHERE submission_id = ? AND status = 'stored'", args: [Number(r.id)],
+      })).map((a) => String(a.role));
+      const missing = missingFor(form, JSON.parse((ans?.answers_json as string) || "{}"), roles).map(missingLabel);
+      candidates.push({ ...r, files: roles.length, missing });
+    }
+    return NextResponse.json({ candidates }, { headers: NO_STORE });
   }
 
   // ---- list ---------------------------------------------------------------
@@ -171,18 +242,61 @@ export async function POST(request: NextRequest) {
   const auth = authorise(request);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status, headers: NO_STORE });
 
-  let body: { id?: number; action?: string; url?: string; result?: string };
+  let body: { id?: number; action?: string; url?: string; result?: string; folder?: string; note?: string; notify?: boolean };
   try { body = await request.json(); } catch { return NextResponse.json({ error: "bad body" }, { status: 400 }); }
   const id = Number(body.id);
   const action = String(body.action || "");
-  if (!id || !["claim", "built", "failed", "prepared"].includes(action)) {
-    return NextResponse.json({ error: "expected { id, action: 'claim' | 'built' | 'failed' | 'prepared' }" },
+  if (!id || !["claim", "built", "failed", "prepared", "queue", "hold"].includes(action)) {
+    return NextResponse.json(
+      { error: "expected { id, action: 'claim' | 'built' | 'failed' | 'prepared' | 'queue' | 'hold' }" },
       { status: 400, headers: NO_STORE });
   }
 
   await initDb();
   const db = getClient();
   const now = sqlNow();
+
+  // ---- the runner's auto-queue ----------------------------------------------
+  // Same effect as Jay pressing Queue in the CRM, but only for a row that is
+  // still a candidate (website, untouched), so it can never re-queue something
+  // Jay held, unqueued or already had built.
+  if (action === "queue" || action === "hold") {
+    if (auth.scopedTo) return NextResponse.json({ error: "not found" }, { status: 404, headers: NO_STORE });
+    const untouched = `kind = 'website' AND archived = 0 AND status IN ('submitted', 'accepted')
+                       AND queued_at = '' AND build_started_at = '' AND build_result = ''`;
+
+    if (action === "queue") {
+      const folder = String(body.folder || "").trim().slice(0, 400);
+      if (!folder) return NextResponse.json({ error: "folder required" }, { status: 400, headers: NO_STORE });
+      const res = await db.execute({
+        sql: `UPDATE onboarding_submissions
+                 SET queued_at = ?, build_folder = ?, build_note = ?, build_attempts = 0, updated_at = ?
+               WHERE id = ? AND ${untouched}`,
+        args: [now, folder, String(body.note || "Auto-queued by the build runner.").slice(0, 1000), now, id],
+      });
+      const ok = Number(res.rowsAffected) > 0;
+      return NextResponse.json({ ok }, { status: ok ? 200 : 409, headers: NO_STORE });
+    }
+
+    // Held: the runner could not safely build it on its own (no folder, two
+    // folders, required answers missing, already built out). The reason sits in
+    // build_result, which takes it out of the candidates until Jay queues it by
+    // hand, and Jay is told once, here, rather than on every poll.
+    const reason = String(body.result || "needs a look").slice(0, 440);
+    const res = await db.execute({
+      sql: `UPDATE onboarding_submissions SET build_result = ?, updated_at = ? WHERE id = ? AND ${untouched}`,
+      args: [`Waiting on Jay: ${reason}`, now, id],
+    });
+    if (Number(res.rowsAffected) > 0) {
+      const name = await nameOf(id);
+      await alertJay(`Build-out on hold: ${name}`, [
+        `${name} sent their onboarding form (submission ${id}), but the build runner did not start the build-out.`,
+        `Why: ${reason}`,
+        `Sort that out, then press Queue on the submission in the CRM and it will build.`,
+      ]);
+    }
+    return NextResponse.json({ ok: true }, { headers: NO_STORE });
+  }
 
   // Claiming is conditional on build_started_at still being empty, so if two
   // runners race, exactly one of them wins and the other is told to move on.
@@ -264,11 +378,27 @@ Last error: ${result}
     return NextResponse.json({ ok: true }, { headers: NO_STORE });
   }
 
+  // A preview URL is only ever a github.io page; the runner never deploys to a
+  // client's domain, and a link to anything else in Jay's inbox is not ours.
+  const preview = /^https:\/\/[a-z0-9-]+\.github\.io\/[^\s"<>]*$/i.test(String(body.url || "")) ? String(body.url) : "";
+  const result = String(body.result || "built");
   await db.execute({
     sql: `UPDATE onboarding_submissions
              SET status = 'built', queued_at = '', build_result = ?, updated_at = ?
            WHERE id = ?`,
-    args: [String(body.result || "built").slice(0, 500), now, id],
+    args: [(preview ? `Preview: ${preview} — ${result}` : result).slice(0, 500), now, id],
   });
+  // The runner asks for the mail; an interactive session marking its own build
+  // does not, because Jay is sat in front of it.
+  if (preview || body.notify) {
+    const name = await nameOf(id);
+    await alertJay(`Build-out ready to review: ${name}`, [
+      preview
+        ? `The full site for ${name} (submission ${id}) is built and up on its preview link.`
+        : `The full site for ${name} (submission ${id}) is built, but it is NOT on a preview link yet.`,
+      result,
+      `Nothing has gone to the client's own domain. Check it over, then run /site-golive when you are happy.`,
+    ], preview || undefined);
+  }
   return NextResponse.json({ ok: true }, { headers: NO_STORE });
 }
