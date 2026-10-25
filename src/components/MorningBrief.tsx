@@ -22,11 +22,12 @@ interface BriefData {
 }
 
 const SECTION_LABEL: Record<string, string> = {
-  attention: "Needs attention", calendar: "Calendar", status: "Status", news: "News",
+  attention: "Needs attention", ads: "Ad ideas", calendar: "Calendar", status: "Status", news: "News",
 };
 const SOURCE_LABEL: Record<string, string> = { email: "Email", calendar: "Calendar", web: "Web", crm: "CRM" };
 const ACTION_LABEL: Record<string, string> = {
   reply_draft: "Draft a reply", site_edit: "Site change", checklist: "Checklist", tracker: "Tracker",
+  ad_creative: "Make the creative",
 };
 
 const domainOf = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; } };
@@ -74,7 +75,7 @@ export default function MorningBrief() {
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/London" }); // YYYY-MM-DD
   const visible = data.items.filter((i) => showDismissed || !i.dismissed_at);
   const dismissedCount = data.items.filter((i) => i.dismissed_at).length;
-  const sections = ["attention", "calendar", "status", "news"].filter((s) => visible.some((i) => i.section === s));
+  const sections = ["attention", "ads", "calendar", "status", "news"].filter((s) => visible.some((i) => i.section === s));
 
   return (
     <div className="rounded-xl p-4 lg:col-span-2" style={{ background: "var(--surface2)", border: "1px solid var(--border)" }}>

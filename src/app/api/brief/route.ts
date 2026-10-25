@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
               LEFT JOIN leads l ON l.id = p.lead_id
               LEFT JOIN project_tasks t ON t.id = b.task_id
              WHERE b.brief_date = ?
-             ORDER BY CASE b.section WHEN 'attention' THEN 0 WHEN 'calendar' THEN 1 WHEN 'status' THEN 2 ELSE 3 END,
+             ORDER BY CASE b.section WHEN 'attention' THEN 0 WHEN 'ads' THEN 1 WHEN 'calendar' THEN 2 WHEN 'status' THEN 3 ELSE 4 END,
                       b.sort_order, b.id`,
       args: [date],
     }).then(all),

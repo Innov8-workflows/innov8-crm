@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getClient, initDb, all, first } from "@/lib/db";
 import { authoriseAgent } from "@/lib/agentAuth";
 import { allClients, findClient } from "@/lib/clientMatch";
+import { adClientWeather, metOfficeWarnings } from "@/lib/adWeather";
 
 // The morning brief, for Claude's 8am task through the innov8-onboarding MCP
 // server (submit_brief). A SIBLING of the session-only /api/brief, never a
@@ -17,30 +18,38 @@ import { allClients, findClient } from "@/lib/clientMatch";
 const NO_STORE = { "Cache-Control": "private, no-store" };
 const MAX_ITEMS = 40;
 const LIMITS = { title: 140, summary: 600, suggested_action: 300, source_ref: 200, url: 500, client: 120, headline: 200 };
-const SECTIONS = ["attention", "calendar", "news", "status"];
+// "ads" = ad ideas for Jay's ad clients (weather, seasons, news): what to prepare and when.
+const SECTIONS = ["attention", "ads", "calendar", "news", "status"];
 const SOURCES = ["email", "calendar", "web", "crm"];
-const ACTIONS = ["", "reply_draft", "site_edit", "checklist", "tracker"];
+const ACTIONS = ["", "reply_draft", "site_edit", "checklist", "tracker", "ad_creative"];
 
 const bad = (error: string, status = 400, extra: object = {}) =>
   NextResponse.json({ error, ...extra }, { status, headers: NO_STORE });
 
 const sqlNow = () => new Date().toISOString().replace("T", " ").slice(0, 19);
 
-/** GET — what the brief task needs to link items properly: the client list and the last brief date. */
+/** GET — what the brief task needs: the client list, the last brief date, and for the
+ *  "ads" section every ad client's towns with a 7-day outlook plus the Met Office warnings.
+ *  The weather is best-effort — a failure is reported in weather_error, never thrown. */
 export async function GET(request: NextRequest) {
   const auth = authoriseAgent(request);
   if (!auth.ok) return bad(auth.error, auth.status);
   await initDb();
   const db = getClient();
-  const [clients, last] = await Promise.all([
+  const [clients, last, weather, warnings] = await Promise.all([
     allClients(db),
     db.execute("SELECT brief_date, received_at, item_count FROM brief_runs ORDER BY brief_date DESC LIMIT 1").then(first),
+    adClientWeather(db).catch((e) => ({ clients: [], error: `ad clients unavailable: ${e instanceof Error ? e.message : "error"}` })),
+    metOfficeWarnings().then((w) => ({ w, error: "" })).catch((e) => ({ w: [], error: `Met Office warnings unavailable: ${e instanceof Error ? e.message : "error"}` })),
   ]);
   return NextResponse.json({
     last_brief: last ? { date: String(last.brief_date), received_at: String(last.received_at), items: Number(last.item_count) } : null,
     clients: clients.map(({ id, name, domain }) => ({ id, name, domain })),
     limits: { max_items: MAX_ITEMS, ...LIMITS },
     sections: SECTIONS, source_kinds: SOURCES, action_kinds: ACTIONS.filter(Boolean),
+    ad_clients: weather.clients,
+    met_office_warnings: warnings.w,
+    weather_error: [weather.error, warnings.error].filter(Boolean).join("; "),
   }, { headers: NO_STORE });
 }
 
