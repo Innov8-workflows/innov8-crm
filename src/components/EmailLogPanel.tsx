@@ -19,6 +19,8 @@ const ACTIVITY_TYPES: { value: string; label: string; icon: IconName }[] = [
 // manual "add activity" picker above.
 const AUTO_TYPES: { value: string; label: string; icon: IconName }[] = [
   { value: "website_enquiry", label: "Website enquiry", icon: "globe" },
+  // Written by /api/audit-ingest when a /website-audit report is filed.
+  { value: "audit", label: "Website audit", icon: "chart-bar" },
 ];
 
 export default function EmailLogPanel({ lead, onClose }: EmailLogPanelProps) {

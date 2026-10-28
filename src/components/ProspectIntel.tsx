@@ -268,7 +268,9 @@ export default function ProspectIntel({
           </div>
           <div className="flex gap-[3px]">
             {Array.from({ length: 11 }, (_, n) => {
-              const active = seoscore !== "" && Number(seoscore) === n;
+              // Rounded: a filed audit stores one decimal place ("6.7"), and
+              // that should light the 7 rather than no button at all.
+              const active = seoscore !== "" && Math.round(Number(seoscore)) === n;
               return (
                 <button key={n} type="button"
                   title={`${n} out of 10`}

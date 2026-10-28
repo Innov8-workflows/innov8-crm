@@ -30,7 +30,12 @@ const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/auth/mfa/verify", "/api
   "/api/info-agent",
   // Website security pass certificates from the site-security skill. Same key
   // check, fails closed. A SIBLING of the session-only /api/security-certificates.
-  "/api/security-agent"];
+  "/api/security-agent",
+  // Finished /website-audit reports, filed against a client's project or a
+  // prospect's SEO report slot. Same key check, fails closed. Nothing else under
+  // /api/ begins with "audit", so this shadows no admin route — and any future
+  // one named that way would be opened by it, so do not.
+  "/api/audit-ingest"];
 
 // In-memory cache for verified JWTs. Cold-start safe (cache resets on new lambda).
 // 60s TTL — short enough that revocation via logout still takes effect quickly.
