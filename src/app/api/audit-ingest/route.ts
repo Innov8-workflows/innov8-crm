@@ -72,15 +72,24 @@ async function resolveDomain(domain: string): Promise<Match> {
   }
 
   // Then prospects. Only the one custom field, so this stays a small scan even
-  // when the leads table does not.
+  // when the leads table does not. A won prospect keeps its "Current website"
+  // after it becomes a project, and projects.domain is often still blank while
+  // the card is in the project phase, so a lead that already has a project
+  // files to that project: a client's audit belongs on its score trend, not in
+  // the cold-call slot of the prospect it used to be.
   const leads = all(await db.execute({
-    sql: `SELECT c.lead_id, c.value, COALESCE(l.business_name, '') AS business_name
+    sql: `SELECT c.lead_id, c.value, COALESCE(l.business_name, '') AS business_name, p.id AS project_id
           FROM custom_field_values c JOIN leads l ON l.id = c.lead_id
+          LEFT JOIN projects p ON p.lead_id = c.lead_id
           WHERE c.field_id = 'custom_intel_website' AND COALESCE(c.value, '') <> ''`,
   }));
   for (const row of leads) {
     if (normaliseDomain(String(row.value || "")) === want) {
-      return { kind: "lead", leadId: Number(row.lead_id), businessName: String(row.business_name || "") };
+      const businessName = String(row.business_name || "");
+      if (row.project_id != null) {
+        return { kind: "project", projectId: Number(row.project_id), leadId: Number(row.lead_id), businessName };
+      }
+      return { kind: "lead", leadId: Number(row.lead_id), businessName };
     }
   }
 
