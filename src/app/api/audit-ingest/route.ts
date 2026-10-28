@@ -107,7 +107,15 @@ export async function GET(request: NextRequest) {
       { status: 404, headers: NO_STORE },
     );
   }
-  return NextResponse.json({ ...match, matched: match.kind, normalised: normaliseDomain(domain) }, { headers: NO_STORE });
+  // Same snake_case keys as the POST reply: push-to-crm.js prints business_name
+  // and project_id / lead_id from this, so the match can be checked by eye.
+  return NextResponse.json({
+    matched: match.kind,
+    business_name: match.businessName,
+    lead_id: match.leadId,
+    ...(match.kind === "project" ? { project_id: match.projectId } : {}),
+    normalised: normaliseDomain(domain),
+  }, { headers: NO_STORE });
 }
 
 /**
