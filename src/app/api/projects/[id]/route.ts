@@ -30,7 +30,7 @@ export async function PUT(
   const db = getClient();
   const body = await request.json();
 
-  const allowed = ["stage", "sort_order", "domain", "hosting_info", "monthly_fee", "renewal_date", "login_details", "project_notes", "completed_at", "won_at", "lost_at", "client_status", "invoice_status", "ga4_embedded", "ga4_conversions", "search_console_verified", "bing_console", "gbp_setup", "mobile_optimised", "link_card", "google_sheet", "ghl_setup", "google_rating", "google_review_count", "facebook_rating", "facebook_review_count"];
+  const allowed = ["stage", "sort_order", "domain", "hosting_info", "monthly_fee", "renewal_date", "login_details", "project_notes", "completed_at", "won_at", "lost_at", "client_status", "invoice_status", "ga4_embedded", "ga4_conversions", "search_console_verified", "bing_console", "gbp_setup", "mobile_optimised", "link_card", "google_sheet", "ghl_setup", "showcase_ok", "showcase_at", "google_rating", "google_review_count", "facebook_rating", "facebook_review_count"];
   const updates: string[] = [];
   const values: unknown[] = [];
 
@@ -49,6 +49,14 @@ export async function PUT(
         return NextResponse.json({ error: `${field} cannot be in the future` }, { status: 400 });
       }
     }
+  }
+
+  // Marketing consent is yes (1), no (0) or never asked (null): nothing else.
+  if ("showcase_ok" in body && ![0, 1, null].includes(body.showcase_ok)) {
+    return NextResponse.json({ error: "showcase_ok must be 1, 0 or null" }, { status: 400 });
+  }
+  if ("showcase_at" in body && !/^(\d{4}-\d{2}-\d{2})?$/.test(String(body.showcase_at ?? ""))) {
+    return NextResponse.json({ error: "showcase_at must be YYYY-MM-DD" }, { status: 400 });
   }
 
   for (const field of allowed) {

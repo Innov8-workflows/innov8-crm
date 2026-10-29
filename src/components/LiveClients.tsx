@@ -6,6 +6,7 @@ import { SOLUTION_CATEGORIES } from "@/types";
 import ProjectDetailModal from "./ProjectDetailModal";
 import SetupPills from "./SetupPills";
 import SecurityBadge from "./SecurityBadge";
+import ShowcaseBadge from "./ShowcaseBadge";
 import OutstandingLine from "./OutstandingLine";
 import ReviewsBadge, { type ReviewValues } from "./ReviewsBadge";
 import HealthBadge from "./HealthBadge";
@@ -57,6 +58,8 @@ export default function LiveClients({ ownerFilter = "", onCountsChanged, onOpenD
   const [viewMode, setViewMode] = useState<ViewMode>("card");
   const [clientFilter, setClientFilter] = useState<ClientFilter>("active");
   const [search, setSearch] = useState("");
+  // Marketing consent filter: everyone, or only clients who said yes / no / were never asked.
+  const [showcaseFilter, setShowcaseFilter] = useState<"all" | "yes" | "no" | "ask">("all");
   const [sortKey, setSortKey] = useState<SortKey>("business_name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [editingCell, setEditingCell] = useState<{ id: number; field: string } | null>(null);
@@ -142,6 +145,16 @@ export default function LiveClients({ ownerFilter = "", onCountsChanged, onOpenD
     fetchStats();
   }, [fetchStats]);
 
+  // Marketing consent: the answer plus the day it was given, in one PUT.
+  const setShowcase = useCallback(async (id: number, value: 0 | 1 | null) => {
+    const fields = { showcase_ok: value, showcase_at: value === null ? "" : new Date().toLocaleDateString("en-CA", { timeZone: "Europe/London" }) };
+    setClients((prev) => prev.map((c) => (c.id === id ? { ...c, ...fields } : c)));
+    await fetch(`/api/projects/${id}`, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(fields),
+    });
+  }, []);
+
   // Save the manually-tracked Google/Facebook review stats — optimistic, one PUT.
   const saveReviews = useCallback(async (id: number, fields: ReviewValues) => {
     setClients((prev) => prev.map((c) => (c.id === id ? { ...c, ...fields } : c)));
@@ -202,6 +215,10 @@ export default function LiveClients({ ownerFilter = "", onCountsChanged, onOpenD
 
   const filtered = useMemo(() => {
     let list = clients;
+    if (showcaseFilter !== "all" && clientFilter !== "lost") {
+      const want = showcaseFilter === "yes" ? 1 : showcaseFilter === "no" ? 0 : null;
+      list = list.filter((c) => (c.showcase_ok ?? null) === want);
+    }
     if (search) {
       const q = search.toLowerCase();
       list = list.filter((c) =>
@@ -219,7 +236,13 @@ export default function LiveClients({ ownerFilter = "", onCountsChanged, onOpenD
       return sortDir === "asc" ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
     });
     return list;
-  }, [clients, search, sortKey, sortDir]);
+  }, [clients, search, sortKey, sortDir, showcaseFilter, clientFilter]);
+
+  const showcaseCounts = useMemo(() => ({
+    yes: clients.filter((c) => c.showcase_ok === 1).length,
+    no: clients.filter((c) => c.showcase_ok === 0).length,
+    ask: clients.filter((c) => c.showcase_ok == null).length,
+  }), [clients]);
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -321,6 +344,29 @@ export default function LiveClients({ ownerFilter = "", onCountsChanged, onOpenD
           </button>
         </div>
 
+        {/* Showcase filter: who said I can use their site in my own marketing */}
+        {!isLostView && (
+          <div className="flex rounded-md overflow-hidden" style={{ border: "1px solid var(--border)" }}
+            title="Which clients said you can use their website in your own marketing">
+            {([
+              ["all", "Showcase: all", "var(--accent)", null],
+              ["yes", "OK", "#22c55e", showcaseCounts.yes],
+              ["no", "No", "#ef4444", showcaseCounts.no],
+              ["ask", "Not asked", "#64748b", showcaseCounts.ask],
+            ] as const).map(([key, label, colour, n]) => {
+              const on = showcaseFilter === key;
+              return (
+                <button key={key} onClick={() => setShowcaseFilter(key)}
+                  className="px-2.5 py-1.5 text-xs font-medium flex items-center gap-1.5 transition-colors"
+                  style={{ background: on ? colour : "var(--surface2)", color: on ? "#fff" : "var(--text-muted)" }}>
+                  {key !== "all" && <span className="inline-block rounded-full" style={{ width: 7, height: 7, background: on ? "#fff" : colour }} />}
+                  {label}{n !== null ? ` (${n})` : ""}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {/* Grid / Card toggle */}
         <div className="flex rounded-md overflow-hidden" style={{ border: "1px solid var(--border)" }}>
           {(["grid", "card"] as const).map((mode) => (
@@ -399,6 +445,7 @@ export default function LiveClients({ ownerFilter = "", onCountsChanged, onOpenD
             onShowAnalytics={setAnalyticsClient}
             onShowSeo={setSeoClient}
             onToggleSetup={updateClient}
+            onSetShowcase={setShowcase}
             onSaveReviews={saveReviews}
             leadRollup={leadRollup}
             onOpenDashboard={onOpenDashboard}
@@ -700,12 +747,13 @@ interface CardProps {
   onOpenDashboard?: (projectId: number) => void;
   onShowSeo: (p: Project) => void;
   onToggleSetup: (id: number, field: string, value: number) => void;
+  onSetShowcase: (id: number, value: 0 | 1 | null) => void;
   onSaveReviews: (id: number, fields: ReviewValues) => void;
   adCoverage?: AdCoverageMap;
   nextSteps?: NextStepMap;
 }
 
-function CardView({ clients, productRollup, formatDate, isOverdue, onOpenProject, isLostView, onMarkLost, onReactivate, onDelete, onCycleStatus, onToggleInvoiceStatus, onShowAnalytics, onShowSeo, onToggleSetup, onSaveReviews, leadRollup, onOpenDashboard, adCoverage = {}, nextSteps = {} }: CardProps) {
+function CardView({ clients, productRollup, formatDate, isOverdue, onOpenProject, isLostView, onMarkLost, onReactivate, onDelete, onCycleStatus, onToggleInvoiceStatus, onShowAnalytics, onShowSeo, onToggleSetup, onSetShowcase, onSaveReviews, leadRollup, onOpenDashboard, adCoverage = {}, nextSteps = {} }: CardProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4">
       {clients.map((client) => {
@@ -823,6 +871,12 @@ function CardView({ clients, productRollup, formatDate, isOverdue, onOpenProject
             {client.security_status?.r && (
               <div className="absolute bottom-2 left-2 z-10">
                 <SecurityBadge status={client.security_status} overlay />
+              </div>
+            )}
+            {!isLostView && (
+              <div className="absolute bottom-2 right-2 z-20">
+                <ShowcaseBadge value={client.showcase_ok} at={client.showcase_at} name={client.business_name}
+                  onSet={(v) => onSetShowcase(client.id, v)} />
               </div>
             )}
             </div>

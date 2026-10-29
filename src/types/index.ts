@@ -60,6 +60,9 @@ export interface Project {
   secure_file?: number;
   google_sheet?: number;
   ghl_setup?: number;
+  // May Jay use this site in his own marketing? 1 yes, 0 no, null never asked.
+  showcase_ok?: number | null;
+  showcase_at?: string;           // YYYY-MM-DD the answer was recorded
   // Manually-maintained review stats, shown as chips on the cards
   google_rating?: number;
   google_review_count?: number;

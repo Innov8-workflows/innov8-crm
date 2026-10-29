@@ -61,7 +61,7 @@ async function doInitDb() {
   // ~100-300ms, so this is the single biggest "slow first load" win. Bump
   // SCHEMA_VERSION whenever a migration/index/seed below changes → the heavy block
   // re-runs exactly once on the next deploy, then cold starts go fast again.
-  const SCHEMA_VERSION = "2026-10-15-pricing-meta";
+  const SCHEMA_VERSION = "2026-10-29-showcase";
   await db.execute("CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT DEFAULT '')");
   const schemaMarker = first(await db.execute("SELECT value FROM app_meta WHERE key = 'schema_version'"));
   if (schemaMarker?.value === SCHEMA_VERSION) return;
@@ -250,6 +250,8 @@ async function doInitDb() {
       secure_file INTEGER DEFAULT 0,
       google_sheet INTEGER DEFAULT 0,
       ghl_setup INTEGER DEFAULT 0,
+      showcase_ok INTEGER,
+      showcase_at TEXT DEFAULT '',
       google_rating REAL DEFAULT 0,
       google_review_count INTEGER DEFAULT 0,
       facebook_rating REAL DEFAULT 0,
@@ -766,6 +768,10 @@ async function doInitDb() {
     "ALTER TABLE projects ADD COLUMN secure_file INTEGER DEFAULT 0",
     "ALTER TABLE projects ADD COLUMN google_sheet INTEGER DEFAULT 0",
     "ALTER TABLE projects ADD COLUMN ghl_setup INTEGER DEFAULT 0",
+    // Marketing consent: may Jay use this client's site in his own ads and content?
+    // NULL = never asked, 1 = yes, 0 = no. showcase_at = the day it was recorded.
+    "ALTER TABLE projects ADD COLUMN showcase_ok INTEGER",
+    "ALTER TABLE projects ADD COLUMN showcase_at TEXT DEFAULT ''",
     // Site-health monitoring. Current state is denormalised onto the project so
     // the Live Clients cards get it free from the existing `SELECT p.*`.
     "ALTER TABLE projects ADD COLUMN health_status TEXT DEFAULT ''",
@@ -978,6 +984,10 @@ async function doInitDb() {
   const projectCols = all(await db.execute("PRAGMA table_info(projects)"));
   if (!projectCols.some((c) => c.name === "ghl_setup")) {
     console.error("[db] projects.ghl_setup missing after migration — not stamping schema_version");
+    return;
+  }
+  if (!projectCols.some((c) => c.name === "showcase_at")) {
+    console.error("[db] projects.showcase_at missing after migration — not stamping schema_version");
     return;
   }
   const certCols = all(await db.execute("PRAGMA table_info(security_certificates)"));
