@@ -61,7 +61,7 @@ async function doInitDb() {
   // ~100-300ms, so this is the single biggest "slow first load" win. Bump
   // SCHEMA_VERSION whenever a migration/index/seed below changes → the heavy block
   // re-runs exactly once on the next deploy, then cold starts go fast again.
-  const SCHEMA_VERSION = "2026-11-02-sales-targets";
+  const SCHEMA_VERSION = "2026-11-02-onboarding-complete";
   await db.execute("CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT DEFAULT '')");
   const schemaMarker = first(await db.execute("SELECT value FROM app_meta WHERE key = 'schema_version'"));
   if (schemaMarker?.value === SCHEMA_VERSION) return;
@@ -495,6 +495,10 @@ async function doInitDb() {
       -- and a real submission archived after the site ships still has to keep
       -- its history. Orthogonal flag, not a status value.
       archived INTEGER NOT NULL DEFAULT 0,
+      -- Jay has finished with this one, stamped when he presses Mark complete. Also
+      -- separate from status, which the runner owns, and from archived, which sits
+      -- one step from permanent deletion. It only moves the row out of the rail.
+      completed_at TEXT NOT NULL DEFAULT '',
       -- Build queue. Jay clicks "Queue for build" in the CRM; the runner on his
       -- machine polls for these, claims one, and prepares the folder.
       -- build_folder is the client's EXISTING demo folder: the build-out runs
@@ -863,6 +867,8 @@ async function doInitDb() {
     "ALTER TABLE onboarding_submissions ADD COLUMN kind TEXT NOT NULL DEFAULT 'website'",
     // Stops a build that cannot succeed being re-served every few minutes.
     "ALTER TABLE onboarding_submissions ADD COLUMN build_attempts INTEGER NOT NULL DEFAULT 0",
+    // Runs before relaxOnboardingProjectId, whose rebuild carries the column across.
+    "ALTER TABLE onboarding_submissions ADD COLUMN completed_at TEXT NOT NULL DEFAULT ''",
     // The outstanding-client tracker. See the comment on project_tasks.
     "ALTER TABLE project_tasks ADD COLUMN detail TEXT NOT NULL DEFAULT ''",
     "ALTER TABLE project_tasks ADD COLUMN waiting_on TEXT NOT NULL DEFAULT ''",
@@ -1027,6 +1033,10 @@ async function doInitDb() {
   const briefCols = all(await db.execute("PRAGMA table_info(brief_items)"));
   if (!briefCols.some((c) => c.name === "action_kind")) {
     console.error("[db] brief_items missing after migration — not stamping schema_version");
+    return;
+  }
+  if (!obCols.some((c) => c.name === "completed_at")) {
+    console.error("[db] onboarding_submissions.completed_at missing after migration — not stamping schema_version");
     return;
   }
   if (!obCols.some((c) => c.name === "build_attempts")) {
@@ -1343,6 +1353,7 @@ async function relaxOnboardingProjectId(db: Client) {
       build_started_at TEXT NOT NULL DEFAULT '',
       build_result TEXT NOT NULL DEFAULT '',
       build_attempts INTEGER NOT NULL DEFAULT 0,
+      completed_at TEXT NOT NULL DEFAULT '',
       status TEXT NOT NULL DEFAULT 'open',
       r2_prefix TEXT NOT NULL DEFAULT '',
       expires_at TEXT NOT NULL DEFAULT '',
@@ -1356,7 +1367,7 @@ async function relaxOnboardingProjectId(db: Client) {
     );
     INSERT INTO onboarding_submissions_new
       SELECT id, project_id, token, fetch_key, schema_version, kind, label, archived, seen_at, notified_at,
-             queued_at, build_folder, build_note, build_started_at, build_result, build_attempts, status, r2_prefix,
+             queued_at, build_folder, build_note, build_started_at, build_result, build_attempts, completed_at, status, r2_prefix,
              expires_at, submitted_at, fetched_at, bytes_declared, asset_count,
              created_at, updated_at FROM onboarding_submissions;
     DROP TABLE onboarding_submissions;

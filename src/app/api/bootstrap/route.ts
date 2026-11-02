@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
     // is a badge he learns to ignore.
     db.execute(
       "SELECT COUNT(*) as count FROM onboarding_submissions " +
-      "WHERE seen_at = '' AND archived = 0 AND status NOT IN ('open','revoked')",
+      "WHERE seen_at = '' AND archived = 0 AND completed_at = '' AND status NOT IN ('open','revoked')",
     ),
   ]);
 

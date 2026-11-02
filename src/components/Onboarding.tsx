@@ -22,7 +22,7 @@ interface Row {
   asset_count: number; stored: number; failed: number; created_at: string; archived: number;
   seen_at: string; notified_at: string;
   queued_at: string; build_folder: string; build_started_at: string; build_result: string;
-  build_attempts: number;
+  build_attempts: number; completed_at: string;
 }
 interface Asset {
   id: number; role: string; pair_id: string; original_name: string; caption: string;
@@ -72,6 +72,7 @@ export default function Onboarding({ active, onSeen }: { active: boolean; onSeen
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState("");
   const [showArchived, setShowArchived] = useState(false);
+  const [showComplete, setShowComplete] = useState(false);
   // Which questionnaire's submissions the rail is showing. Plain state: this
   // view is mounted with persist=false in page.tsx, so it unmounts on every
   // navigation — reading a stored value into useState would hydrate-mismatch,
@@ -92,7 +93,7 @@ export default function Onboarding({ active, onSeen }: { active: boolean; onSeen
     // nav badge must count both or it halves the moment you switch tabs — and
     // the API has no kind filter for exactly this reason. Opening a submission
     // marks it seen server-side, so the count falls as Jay reads.
-    onSeen?.(list.filter((r) => !r.seen_at && !r.archived
+    onSeen?.(list.filter((r) => !r.seen_at && !r.archived && !r.completed_at
       && r.status !== "open" && r.status !== "revoked").length);
     return list;
   }, [showArchived]);
@@ -276,7 +277,9 @@ export default function Onboarding({ active, onSeen }: { active: boolean; onSeen
     ].join("\n");
   };
 
-  const visible = rows.filter((r) => r.kind === KIND_OF[tab]);
+  const ofTab = rows.filter((r) => r.kind === KIND_OF[tab]);
+  const completeCount = ofTab.filter((r) => r.completed_at).length;
+  const visible = showComplete ? ofTab : ofTab.filter((r) => !r.completed_at);
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
@@ -325,6 +328,14 @@ export default function Onboarding({ active, onSeen }: { active: boolean; onSeen
           {showArchived ? "\u2713 Showing archived" : "Show archived"}
         </button>
 
+        <button
+          onClick={() => setShowComplete(!showComplete)}
+          className="px-3 py-2 text-left text-xs"
+          style={{ borderBottom: "1px solid var(--border)", color: "var(--text-dim)", background: "transparent" }}
+        >
+          {showComplete ? "\u2713 Showing complete" : "Show complete"} ({completeCount})
+        </button>
+
         {visible.length === 0 && (
           <div className="px-3 py-6 text-xs" style={{ color: "var(--text-dim)", lineHeight: 1.6 }}>
             No submissions yet. Mint a link above, or send someone the shared link.
@@ -369,6 +380,9 @@ export default function Onboarding({ active, onSeen }: { active: boolean; onSeen
               </div>
               <div className="flex items-center gap-2 mt-1">
                 <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: c.bg, color: c.fg }}>{c.text}</span>
+                {r.completed_at && (
+                  <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: "rgba(18,136,90,0.15)", color: "#12885a" }}>Complete</span>
+                )}
                 <span className="text-xs" style={{ color: "var(--text-dim)" }}>
                   {r.stored} file{r.stored === 1 ? "" : "s"}{r.failed > 0 ? ` · ${r.failed} failed` : ""}
                 </span>
@@ -393,6 +407,7 @@ export default function Onboarding({ active, onSeen }: { active: boolean; onSeen
                   Started {String(detail.submission.created_at).slice(0, 10)}
                   {detail.submission.submitted_at ? ` · sent ${String(detail.submission.submitted_at).slice(0, 10)}` : ""}
                   {` · link expires ${String(detail.submission.expires_at).slice(0, 10)}`}
+                  {detail.submission.completed_at ? ` · completed ${String(detail.submission.completed_at).slice(0, 10)}` : ""}
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
@@ -428,6 +443,19 @@ export default function Onboarding({ active, onSeen }: { active: boolean; onSeen
                     Mark accepted
                   </button>
                 )}
+                <button disabled={busy}
+                  onClick={async () => {
+                    const completing = !detail.submission.completed_at;
+                    await act(detail.submission.id, completing ? "complete" : "reopen");
+                    // A complete row leaves the rail, the same as an archived one.
+                    if (completing && !showComplete) { setSelected(null); setDetail(null); }
+                  }}
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold"
+                  style={{ background: detail.submission.completed_at ? "var(--surface2)" : "#12885a",
+                           border: `1px solid ${detail.submission.completed_at ? "var(--border-light)" : "#12885a"}`,
+                           color: detail.submission.completed_at ? "var(--text-secondary)" : "#fff" }}>
+                  {detail.submission.completed_at ? "Reopen" : "Mark complete"}
+                </button>
                 <button disabled={busy} onClick={() => act(detail.submission.id, "extend")}
                   className="px-3 py-1.5 rounded-lg text-xs"
                   style={{ background: "var(--surface2)", border: "1px solid var(--border-light)", color: "var(--text-muted)" }}>

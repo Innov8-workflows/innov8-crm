@@ -8,6 +8,9 @@ import { FORMS } from "@/lib/onboardingSchema";
 
 const NO_STORE = { "Cache-Control": "private, no-store" };
 const LINK_DAYS = 45;
+// Any build_result takes a row out of the runner's auto-queue candidates, so a
+// finished submission that never went through the runner can't get built later.
+const COMPLETED_NOTE = "Marked complete in the CRM";
 
 /**
  * The list is deliberately narrow: it never touches onboarding_answers. That
@@ -30,6 +33,7 @@ export async function GET(request: NextRequest) {
                  COALESCE(l.business_name, s.label, '') AS business_name,
                  s.label, s.archived, s.seen_at, s.notified_at,
                  s.queued_at, s.build_folder, s.build_started_at, s.build_result, s.build_attempts,
+                 s.completed_at,
                  (SELECT COUNT(*) FROM onboarding_assets a
                    WHERE a.submission_id = s.id AND a.status = 'stored') AS stored,
                  (SELECT COUNT(*) FROM onboarding_assets a
@@ -161,6 +165,28 @@ export async function PUT(request: NextRequest) {
     await db.execute({
       sql: "UPDATE onboarding_submissions SET archived = ?, updated_at = ? WHERE id = ?",
       args: [body.action === "archive" ? 1 : 0, now, id],
+    });
+    return NextResponse.json({ ok: true }, { headers: NO_STORE });
+  }
+
+  // Also clears the claim: mark_built leaves build_started_at set, which is what
+  // keeps a finished site showing "building". Status is left alone on purpose.
+  if (body.action === "complete") {
+    await db.execute({
+      sql: `UPDATE onboarding_submissions
+               SET completed_at = ?, queued_at = '', build_started_at = '',
+                   build_result = CASE WHEN build_result = '' THEN ? ELSE build_result END, updated_at = ?
+             WHERE id = ?`,
+      args: [now, COMPLETED_NOTE, now, id],
+    });
+    return NextResponse.json({ ok: true }, { headers: NO_STORE });
+  }
+  if (body.action === "reopen") {
+    await db.execute({
+      sql: `UPDATE onboarding_submissions
+               SET completed_at = '', build_result = CASE WHEN build_result = ? THEN '' ELSE build_result END, updated_at = ?
+             WHERE id = ?`,
+      args: [COMPLETED_NOTE, now, id],
     });
     return NextResponse.json({ ok: true }, { headers: NO_STORE });
   }
