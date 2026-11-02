@@ -180,8 +180,14 @@ function History({ data }: { data: SalesTargetResponse }) {
       </div>
       <div className="relative" style={{ height: 96 }}>
         {line > 0 && (
-          <div className="absolute left-0 right-0" title={`Current target: ${gbp(line)}`}
-            style={{ bottom: `calc(${(line / max) * 80}px + 16px)`, borderTop: "1px dashed var(--text-quaternary)" }} />
+          <>
+            <div className="absolute left-0 right-0" title={`Current target: ${gbp(line)}`}
+              style={{ bottom: `calc(${(line / max) * 80}px + 16px)`, borderTop: "1px dashed var(--text-quaternary)" }} />
+            {/* Left end: the oldest months are the shortest bars, so it stays clear. */}
+            <span className="absolute left-0 text-[10px]" style={{ bottom: `calc(${(line / max) * 80}px + 18px)`, color: "var(--text-dim)" }}>
+              Target {gbp(line)}
+            </span>
+          </>
         )}
         <div className="absolute inset-0 flex items-end" style={{ gap: 2 }}>
           {history.map((h) => (
