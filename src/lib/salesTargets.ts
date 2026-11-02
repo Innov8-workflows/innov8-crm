@@ -33,7 +33,7 @@ export interface MonthResult {
   new_mrr: number;
   setup_fees: number;
   new_clients: number;
-  hit: boolean | null;              // null = no target, or the month isn't finished
+  hit: boolean | null;              // null = no target, not finished, or before the first sale
 }
 
 export interface Win {
@@ -140,7 +140,8 @@ export async function buildSalesTargets(db: Client, now = new Date()): Promise<S
     .filter((l) => l.sold_on && l.sold_on < to);
 
   const wonMonths = all(clientRows).map((r) => String(r.won_at).slice(0, 7));
-  const from = [addMonths(month, -(HISTORY_MONTHS - 1)), ...lines.map((l) => l.sold_on.slice(0, 7)), ...wonMonths].sort()[0];
+  const trading = [...lines.map((l) => l.sold_on.slice(0, 7)), ...wonMonths].sort()[0] ?? month;
+  const from = [addMonths(month, -(HISTORY_MONTHS - 1)), trading].sort()[0];
 
   const history: MonthResult[] = [];
   const wins: Record<string, Win[]> = {};
@@ -156,7 +157,7 @@ export async function buildSalesTargets(db: Client, now = new Date()): Promise<S
       setup_fees: inMonth.reduce((s, l) => s + l.upfront, 0),
       new_clients: wonMonths.filter((w) => w === m).length,
       // The main target decides the verdict. A month still running has no verdict yet.
-      hit: target && m < month ? new_mrr >= target.new_mrr : null,
+      hit: target && m < month && m >= trading ? new_mrr >= target.new_mrr : null,
     });
     wins[m] = winsIn(m, inMonth);
   }

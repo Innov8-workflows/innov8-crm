@@ -60,7 +60,7 @@ export default function SalesTarget({ active = true }: { active?: boolean }) {
         <select value={view.month} onChange={(e) => setPicked(e.target.value)} aria-label="Month to show"
           className="text-xs font-semibold px-2 py-1 rounded-md"
           style={{ background: "var(--surface2)", color: "var(--text)", border: "1px solid var(--border)", outline: "none" }}>
-          {[...data.history].reverse().map((h) => (
+          {data.history.filter((h) => h.hit !== null || h.month === data.month).reverse().map((h) => (
             <option key={h.month} value={h.month}>{monthYear(h.month)}{monthTag(h)}</option>
           ))}
         </select>
@@ -230,6 +230,7 @@ function History({ data, view, onPick }: { data: SalesTargetResponse; view: Mont
         <div className="absolute inset-0 flex items-end" style={{ gap: 2 }}>
           {history.map((h) => (
             <button key={h.month} type="button" onClick={() => onPick(h.month)} aria-pressed={h.month === view.month}
+              disabled={h.hit === null && h.month !== data.month}
               className="flex-1 min-w-0 flex flex-col items-center justify-end h-full"
               title={`${monthName(h.month, { month: "long", year: "numeric" })}: ${gbp(h.new_mrr)} new recurring, ${gbp(h.setup_fees)} setup, ${h.new_clients} new client${h.new_clients === 1 ? "" : "s"}${h.target ? `. Target ${gbp(h.target.new_mrr)}${h.assumed ? " (set later)" : ""}` : ""}${h.hit === true ? ", hit" : h.hit === false ? ", missed" : ""}`}>
               <div className="w-full" style={{ maxWidth: 28, height: h.new_mrr ? Math.max(3, (h.new_mrr / max) * 80) : 0, background: barColour(h), borderRadius: "4px 4px 0 0" }} />
