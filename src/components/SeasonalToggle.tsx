@@ -6,7 +6,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Icon from "./Icon";
 import { PREVIEWS, PREVIEW_EVENT, SEASONAL_EVENT, seasonalOn, setSeasonal } from "@/lib/celebrate";
-import { reducedMotion } from "@/lib/effectEngine";
 
 const subscribe = (notify: () => void) => {
   window.addEventListener(SEASONAL_EVENT, notify);
@@ -60,9 +59,6 @@ export default function SeasonalToggle() {
             <button key={name} className={row} style={{ color: "var(--text-secondary)" }} onClick={() => preview(name)} {...hover}>{label}</button>
           ))}
           <button className={row} style={{ color: "var(--text-dim)", borderTop: "1px solid var(--border)" }} onClick={() => preview("stop")} {...hover}>Stop preview</button>
-          {reducedMotion() && (
-            <p className="px-3 py-1.5 text-xs" style={{ color: "var(--text-dim)" }}>Animations are turned off on this device, so effects won&apos;t play.</p>
-          )}
         </div>
       )}
     </div>

@@ -3,6 +3,9 @@
 // when the last particle has gone, so an idle CRM spends nothing here. Browsers pause
 // requestAnimationFrame in a hidden tab and the clock only counts frames, so a hidden
 // tab doesn't use up an effect.
+//
+// DELIBERATELY IGNORES prefers-reduced-motion. Jay's Windows has animations off, so
+// honouring it meant he'd never see any of this. The Effects menu is the off switch.
 import { SHAPES, type ShapeName } from "./effectShapes";
 
 export type EffectKind = "snow" | "stars" | "gifts" | "hearts" | "spring" | "ghosts" | "fireworks" | "confetti";
@@ -54,12 +57,10 @@ function driftFor(kind: EffectKind): Drift | null {
   }
 }
 
-export const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
 /** Runs one effect. durationMs null = until stopped. Returns a function that stops it now. */
 export function startEffect(canvas: HTMLCanvasElement, kind: EffectKind, durationMs: number | null, onEnd: () => void): () => void {
   const ctx = canvas.getContext("2d");
-  if (!ctx || reducedMotion()) { onEnd(); return () => {}; }
+  if (!ctx) { onEnd(); return () => {}; }
 
   const drift = driftFor(kind);
   const paths = new Map<ShapeName, Path2D>();
