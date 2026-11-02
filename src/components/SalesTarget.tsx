@@ -9,6 +9,7 @@
 import { useEffect, useState } from "react";
 import Icon from "./Icon";
 import { gbp } from "@/lib/money";
+import { CELEBRATE_EVENT, momentFor } from "@/lib/celebrate";
 import type { MonthResult, SalesTargetResponse } from "@/lib/salesTargets";
 
 const GOOD = "#22c55e";
@@ -124,9 +125,10 @@ function Progress({ data, view }: { data: SalesTargetResponse; view: MonthResult
           <span className="text-3xl font-extrabold" style={{ color: "var(--text)" }}>{gbp(view.new_mrr)}</span>
           <span className="text-sm" style={{ color: "var(--text-dim)" }}>of {gbp(target.new_mrr)} new monthly recurring</span>
           {hit && (
-            <span className="inline-flex items-center gap-1 text-xs font-bold" style={{ color: GOOD }}>
+            <button type="button" title="Celebrate again" className="inline-flex items-center gap-1 text-xs font-bold" style={{ color: GOOD }}
+              onClick={() => window.dispatchEvent(new CustomEvent(CELEBRATE_EVENT, { detail: momentFor(data, view) }))}>
               <Icon name="check-circle" className="w-4 h-4" /> Target hit
-            </span>
+            </button>
           )}
           {!hit && finished && <span className="text-xs font-bold" style={{ color: MISS }}>Target missed</span>}
         </div>

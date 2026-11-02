@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import SeasonalToggle from "./SeasonalToggle";
 import { fetchBootstrap } from "@/lib/bootstrap";
 import Icon, { type IconName } from "./Icon";
 import SecurityModal from "./SecurityModal";
@@ -290,6 +291,8 @@ export default function ViewNav({ active, onChange, projectCount = 0, clientCoun
         <Icon name="shield-check" className="w-4 h-4" />
       </button>
       {showSecurity && <SecurityModal onClose={() => setShowSecurity(false)} />}
+
+      <SeasonalToggle />
 
       {/* Theme toggle */}
       <button

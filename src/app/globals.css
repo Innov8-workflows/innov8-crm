@@ -212,3 +212,10 @@ html.cf-on .cf-img { filter: blur(16px) !important; }
    "API KEY REQUIRED" image). Filter is on the tile layer only, so pins and
    coverage circles keep their real colours. */
 .crm-dark-tiles { filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%) saturate(60%); }
+
+/* Celebrations.tsx: fairy lights and the target banner */
+.crm-bulb { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 6px 1px currentColor; animation: crm-twinkle 2.1s ease-in-out infinite; }
+@keyframes crm-twinkle { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+.crm-banner { transform: translateX(-50%); animation: crm-banner-in 0.35s ease-out; }
+@keyframes crm-banner-in { from { opacity: 0; transform: translate(-50%, -12px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@media (prefers-reduced-motion: reduce) { .crm-bulb, .crm-banner { animation: none; } }

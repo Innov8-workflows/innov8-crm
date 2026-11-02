@@ -1,7 +1,7 @@
 import type { Client } from "@libsql/client";
 import { all } from "@/lib/db";
 import { EFFECTIVE_START } from "@/lib/revenuePeriods";
-import { monthEnd } from "@/lib/dateRange";
+import { monthEnd, ukToday } from "@/lib/dateRange";
 
 // The monthly sales target: how much new business was sold in a calendar month,
 // against what Jay set for it.
@@ -55,10 +55,7 @@ export interface SalesTargetResponse {
   streak: number;                   // finished months in a row that hit a target already set
 }
 
-/** Today in the UK, as 'YYYY-MM-DD'. toISOString would be an hour out in BST. */
-export function ukToday(now = new Date()): string {
-  return now.toLocaleDateString("en-CA", { timeZone: "Europe/London" });
-}
+export { ukToday };
 
 function addMonths(month: string, n: number): string {
   const [y, m] = month.split("-").map(Number);

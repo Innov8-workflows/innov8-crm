@@ -10,6 +10,11 @@
 // convention documented at src/lib/clientReporting.ts:15-26, which exists because
 // this database stores timestamps in two different shapes.
 
+/** Today in the UK, as 'YYYY-MM-DD'. toISOString would be an hour out in BST. */
+export function ukToday(now = new Date()): string {
+  return now.toLocaleDateString("en-CA", { timeZone: "Europe/London" });
+}
+
 /** Half-open [start, end), both DATE-ONLY 'YYYY-MM-DD'. */
 export interface DayRange { start: string; end: string }
 

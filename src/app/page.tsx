@@ -7,6 +7,7 @@ import ViewNav from "@/components/ViewNav";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { ToastProvider } from "@/components/Toast";
 import LoadingAI from "@/components/LoadingAI";
+import Celebrations from "@/components/Celebrations";
 
 // Lazy load heavy view components — only loaded when tab is first visited
 const LeadGrid = lazy(() => import("@/components/LeadGrid"));
@@ -155,6 +156,7 @@ export default function Home() {
   return (
     <ToastProvider>
       <div className="flex flex-col h-screen" style={{ background: "var(--bg)" }}>
+        <Celebrations />
         <ViewNav active={view} onChange={setView} projectCount={projectCount} clientCount={clientCount} todoCount={todoCount} onboardingCount={onboardingCount}
           ownerFilter={ownerFilter} onOwnerChange={handleOwnerChange} />
         <Suspense fallback={<LoadingAI message="Loading" />}>
