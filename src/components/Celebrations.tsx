@@ -4,15 +4,15 @@
 // src/app/page.tsx only, so the login and client-facing onboarding pages never get it.
 // The canvas takes no clicks, and src/lib/effectEngine.ts only runs while an effect does.
 //
-// ?effects=snow|bonfire|christmas|xmasday|newyear|valentines|easter|halloween|target|record
-// plays one on demand and writes nothing, so any of them can be seen on any day.
+// The Preview list in SeasonalToggle.tsx, or ?effects= with a name from PREVIEWS, plays
+// one on demand and writes nothing, so any of them can be seen on any day.
 import { useEffect, useRef, useState } from "react";
 import Icon from "./Icon";
 import { gbp } from "@/lib/money";
 import { ukToday } from "@/lib/dateRange";
 import { seasonFor, type Season } from "@/lib/seasons";
 import { startEffect, type EffectKind } from "@/lib/effectEngine";
-import { CELEBRATE_EVENT, SEASONAL_EVENT, celebratedKey, momentFor, seasonalOn, type Moment } from "@/lib/celebrate";
+import { CELEBRATE_EVENT, PREVIEW_EVENT, SEASONAL_EVENT, celebratedKey, momentFor, seasonalOn, type Moment } from "@/lib/celebrate";
 import type { SalesTargetResponse } from "@/lib/salesTargets";
 
 const SEASON_EFFECT: Record<Season, EffectKind> = {
@@ -22,6 +22,7 @@ const SEASON_EFFECT: Record<Season, EffectKind> = {
 const hasLights = (s: Season | null) => s === "christmas" || s === "xmasday";
 
 const SEASON_MS = 45_000;
+const PREVIEW_MS = 15_000;
 const SEASON_EVERY_MS = 20 * 60_000;
 const SNOW_EVERY_MS = 30 * 60_000;
 const TARGET_EVERY_MS = 5 * 60_000;
@@ -39,7 +40,8 @@ export default function Celebrations() {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const preview = new URLSearchParams(window.location.search).get("effects");
+    const fromUrl = new URLSearchParams(window.location.search).get("effects");
+    let previewing = !!fromUrl;
     let stop: (() => void) | null = null;
     let playing: EffectKind | null = null;
     let celebrating = false;
@@ -56,7 +58,7 @@ export default function Celebrations() {
     };
 
     const seasonal = () => {
-      if (preview || celebrating) return;
+      if (previewing || celebrating) return;
       const on = seasonalOn();
       const season = seasonFor(ukToday());
       setLights(on && hasLights(season));
@@ -67,7 +69,7 @@ export default function Celebrations() {
     };
 
     const checkSnow = () => {
-      if (preview || !seasonalOn()) return;
+      if (previewing || !seasonalOn()) return;
       fetch("/api/weather-snow", { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : null))
         .then((d: { snowing?: boolean } | null) => { snowing = !!d?.snowing; seasonal(); })
@@ -79,7 +81,7 @@ export default function Celebrations() {
       setMoment(m);
       window.clearTimeout(bannerTimer);
       bannerTimer = window.setTimeout(() => setMoment(null), BANNER_MS);
-      play(m.record ? "fireworks" : "confetti", m.record ? 6000 : 3000, () => { celebrating = false; seasonal(); });
+      play(m.record ? "fireworks" : "confetti", m.record ? 6000 : 3000, () => { celebrating = false; previewing = false; seasonal(); });
     };
 
     const alreadyDone = (month: string) => {
@@ -88,7 +90,7 @@ export default function Celebrations() {
     };
 
     const checkTarget = () => {
-      if (preview || document.visibilityState !== "visible" || Date.now() - lastCheck < 60_000) return;
+      if (previewing || document.visibilityState !== "visible" || Date.now() - lastCheck < 60_000) return;
       lastCheck = Date.now();
       fetch("/api/sales-targets", { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : null))
@@ -102,31 +104,45 @@ export default function Celebrations() {
         .catch(() => {});
     };
 
+    const runPreview = (name: string) => {
+      const after = () => { previewing = false; seasonal(); };
+      halt();
+      window.clearTimeout(bannerTimer);
+      setMoment(null);
+      setLights(false);
+      celebrating = false;
+      previewing = true;
+      if (name === "target" || name === "record") {
+        const record = name === "record";
+        celebrate({ month: ukToday().slice(0, 7), amount: 2140, record, run: record ? 3 : 1 });
+      } else if (name === "snow") {
+        play("snow", PREVIEW_MS, after);
+      } else if (name in SEASON_EFFECT) {
+        setLights(hasLights(name as Season));
+        play(SEASON_EFFECT[name as Season], PREVIEW_MS, after);
+      } else {
+        after();            // "stop", or an unknown name in the URL
+      }
+    };
+
+    const onPreview = (e: Event) => runPreview((e as CustomEvent<string>).detail);
     const onReplay = (e: Event) => celebrate((e as CustomEvent<Moment>).detail);
     const onToggle = () => {
-      if (!seasonalOn() && !celebrating) { halt(); setLights(false); }
+      if (!seasonalOn() && !celebrating) { halt(); setLights(false); previewing = false; }
       seasonal();
       checkSnow();
     };
     window.addEventListener(CELEBRATE_EVENT, onReplay);
+    window.addEventListener(PREVIEW_EVENT, onPreview);
     window.addEventListener(SEASONAL_EVENT, onToggle);
     document.addEventListener("visibilitychange", checkTarget);
 
     // Three seconds in, so nothing here competes with the first load.
     const boot = window.setTimeout(() => {
-      if (preview === "target" || preview === "record") {
-        const record = preview === "record";
-        celebrate({ month: ukToday().slice(0, 7), amount: 2140, record, run: record ? 3 : 1 });
-      } else if (preview === "snow") {
-        play("snow", SEASON_MS);
-      } else if (preview && preview in SEASON_EFFECT) {
-        setLights(hasLights(preview as Season));
-        play(SEASON_EFFECT[preview as Season], SEASON_MS);
-      } else {
-        seasonal();
-        checkSnow();
-        checkTarget();
-      }
+      if (fromUrl) { runPreview(fromUrl); return; }
+      seasonal();
+      checkSnow();
+      checkTarget();
     }, 3000);
 
     const timers = [
@@ -140,6 +156,7 @@ export default function Celebrations() {
       window.clearTimeout(bannerTimer);
       timers.forEach((t) => window.clearInterval(t));
       window.removeEventListener(CELEBRATE_EVENT, onReplay);
+      window.removeEventListener(PREVIEW_EVENT, onPreview);
       window.removeEventListener(SEASONAL_EVENT, onToggle);
       document.removeEventListener("visibilitychange", checkTarget);
       halt();

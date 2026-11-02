@@ -12,7 +12,14 @@ export interface Moment {
 
 export const CELEBRATE_EVENT = "crm:celebrate";
 export const SEASONAL_EVENT = "crm:seasonal";
+export const PREVIEW_EVENT = "crm:preview";
 const SEASONAL_KEY = "crm_seasonal";
+
+export const PREVIEWS: [string, string][] = [
+  ["target", "Target hit"], ["record", "Record month"], ["snow", "Snow"], ["bonfire", "Bonfire Night"],
+  ["christmas", "Christmas"], ["xmasday", "Christmas Day"], ["newyear", "New Year"],
+  ["valentines", "Valentine's"], ["easter", "Easter"], ["halloween", "Halloween"],
+];
 
 export const celebratedKey = (month: string) => `crm_celebrated_${month}`;
 
