@@ -21,13 +21,15 @@ import { monthEnd } from "@/lib/dateRange";
 // Company-wide on purpose. leads.owner has one owner per lead, so one shared target
 // measured against a single owner's sales would just read as a miss.
 
+// History always covers at least this many months, and reaches back to the first sale.
 export const HISTORY_MONTHS = 12;
 
 export interface TargetValues { new_mrr: number; setup_fees: number; new_clients: number }
 
 export interface MonthResult {
   month: string;                    // 'YYYY-MM'
-  target: TargetValues | null;      // null = before the first target was ever set
+  target: TargetValues | null;      // null = no target has ever been set
+  assumed: boolean;                 // before the first target, so scored against that one
   new_mrr: number;
   setup_fees: number;
   new_clients: number;
@@ -48,9 +50,9 @@ export interface SalesTargetResponse {
   day: number;
   days_in_month: number;
   current: MonthResult;
-  wins: Win[];
+  wins: Record<string, Win[]>;      // keyed by month, every month in history
   history: MonthResult[];           // oldest first, ending with the current month
-  streak: number;                   // finished months in a row that hit the target
+  streak: number;                   // finished months in a row that hit a target already set
 }
 
 /** Today in the UK, as 'YYYY-MM-DD'. toISOString would be an hour out in BST. */
@@ -63,20 +65,40 @@ function addMonths(month: string, n: number): string {
   return new Date(Date.UTC(y, m - 1 + n, 1)).toISOString().slice(0, 7);
 }
 
-/** A target stays in force until a later one replaces it, so it's set once. */
+/** A target stays in force until a later one replaces it, so it's set once. Months
+ *  before the first target are scored against that first one (MonthResult.assumed). */
 function targetFor(month: string, rows: (TargetValues & { month: string })[]): TargetValues | null {
-  let found: TargetValues | null = null;
-  for (const r of rows) {           // ordered oldest first
-    if (r.month > month) break;
-    found = { new_mrr: r.new_mrr, setup_fees: r.setup_fees, new_clients: r.new_clients };
+  const row = rows.filter((r) => r.month <= month).pop() ?? rows[0];   // ordered oldest first
+  return row ? { new_mrr: row.new_mrr, setup_fees: row.setup_fees, new_clients: row.new_clients } : null;
+}
+
+interface SoldLine {
+  project_id: number;
+  business_name: string;
+  monthly: number;
+  upfront: number;
+  won_at: string;
+  sold_on: string;
+}
+
+function winsIn(month: string, lines: SoldLine[]): Win[] {
+  const byClient = new Map<number, Win>();
+  for (const l of lines) {
+    if (!l.monthly && !l.upfront) continue;
+    const w = byClient.get(l.project_id) ?? {
+      project_id: l.project_id, business_name: l.business_name, monthly: 0, setup: 0,
+      new_client: l.won_at.slice(0, 7) === month,
+    };
+    w.monthly += l.monthly;
+    w.setup += l.upfront;
+    byClient.set(l.project_id, w);
   }
-  return found;
+  return [...byClient.values()].sort((a, b) => b.monthly - a.monthly || b.setup - a.setup);
 }
 
 export async function buildSalesTargets(db: Client, now = new Date()): Promise<SalesTargetResponse> {
   const today = ukToday(now);
   const month = today.slice(0, 7);
-  const from = addMonths(month, -(HISTORY_MONTHS - 1));
   const to = monthEnd(month);
 
   const [targetRows, lineRows, clientRows] = await Promise.all([
@@ -94,8 +116,8 @@ export async function buildSalesTargets(db: Client, now = new Date()): Promise<S
       args: [],
     }),
     db.execute({
-      sql: "SELECT won_at FROM projects WHERE won_at >= ? AND won_at < ?",
-      args: [`${from}-01`, to],
+      sql: "SELECT won_at FROM projects WHERE COALESCE(won_at,'') != '' AND won_at < ?",
+      args: [to],
     }),
   ]);
 
@@ -115,41 +137,32 @@ export async function buildSalesTargets(db: Client, now = new Date()): Promise<S
       won_at: String(r.won_at || ""),
       sold_on: String(r.sold_on || ""),
     }))
-    .filter((l) => l.sold_on >= `${from}-01` && l.sold_on < to);
+    .filter((l) => l.sold_on && l.sold_on < to);
 
   const wonMonths = all(clientRows).map((r) => String(r.won_at).slice(0, 7));
+  const from = [addMonths(month, -(HISTORY_MONTHS - 1)), ...lines.map((l) => l.sold_on.slice(0, 7)), ...wonMonths].sort()[0];
 
   const history: MonthResult[] = [];
-  for (let i = 0; i < HISTORY_MONTHS; i++) {
-    const m = addMonths(from, i);
+  const wins: Record<string, Win[]> = {};
+  for (let m = from; m <= month; m = addMonths(m, 1)) {
     const inMonth = lines.filter((l) => l.sold_on.slice(0, 7) === m);
     const new_mrr = inMonth.reduce((s, l) => s + l.monthly, 0);
     const target = targetFor(m, targets);
     history.push({
       month: m,
       target,
+      assumed: targets.length > 0 && m < targets[0].month,
       new_mrr,
       setup_fees: inMonth.reduce((s, l) => s + l.upfront, 0),
       new_clients: wonMonths.filter((w) => w === m).length,
       // The main target decides the verdict. A month still running has no verdict yet.
       hit: target && m < month ? new_mrr >= target.new_mrr : null,
     });
+    wins[m] = winsIn(m, inMonth);
   }
 
   let streak = 0;
-  for (let i = history.length - 2; i >= 0 && history[i].hit === true; i--) streak++;
-
-  const byClient = new Map<number, Win>();
-  for (const l of lines) {
-    if (l.sold_on.slice(0, 7) !== month || (!l.monthly && !l.upfront)) continue;
-    const w = byClient.get(l.project_id) ?? {
-      project_id: l.project_id, business_name: l.business_name, monthly: 0, setup: 0,
-      new_client: l.won_at.slice(0, 7) === month,
-    };
-    w.monthly += l.monthly;
-    w.setup += l.upfront;
-    byClient.set(l.project_id, w);
-  }
+  for (let i = history.length - 2; i >= 0 && history[i].hit === true && !history[i].assumed; i--) streak++;
 
   const [y, m] = month.split("-").map(Number);
   return {
@@ -158,7 +171,7 @@ export async function buildSalesTargets(db: Client, now = new Date()): Promise<S
     day: Number(today.slice(8, 10)),
     days_in_month: new Date(Date.UTC(y, m, 0)).getUTCDate(),
     current: history[history.length - 1],
-    wins: [...byClient.values()].sort((a, b) => b.monthly - a.monthly || b.setup - a.setup),
+    wins,
     history,
     streak,
   };

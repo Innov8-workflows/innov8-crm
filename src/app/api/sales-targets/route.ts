@@ -10,8 +10,9 @@ export async function GET() {
   return NextResponse.json(await buildSalesTargets(getClient()), NO_STORE);
 }
 
-// Sets the target from the current month onward. Earlier months have their own rows
-// (or none), so they stay judged against the target they had at the time.
+// Sets the target from the current month onward. Earlier months with their own rows
+// stay judged against the target they had. Months before the first row have none, so
+// they are scored against the first row and marked as assumed.
 export async function PUT(request: NextRequest) {
   await initDb();
   const body = await request.json().catch(() => null);
