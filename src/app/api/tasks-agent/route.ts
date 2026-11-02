@@ -7,6 +7,7 @@ import {
   listRecentlyResolved, isTemplateTitle, TaskError,
 } from "@/lib/tasks";
 import { SETUP_ITEMS, isSetupField } from "@/lib/setupFields";
+import { bareHostname } from "@/lib/uptimeRobot";
 
 // The outstanding-task tracker, for Claude (Code or Cowork) through the
 // innov8-onboarding MCP server. A SIBLING of /api/project-tasks, never a child:
@@ -89,6 +90,7 @@ interface Body {
   action?: string; project_id?: number; task_id?: number; task_ids?: number[];
   title?: string; detail?: string; waiting_on?: string; blocked_by?: number;
   resolution?: string; title_contains?: string; reason?: string; field?: string; value?: number;
+  domain?: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -194,7 +196,29 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true, client: name, setup: { field, label, done: value === 1 } }, { headers: NO_STORE });
     }
 
-    return bad("action must be one of: add, complete, reopen, update, set_setup (there is no delete)");
+    if (action === "set_domain") {
+      const host = bareHostname(String(b.domain || ""));
+      if (!host.includes(".")) return bad("domain must be the site's real domain, e.g. clientdomain.co.uk");
+      const row = first(await db.execute({ sql: "SELECT domain, lead_id FROM projects WHERE id = ?", args: [pid] }));
+      const current = String(row?.domain || "");
+      // A wrong domain moves a client's Site Health and audits onto someone else's
+      // site, so this only fills a blank. Changing one is Jay's, on the card.
+      if (current && bareHostname(current) !== host) return bad(`${name} already has the domain ${current} — change it on the card`, 409);
+      const domain = `https://${host}/`;
+      await db.execute({
+        sql: "UPDATE projects SET domain = ?, updated_at = ? WHERE id = ?",
+        args: [domain, new Date().toISOString(), pid],
+      });
+      if (row?.lead_id && !current) {
+        await db.execute({
+          sql: "INSERT INTO activities (lead_id, type, description, created_at) VALUES (?, 'task', ?, ?)",
+          args: [Number(row.lead_id), `Claude set the domain: ${domain}`, new Date().toISOString()],
+        });
+      }
+      return NextResponse.json({ ok: true, client: name, domain }, { headers: NO_STORE });
+    }
+
+    return bad("action must be one of: add, complete, reopen, update, set_setup, set_domain (there is no delete)");
   } catch (e) {
     if (e instanceof TaskError) return bad(e.message, e.status);
     throw e;
