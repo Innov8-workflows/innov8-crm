@@ -51,7 +51,7 @@ export default function SalesStreak() {
       <div className="flex-1" style={{ minWidth: 200 }}>
         <div className="flex justify-between text-xs mb-1">
           <span className="font-semibold" style={{ color: safe ? GOOD : "var(--text-secondary)" }}>
-            {safe ? "Streak safe for today" : `${left} more today to keep it going`}
+            {safe ? "Streak safe for today" : `${left} more today to ${streak > 0 ? "keep it going" : "start a streak"}`}
           </span>
           <span style={{ color: "var(--text-dim)" }}>{today.count} of {goal}</span>
         </div>
@@ -71,7 +71,7 @@ export default function SalesStreak() {
 }
 
 function Dot({ d, isToday, goal }: { d: StreakDay; isToday: boolean; goal: number }) {
-  const background = d.met ? GOOD : d.weekend || isToday ? "var(--surface3)" : "var(--border)";
+  const background = d.met ? GOOD : d.weekend || isToday ? "var(--surface3)" : "var(--text-quaternary)";
   return (
     <span title={`${dayLabel(d.day)}: ${d.count} of ${goal}${d.weekend && !d.met ? " (weekend)" : ""}`} className="inline-block rounded-sm"
       style={{ width: 12, height: 12, background, outline: isToday ? "1px solid var(--accent)" : "none", outlineOffset: 1, opacity: d.weekend && !d.met ? 0.5 : 1 }} />
