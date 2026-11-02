@@ -80,16 +80,16 @@ export function startEffect(canvas: HTMLCanvasElement, kind: EffectKind, duratio
   };
   fit();
 
-  // A first run spreads particles out beyond the edge, so they arrive over time.
+  // The first run scatters particles over the screen, fading in, so an effect shows
+  // at once. After that they come back in from the edge.
   const seed = (p: Particle, first: boolean) => {
     if (!drift) return;
     const speed = rand(...drift.speed);
     if (drift.dir === "across") {
-      p.x = first ? rand(-w, -40) : -60; p.y = rand(h * 0.05, h * 0.8); p.vx = speed; p.vy = 0;
+      p.x = first ? rand(-w * 0.2, w * 0.8) : -60; p.y = rand(h * 0.05, h * 0.8); p.vx = speed; p.vy = 0;
     } else {
-      const start = first ? rand(0, h) : 0;
       p.x = rand(0, w);
-      p.y = drift.dir === "down" ? -30 - start : h + 30 + start;
+      p.y = first ? rand(0, h) : drift.dir === "down" ? -30 : h + 30;
       p.vx = 0; p.vy = drift.dir === "down" ? speed : -speed;
     }
   };
@@ -158,7 +158,7 @@ export function startEffect(canvas: HTMLCanvasElement, kind: EffectKind, duratio
   };
 
   const draw = (p: Particle) => {
-    ctx.globalAlpha = p.life ? p.alpha * (1 - p.age / p.life) : p.alpha;
+    ctx.globalAlpha = p.life ? p.alpha * (1 - p.age / p.life) : p.alpha * (p.shape ? Math.min(1, p.age / 1.5) : 1);
     if (p.shape && drift) {
       const sway = Math.sin(p.age * 0.9 + p.phase) * drift.sway;
       const k = p.size / 24;
@@ -212,7 +212,7 @@ export function startEffect(canvas: HTMLCanvasElement, kind: EffectKind, duratio
     if (stopped) return;
     raf = requestAnimationFrame(frame);
     if (ts - last < 32) return;
-    const dt = Math.min((ts - last) / 1000, 0.1);
+    const dt = Math.min((ts - last) / 1000, 0.25);
     last = ts;
     elapsed += dt * 1000;
     const ending = durationMs !== null && elapsed > durationMs;
