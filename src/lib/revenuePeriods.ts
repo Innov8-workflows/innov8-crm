@@ -69,7 +69,7 @@ function ownerClause(ownerParam: string | null, args: InValue[]): string {
  * MAX() here is SQLite's SCALAR max, not the aggregate. '' loses to any real date, so
  * a missing won_at degrades to "no floor" rather than NULL-poisoning the comparison.
  */
-const EFFECTIVE_START = `
+export const EFFECTIVE_START = `
   CASE
     WHEN es.notes = '${MIGRATED_NOTE}' AND COALESCE(p.won_at,'') != '' THEN p.won_at
     WHEN COALESCE(es.sold_at,'')     != '' THEN MAX(substr(es.sold_at,1,10),     COALESCE(p.won_at,''))

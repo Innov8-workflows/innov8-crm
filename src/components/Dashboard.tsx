@@ -5,6 +5,7 @@ import LoadingAI from "./LoadingAI";
 import Icon from "./Icon";
 import RevenueOverview, { gbp, type RevenuePeriod, type SeriesPoint } from "./RevenueOverview";
 import WonDatesModal from "./WonDatesModal";
+import SalesTarget from "./SalesTarget";
 import { dayBefore, monthEnd, presetRange, type DayRange, type RangePreset } from "@/lib/dateRange";
 
 interface TypeBreakdown {
@@ -126,6 +127,8 @@ export default function Dashboard({
 
   return (
     <div className="flex-1 overflow-auto px-5 pb-5 space-y-5">
+      <SalesTarget active={active} />
+
       {revenue ? (
         <RevenueOverview revenue={revenue} context={context.length ? context : revenue.series}
           range={range} preset={revenuePreset} onRangeChange={onRevenueRangeChange}

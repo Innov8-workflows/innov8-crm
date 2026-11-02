@@ -61,7 +61,7 @@ async function doInitDb() {
   // ~100-300ms, so this is the single biggest "slow first load" win. Bump
   // SCHEMA_VERSION whenever a migration/index/seed below changes → the heavy block
   // re-runs exactly once on the next deploy, then cold starts go fast again.
-  const SCHEMA_VERSION = "2026-10-29-showcase";
+  const SCHEMA_VERSION = "2026-11-02-sales-targets";
   await db.execute("CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT DEFAULT '')");
   const schemaMarker = first(await db.execute("SELECT value FROM app_meta WHERE key = 'schema_version'"));
   if (schemaMarker?.value === SCHEMA_VERSION) return;
@@ -738,6 +738,19 @@ async function doInitDb() {
       FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
     );
     CREATE INDEX IF NOT EXISTS idx_security_failures_project ON security_failures(project_id, scanned_at);
+
+    -- Monthly sales target. A row applies from its month until a later row replaces
+    -- it, so a change never rewrites the target an earlier month was judged against
+    -- (src/lib/salesTargets.ts). Seeded from the Aug to Oct 2026 average of about
+    -- £1,700 new recurring, £1,950 setup and 7 clients.
+    CREATE TABLE IF NOT EXISTS sales_targets (
+      month TEXT PRIMARY KEY,
+      new_mrr REAL NOT NULL DEFAULT 0,
+      setup_fees REAL NOT NULL DEFAULT 0,
+      new_clients INTEGER NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    INSERT OR IGNORE INTO sales_targets (month, new_mrr, setup_fees, new_clients) VALUES ('2026-11', 2000, 2000, 8);
   `);
 
   const migrations = [
