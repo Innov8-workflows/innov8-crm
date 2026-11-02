@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getClient, initDb } from "@/lib/db";
 import { deleteLeads, blockedMessage } from "@/lib/deleteLeads";
+import { recordOutreach } from "@/lib/salesStreak";
 
 export async function POST(request: NextRequest) {
   await initDb();
@@ -18,6 +19,9 @@ export async function POST(request: NextRequest) {
     const allowed = ["status", "emailed", "messaged", "responded", "followed_up", "business_type", "follow_up_date", "website_status"];
     if (!allowed.includes(field)) return NextResponse.json({ error: "field not allowed" }, { status: 400 });
     await db.execute({ sql: `UPDATE leads SET ${field} = ?, updated_at = ? WHERE id IN (${placeholders})`, args: [value, now, ...ids] });
+    if (field === "emailed" || field === "messaged") {
+      await recordOutreach(db, field === "emailed" ? "email" : "message", ids.map(Number), Number(value) === 1);
+    }
   } else if (action === "delete") {
     const { deleted, blocked } = await deleteLeads(db, ids);
     return NextResponse.json({

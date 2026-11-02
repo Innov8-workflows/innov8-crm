@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { WIN_EVENT } from "@/lib/celebrate";
 import {
   useReactTable,
   getCoreRowModel,
@@ -530,11 +531,16 @@ export default function LeadGrid({ ownerFilter = "" }: { ownerFilter?: string })
 
     // Auto-create project when lead is marked as "won"
     if (field === "status" && value === "won") {
-      await fetch("/api/projects", {
+      const res = await fetch("/api/projects", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ lead_id: id }),
       });
       toast("Lead won — project created!");
+      // A 409 means they were already a client, so only a first win celebrates.
+      if (res.ok) {
+        const name = leadsRef.current.find((l) => l.id === id)?.business_name || "";
+        window.dispatchEvent(new CustomEvent(WIN_EVENT, { detail: name }));
+      }
     }
   }, [toast, getAutoStage]);
 

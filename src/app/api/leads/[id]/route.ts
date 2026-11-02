@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getClient, initDb, first } from "@/lib/db";
 import { deleteLeads, blockedMessage } from "@/lib/deleteLeads";
+import { recordOutreach } from "@/lib/salesStreak";
 
 export async function GET(
   _request: NextRequest,
@@ -49,6 +50,8 @@ export async function PUT(
   values.push(Number(id));
 
   await db.execute({ sql: `UPDATE leads SET ${updates.join(", ")} WHERE id = ?`, args: values as never[] });
+  if ("emailed" in body) await recordOutreach(db, "email", [Number(id)], Number(body.emailed) === 1);
+  if ("messaged" in body) await recordOutreach(db, "message", [Number(id)], Number(body.messaged) === 1);
 
   const lead = first(await db.execute({ sql: "SELECT * FROM leads WHERE id = ?", args: [Number(id)] }));
   return NextResponse.json(lead);

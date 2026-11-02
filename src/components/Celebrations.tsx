@@ -12,7 +12,8 @@ import { gbp } from "@/lib/money";
 import { ukToday } from "@/lib/dateRange";
 import { seasonFor, type Season } from "@/lib/seasons";
 import { startEffect, type EffectKind } from "@/lib/effectEngine";
-import { CELEBRATE_EVENT, PREVIEW_EVENT, SEASONAL_EVENT, celebratedKey, momentFor, seasonalOn, type Moment } from "@/lib/celebrate";
+import { playKaching } from "@/lib/effectSound";
+import { CELEBRATE_EVENT, MILESTONE_KEY, PREVIEW_EVENT, SEASONAL_EVENT, WIN_EVENT, celebratedKey, milestoneAt, momentFor, seasonalOn, type Moment } from "@/lib/celebrate";
 import type { SalesTargetResponse } from "@/lib/salesTargets";
 
 const SEASON_EFFECT: Record<Season, EffectKind> = {
@@ -29,11 +30,13 @@ const TARGET_EVERY_MS = 5 * 60_000;
 const BANNER_MS = 8_000;
 const BULBS = ["#ef4444", "#fbbf24", "#22c55e", "#38bdf8"];
 
+interface Banner { title: string; name?: string; sub: string }
+
 const monthLabel = (m: string) => new Date(`${m}-15T12:00:00Z`).toLocaleDateString("en-GB", { month: "long", timeZone: "UTC" });
 
 export default function Celebrations() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [moment, setMoment] = useState<Moment | null>(null);
+  const [banner, setBanner] = useState<Banner | null>(null);
   const [lights, setLights] = useState(false);
 
   useEffect(() => {
@@ -76,13 +79,27 @@ export default function Celebrations() {
         .catch(() => {});
     };
 
-    const celebrate = (m: Moment) => {
+    const fanfare = (b: Banner, big: boolean) => {
       celebrating = true;
-      setMoment(m);
+      setBanner(b);
+      playKaching();
       window.clearTimeout(bannerTimer);
-      bannerTimer = window.setTimeout(() => setMoment(null), BANNER_MS);
-      play(m.record ? "fireworks" : "confetti", m.record ? 6000 : 3000, () => { celebrating = false; previewing = false; seasonal(); });
+      bannerTimer = window.setTimeout(() => setBanner(null), BANNER_MS);
+      play(big ? "fireworks" : "confetti", big ? 6000 : 3000, () => { celebrating = false; previewing = false; seasonal(); });
     };
+
+    const celebrate = (m: Moment) => fanfare({
+      title: `${m.record ? "New record month. " : ""}${monthLabel(m.month)} target hit.`,
+      sub: `${gbp(m.amount)} sold${m.run >= 3 ? ` · ${m.run} months in a row` : ""}`,
+    }, m.record);
+
+    const celebrateWin = (name: string, clients: number | null) => fanfare({
+      title: "New client won.", name, sub: clients ? `Client number ${clients}` : "Project created",
+    }, false);
+
+    const celebrateMilestone = (m: number) => fanfare({
+      title: `${gbp(m)} a month.`, sub: `That's ${gbp(m * 12)} a year in recurring revenue`,
+    }, true);
 
     const alreadyDone = (month: string) => {
       if (done.has(month)) return true;
@@ -96,10 +113,28 @@ export default function Celebrations() {
         .then((r) => (r.ok ? r.json() : null))
         .then((data: SalesTargetResponse | null) => {
           const m = data && momentFor(data);
-          if (!m || alreadyDone(m.month)) return;
+          if (!m || alreadyDone(m.month)) { checkMilestone(); return; }
           done.add(m.month);
           try { localStorage.setItem(celebratedKey(m.month), "1"); } catch {}
           celebrate(m);
+        })
+        .catch(() => {});
+    };
+
+    // The first run in a browser only notes where MRR already stands, so landmarks
+    // passed long ago don't all go off at once. Each new one fires once after that.
+    const checkMilestone = () => {
+      if (celebrating) return;
+      fetch("/api/celebrations", { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d: { mrr?: number } | null) => {
+          if (!d?.mrr) return;
+          const reached = milestoneAt(d.mrr);
+          let stored: string | null = String(reached);
+          try { stored = localStorage.getItem(MILESTONE_KEY); } catch {}
+          if (stored !== null && reached <= Number(stored)) return;
+          try { localStorage.setItem(MILESTONE_KEY, String(reached)); } catch {}
+          if (stored !== null) celebrateMilestone(reached);
         })
         .catch(() => {});
     };
@@ -108,11 +143,15 @@ export default function Celebrations() {
       const after = () => { previewing = false; seasonal(); };
       halt();
       window.clearTimeout(bannerTimer);
-      setMoment(null);
+      setBanner(null);
       setLights(false);
       celebrating = false;
       previewing = true;
-      if (name === "target" || name === "record") {
+      if (name === "win") {
+        celebrateWin("Example Roofing", 34);
+      } else if (name === "milestone") {
+        celebrateMilestone(10000);
+      } else if (name === "target" || name === "record") {
         const record = name === "record";
         celebrate({ month: ukToday().slice(0, 7), amount: 2140, record, run: record ? 3 : 1 });
       } else if (name === "snow") {
@@ -125,6 +164,13 @@ export default function Celebrations() {
       }
     };
 
+    const onWin = (e: Event) => {
+      const name = (e as CustomEvent<string>).detail;
+      fetch("/api/celebrations", { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d: { clients?: number } | null) => celebrateWin(name, d?.clients ?? null))
+        .catch(() => celebrateWin(name, null));
+    };
     const onPreview = (e: Event) => runPreview((e as CustomEvent<string>).detail);
     const onReplay = (e: Event) => celebrate((e as CustomEvent<Moment>).detail);
     const onToggle = () => {
@@ -134,6 +180,7 @@ export default function Celebrations() {
     };
     window.addEventListener(CELEBRATE_EVENT, onReplay);
     window.addEventListener(PREVIEW_EVENT, onPreview);
+    window.addEventListener(WIN_EVENT, onWin);
     window.addEventListener(SEASONAL_EVENT, onToggle);
     document.addEventListener("visibilitychange", checkTarget);
 
@@ -157,6 +204,7 @@ export default function Celebrations() {
       timers.forEach((t) => window.clearInterval(t));
       window.removeEventListener(CELEBRATE_EVENT, onReplay);
       window.removeEventListener(PREVIEW_EVENT, onPreview);
+      window.removeEventListener(WIN_EVENT, onWin);
       window.removeEventListener(SEASONAL_EVENT, onToggle);
       document.removeEventListener("visibilitychange", checkTarget);
       halt();
@@ -177,19 +225,19 @@ export default function Celebrations() {
         </div>
       )}
 
-      {moment && (
+      {banner && (
         <div role="status" className="crm-banner fixed left-1/2 flex items-center gap-3 px-4 py-3 rounded-xl"
           style={{ zIndex: 61, top: 64, background: "var(--surface)", border: "1px solid var(--accent)", boxShadow: "0 12px 32px rgba(0,0,0,0.35)", maxWidth: "calc(100vw - 32px)" }}>
           <Icon name="trophy" className="w-6 h-6 flex-shrink-0" style={{ color: "var(--accent)" }} />
           <div>
             <div className="text-sm font-bold" style={{ color: "var(--text)" }}>
-              {moment.record ? `New record month. ${monthLabel(moment.month)} target hit.` : `${monthLabel(moment.month)} target hit.`}
+              {banner.title}{banner.name && <span className="cf-name"> {banner.name}</span>}
             </div>
             <div className="text-xs" style={{ color: "var(--text-secondary)" }}>
-              {gbp(moment.amount)} sold{moment.run >= 3 ? ` · ${moment.run} months in a row` : ""}
+              {banner.sub}
             </div>
           </div>
-          <button onClick={() => setMoment(null)} className="text-xs px-2 py-1" style={{ color: "var(--text-dim)" }}>Close</button>
+          <button onClick={() => setBanner(null)} className="text-xs px-2 py-1" style={{ color: "var(--text-dim)" }}>Close</button>
         </div>
       )}
     </>

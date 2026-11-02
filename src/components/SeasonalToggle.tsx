@@ -1,11 +1,11 @@
 "use client";
 
-// Top-bar menu for the effects: the seasonal on/off switch, and a list that plays any
+// Top-bar menu for the effects: seasonal and sound switches, and a list that plays any
 // effect on demand. The switch doesn't touch target celebrations: they're rare, earned,
 // and each one can be closed. Previews write nothing, so they can't use up a real one.
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Icon from "./Icon";
-import { PREVIEWS, PREVIEW_EVENT, SEASONAL_EVENT, seasonalOn, setSeasonal } from "@/lib/celebrate";
+import { PREVIEWS, PREVIEW_EVENT, SEASONAL_EVENT, seasonalOn, setSeasonal, setSounds, soundsOn } from "@/lib/celebrate";
 
 const subscribe = (notify: () => void) => {
   window.addEventListener(SEASONAL_EVENT, notify);
@@ -16,6 +16,7 @@ const preview = (name: string) => window.dispatchEvent(new CustomEvent(PREVIEW_E
 
 export default function SeasonalToggle() {
   const on = useSyncExternalStore(subscribe, seasonalOn, () => true);
+  const sounds = useSyncExternalStore(subscribe, soundsOn, () => true);
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -53,6 +54,11 @@ export default function SeasonalToggle() {
             aria-pressed={on} onClick={() => setSeasonal(!on)} {...hover}>
             Seasonal effects
             <span className="text-xs font-bold" style={{ color: on ? "#22c55e" : "var(--text-dim)" }}>{on ? "On" : "Off"}</span>
+          </button>
+          <button className={`${row} flex items-center justify-between font-semibold`} style={{ color: "var(--text)" }}
+            aria-pressed={sounds} onClick={() => setSounds(!sounds)} {...hover}>
+            Celebration sounds
+            <span className="text-xs font-bold" style={{ color: sounds ? "#22c55e" : "var(--text-dim)" }}>{sounds ? "On" : "Off"}</span>
           </button>
           <div className="px-3 pt-2 pb-1 text-xs" style={{ color: "var(--text-dim)", borderTop: "1px solid var(--border)" }}>Preview</div>
           {PREVIEWS.map(([name, label]) => (

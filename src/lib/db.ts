@@ -61,7 +61,7 @@ async function doInitDb() {
   // ~100-300ms, so this is the single biggest "slow first load" win. Bump
   // SCHEMA_VERSION whenever a migration/index/seed below changes → the heavy block
   // re-runs exactly once on the next deploy, then cold starts go fast again.
-  const SCHEMA_VERSION = "2026-11-02-onboarding-complete";
+  const SCHEMA_VERSION = "2026-11-02-outreach-events";
   await db.execute("CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT DEFAULT '')");
   const schemaMarker = first(await db.execute("SELECT value FROM app_meta WHERE key = 'schema_version'"));
   if (schemaMarker?.value === SCHEMA_VERSION) return;
@@ -747,6 +747,16 @@ async function doInitDb() {
     -- it, so a change never rewrites the target an earlier month was judged against
     -- (src/lib/salesTargets.ts). Seeded from the Aug to Oct 2026 average of about
     -- £1,700 new recurring, £1,950 setup and 7 clients.
+    -- One row per lead contacted one way on one day, written when an outreach tick goes
+    -- on, because those ticks have no date of their own. See src/lib/salesStreak.ts.
+    CREATE TABLE IF NOT EXISTS outreach_events (
+      day TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      lead_id INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (day, kind, lead_id)
+    );
+
     CREATE TABLE IF NOT EXISTS sales_targets (
       month TEXT PRIMARY KEY,
       new_mrr REAL NOT NULL DEFAULT 0,

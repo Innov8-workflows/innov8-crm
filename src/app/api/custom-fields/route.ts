@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getClient, initDb, all } from "@/lib/db";
+import { recordOutreach, type OutreachKind } from "@/lib/salesStreak";
+
+const OUTREACH_FIELDS: Record<string, OutreachKind> = { custom_called: "call", custom_fb_messenger: "message" };
 
 // GET: fetch all custom field values (optionally for a specific lead)
 export async function GET(request: NextRequest) {
@@ -42,6 +45,7 @@ export async function PUT(request: NextRequest) {
           ON CONFLICT(lead_id, field_id) DO UPDATE SET value = ?`,
     args: [lead_id, field_id, value || "", value || ""],
   });
+  if (OUTREACH_FIELDS[field_id]) await recordOutreach(db, OUTREACH_FIELDS[field_id], [Number(lead_id)], String(value) === "1");
 
   return NextResponse.json({ ok: true });
 }

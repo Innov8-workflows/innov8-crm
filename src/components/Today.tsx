@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Icon, { type IconName } from "./Icon";
 import LoadingAI from "./LoadingAI";
 import MorningBrief from "./MorningBrief";
+import SalesStreak from "./SalesStreak";
 
 // The "Today" view: one screen of what needs Jay this morning. The top half is
 // live CRM data from /api/today (no AI). The morning brief from Claude's 8am
@@ -81,6 +82,8 @@ export default function Today({ onNavigate }: { onNavigate: (v: NavTarget) => vo
           </div>
         )}
       </div>
+
+      <SalesStreak />
 
       {d && (
         <div className="px-5 py-4 grid gap-4 lg:grid-cols-2">
