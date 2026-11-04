@@ -71,14 +71,25 @@ export function buildExport(
   // the website questionnaire, and site_config_draft feeds the site-buildout
   // skill. A second form gets its own builder rather than a flag in here.
   const form = formFor("website");
-  const biz = str(answers, "business_name");
-  const phone = parsePhone(str(answers, "phone_mobile"));
+
+  // Every answer the export reads goes through A, which records the field id.
+  // Whatever the client answered that nothing below reads is returned in
+  // `unmapped` with its form label, so a new or forgotten field can never drop
+  // out of the build silently. Smart Call (#39, 2026-11-04) lost a Bark profile
+  // with 102 reviews this way: it was typed into "Anything else" (other_social),
+  // which the export never read.
+  const seen = new Set<string>();
+  const A = new Proxy(answers, {
+    get(t, k) { if (typeof k === "string") seen.add(k); return (t as Record<string, unknown>)[k as string]; },
+  });
+  const biz = str(A, "business_name");
+  const phone = parsePhone(str(A, "phone_mobile"));
   const shortName = biz.replace(/\b(Ltd|Limited|LTD|Ltd\.)\b/g, "").trim();
 
-  const primaryAreas = lines(answers, "primary_areas");
-  const primaryServices = lines(answers, "primary_services");
+  const primaryAreas = lines(A, "primary_areas");
+  const primaryServices = lines(A, "primary_services");
 
-  // Per-area and per-service answers are saved by the index of the parent
+  // Per-area and per-service A are saved by the index of the parent
   // line as the FORM counted it (newlines only) - see lib/forms/lines.ts. Index
   // by that, then expand the line on commas, so "Belper, Alfreton" on one line
   // gives both towns the same villages instead of shifting every later answer
@@ -88,26 +99,26 @@ export function buildExport(
   // pages from: a town only gets its own page with real jobs, photos or reviews
   // behind it. Kept as the raw line plus its items so nothing is lost.
   const nearby: Record<string, string[]> = {};
-  const areaEvidence = parentLines(answers.primary_areas).map((line, i) => {
+  const areaEvidence = parentLines(A.primary_areas).map((line, i) => {
     const towns = splitItems(line);
-    const near = lines(answers, `area_nearby__${i}`);
+    const near = lines(A, `area_nearby__${i}`);
     if (near.length) for (const t of towns) nearby[t] = near;
     return {
       line, towns, nearby: near,
-      jobs: str(answers, `area_jobs__${i}`),
-      notes: str(answers, `area_notes__${i}`),
+      jobs: str(A, `area_jobs__${i}`),
+      notes: str(A, `area_notes__${i}`),
     };
   });
   const serviceDetail: Record<string, string> = {};
-  const serviceEvidence = parentLines(answers.primary_services).map((line, i) => {
+  const serviceEvidence = parentLines(A.primary_services).map((line, i) => {
     const names = splitItems(line);
-    const detail = str(answers, `service_detail__${i}`);
+    const detail = str(A, `service_detail__${i}`);
     if (detail) for (const n of names) serviceDetail[n] = detail;
     return {
       line, names, detail,
-      method: str(answers, `service_method__${i}`),
-      job: str(answers, `service_job__${i}`),
-      wrong: str(answers, `service_wrong__${i}`),
+      method: str(A, `service_method__${i}`),
+      job: str(A, `service_job__${i}`),
+      wrong: str(A, `service_wrong__${i}`),
     };
   });
 
@@ -118,7 +129,7 @@ export function buildExport(
     ["trustedtrader", "trustedtrader"], ["yell", "yell"],
     ["myjobquotes", "myjobquotes"], ["instagram", "instagram"],
   ] as const) {
-    const v = str(answers, field);
+    const v = str(A, field);
     if (v) reviews[key] = v;
   }
 
@@ -139,7 +150,7 @@ export function buildExport(
 
   const counts = assets.reduce((acc, a) => { acc[a.role] = (acc[a.role] || 0) + 1; return acc; }, {} as Record<string, number>);
 
-  return {
+  const out = {
     id: Number(submission.id),
     business_name: biz || String(submission.business_name ?? ""),
     status: String(submission.status ?? ""),
@@ -148,56 +159,62 @@ export function buildExport(
 
     // --- the parse-onboarding.js --json contract -------------------------
     biz,
-    owner: str(answers, "owner_name"),
-    ownerShort: str(answers, "owner_short"),
-    domain: str(answers, "preferred_domain"),
-    addr: str(answers, "office_address"),
-    email: str(answers, "email"),
+    owner: str(A, "owner_name"),
+    ownerShort: str(A, "owner_short"),
+    domain: str(A, "preferred_domain"),
+    addr: str(A, "office_address"),
+    email: str(A, "email"),
     phone,
-    landline: parsePhone(str(answers, "phone_landline")),
-    whatsapp: parsePhone(str(answers, "whatsapp_number")) || phone,
-    years: str(answers, "years_trading"),
-    team: str(answers, "team_size"),
-    story: str(answers, "owner_story"),
-    tagline: str(answers, "tagline"),
+    landline: parsePhone(str(A, "phone_landline")),
+    whatsapp: parsePhone(str(A, "whatsapp_number")) || phone,
+    years: str(A, "years_trading"),
+    team: str(A, "team_size"),
+    story: str(A, "owner_story"),
+    tagline: str(A, "tagline"),
     primaryServices,
     primaryAreas,
-    secondaryServices: lines(answers, "secondary_services"),
-    secondaryAreas: lines(answers, "secondary_areas"),
+    secondaryServices: lines(A, "secondary_services"),
+    secondaryAreas: lines(A, "secondary_areas"),
     reviews,
-    gbp: str(answers, "google_business_profile"),
+    gbp: str(A, "google_business_profile"),
+    facebookPage: str(A, "facebook_page"),
+    // "Anything else" under Credentials and reviews: other profiles and
+    // memberships in the client's own words, plus every link pulled out of it.
+    // A review platform here (Bark, MyBuilder, Rated People) is checked like any other.
+    otherProfiles: str(A, "other_social"),
+    otherProfileLinks: str(A, "other_social").match(/https?:\/\/[^\s,]+/g) || [],
     confirm,
     missing,
 
     // --- what the old form never captured --------------------------------
-    town: str(answers, "home_town"),
-    county: str(answers, "county"),
-    postcodeArea: str(answers, "postcode_area"),
-    openingHours: str(answers, "opening_hours"),
-    scheme: str(answers, "scheme_name"),
-    schemeNumber: str(answers, "scheme_number"),
+    town: str(A, "home_town"),
+    county: str(A, "county"),
+    postcodeArea: str(A, "postcode_area"),
+    openingHours: str(A, "opening_hours"),
+    scheme: str(A, "scheme_name"),
+    schemeNumber: str(A, "scheme_number"),
     nearby,
     serviceDetail,
     areaEvidence,
     serviceEvidence,
-    reviewQuotes: str(answers, "review_quotes"),
-    topServices: str(answers, "top_services"),
-    customerQuestions: str(answers, "customer_questions"),
-    usp: str(answers, "usp"),
-    aboutTeam: str(answers, "about_team"),
-    targetAudience: str(answers, "target_audience"),
+    reviewQuotes: str(A, "review_quotes"),
+    topServices: str(A, "top_services"),
+    customerQuestions: str(A, "customer_questions"),
+    usp: str(A, "usp"),
+    aboutTeam: str(A, "about_team"),
+    targetAudience: str(A, "target_audience"),
     ratings: {
-      google: { score: str(answers, "google_rating"), count: str(answers, "google_review_count") },
-      facebook: { score: str(answers, "facebook_rating"), count: str(answers, "facebook_review_count") },
+      google: { score: str(A, "google_rating"), count: str(A, "google_review_count") },
+      facebook: { score: str(A, "facebook_rating"), count: str(A, "facebook_review_count") },
     },
     brand: {
-      colours: str(answers, "brand_colours"),
-      font: str(answers, "brand_font"),
-      style: str(answers, "style_preference"),
-      reference: str(answers, "style_reference"),
+      colours: str(A, "brand_colours"),
+      font: str(A, "brand_font"),
+      style: str(A, "style_preference"),
+      reference: str(A, "style_reference"),
     },
-    contactWidgets: Array.isArray(answers.contact_widgets) ? answers.contact_widgets : [],
-    notes: str(answers, "additional_notes"),
+    contactWidgets: Array.isArray(A.contact_widgets) ? A.contact_widgets : [],
+    notes: str(A, "additional_notes"),
 
     assets,
     asset_counts: counts,
@@ -208,14 +225,14 @@ export function buildExport(
       trade: "[SET THIS]",
       mode: "client",
       direction: null,
-      origin: str(answers, "preferred_domain"),
-      owner: str(answers, "owner_name"),
-      email: str(answers, "email"),
-      address: str(answers, "office_address"),
+      origin: str(A, "preferred_domain"),
+      owner: str(A, "owner_name"),
+      email: str(A, "email"),
+      address: str(A, "office_address"),
       services: primaryServices,
-      servicesSecondary: lines(answers, "secondary_services"),
+      servicesSecondary: lines(A, "secondary_services"),
       areas: primaryAreas,
-      areasSecondary: lines(answers, "secondary_areas"),
+      areasSecondary: lines(A, "secondary_areas"),
       reviews,
       // Never populated from a form. See the header of this file.
       claims: {},
@@ -223,7 +240,7 @@ export function buildExport(
         BUSINESS: biz || "[PLACEHOLDER]",
         BUSINESS_SHORT: shortName || "[PLACEHOLDER]",
         // No looksLikeTown() guess any more: the form asks for the town outright.
-        TOWN: str(answers, "home_town") || "[PLACEHOLDER]",
+        TOWN: str(A, "home_town") || "[PLACEHOLDER]",
         PHONE: phone?.display || "[PLACEHOLDER]",
         PHONE_TEL: phone?.tel || "[PLACEHOLDER]",
         PHONE_WA: phone?.wa || "[PLACEHOLDER]",
@@ -238,6 +255,14 @@ export function buildExport(
       total: s.fields.filter((f) => f.type !== "upload").length,
     })),
   };
+
+  // Claim-gated answers are already in confirm[], and uploads arrive as assets.
+  const filled = (v: unknown) =>
+    typeof v === "string" ? v.trim() !== "" : v != null && JSON.stringify(v) !== "[]" && JSON.stringify(v) !== "{}";
+  const unmapped = Object.keys(answers)
+    .filter((k) => !seen.has(k) && !form.fields[k]?.claimGated && form.fields[k]?.type !== "upload" && filled(answers[k]))
+    .map((k) => ({ field: k, label: form.fields[k]?.label || k, value: answers[k] }));
+  return { ...out, unmapped };
 }
 
 /**
